@@ -1,0 +1,20 @@
+/* 导入CSS变量 */
+@import '../../styles/variables.css';
+
+/* 用户列表 */
+.user-list {
+  margin-top: var(--spacing-lg);
+}
+
+/* 添加用户表单 */
+.add-user-form {
+  margin-bottom: var(--spacing-lg);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .add-user-form {
+    padding: var(--spacing-md);
+  }
+}

@@ -1,0 +1,56 @@
+/* 导入CSS变量 */
+@import '../../styles/variables.css';
+
+/* 登录容器 */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: var(--spacing-lg);
+}
+
+/* 登录表单 */
+.login-form {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.login-form h1 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--secondary-color);
+}
+
+.login-form h2 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+/* 登录信息 */
+.login-info {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.login-info p {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .login-form {
+    padding: var(--spacing-lg);
+  }
+  
+  .login-container {
+    padding: var(--spacing-md);
+  }
+}

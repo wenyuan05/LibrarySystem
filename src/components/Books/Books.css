@@ -1,0 +1,20 @@
+/* 导入CSS变量 */
+@import '../../styles/variables.css';
+
+/* 书籍列表 */
+.book-list {
+  margin-top: var(--spacing-lg);
+}
+
+/* 添加书籍表单 */
+.add-book-form {
+  margin-bottom: var(--spacing-lg);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .add-book-form {
+    padding: var(--spacing-md);
+  }
+}
