@@ -20,6 +20,64 @@ const validateLoginBody = (req, res, next) => {
     res.status(400).json({ error: 'Username and password are required' });
     return;
   }
+  if (username.length < 3 || username.length > 20) {
+    res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return;
+  }
+  next();
+};
+
+// 注册请求体验证中间件
+const validateRegisterBody = (req, res, next) => {
+  const { username, password, name, email } = req.body;
+  if (!username || !password || !name || !email) {
+    res.status(400).json({ error: 'Username, password, name and email are required' });
+    return;
+  }
+  if (username.length < 3 || username.length > 20) {
+    res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return;
+  }
+  if (name.length < 2 || name.length > 50) {
+    res.status(400).json({ error: 'Name must be between 2 and 50 characters' });
+    return;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ error: 'Invalid email format' });
+    return;
+  }
+  next();
+};
+
+// 书籍请求体验证中间件
+const validateBookBody = (req, res, next) => {
+  const { title, author, isbn } = req.body;
+  if (!title || !author || !isbn) {
+    res.status(400).json({ error: 'Title, author and ISBN are required' });
+    return;
+  }
+  if (title.length < 1 || title.length > 100) {
+    res.status(400).json({ error: 'Title must be between 1 and 100 characters' });
+    return;
+  }
+  if (author.length < 1 || author.length > 50) {
+    res.status(400).json({ error: 'Author must be between 1 and 50 characters' });
+    return;
+  }
+  const isbnRegex = /^\d{10}(?:\d{3})?$/;
+  if (!isbnRegex.test(isbn)) {
+    res.status(400).json({ error: 'ISBN must be 10 or 13 digits' });
+    return;
+  }
   next();
 };
 
@@ -96,7 +154,7 @@ app.post('/api/login', validateLoginBody, (req, res) => {
 });
 
 // 用户注册（普通用户自助注册）
-app.post('/api/register', (req, res) => {
+app.post('/api/register', validateRegisterBody, (req, res) => {
   const { username, password, name, email } = req.body;
 
   if (!username || !password || !name || !email) {
@@ -404,7 +462,7 @@ app.get('/api/books/:id', authenticateToken, (req, res) => {
 });
 
 // 添加书籍（管理员）
-app.post('/api/books', authenticateToken, requireRole('admin'), (req, res) => {
+app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody, (req, res) => {
   const { title, author, isbn } = req.body;
   
   // 检查ISBN是否已存在
