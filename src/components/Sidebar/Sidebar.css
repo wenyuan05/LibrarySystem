@@ -91,7 +91,8 @@
   margin: 0;
 }
 
-.sidebar-nav button {
+.sidebar-nav button,
+.sidebar-nav a {
   width: 100%;
   padding: var(--spacing-md);
   background: none;
@@ -105,15 +106,18 @@
   align-items: center;
   gap: var(--spacing-md);
   margin-right: 0;
+  text-decoration: none;
 }
 
-.sidebar-nav button:hover {
+.sidebar-nav button:hover,
+.sidebar-nav a:hover {
   background-color: var(--secondary-light);
   transform: none;
   box-shadow: none;
 }
 
-.sidebar-nav li.active button {
+.sidebar-nav li.active button,
+.sidebar-nav li.active a {
   background-color: var(--primary-color);
 }
 

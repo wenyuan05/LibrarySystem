@@ -1,9 +1,11 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
-const Sidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   if (!user) return null;
 
@@ -15,42 +17,42 @@ const Sidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
       </div>
       
       <div className="user-info">
-        <h4>{user.name}</h4>
-        <p>{user.role === 'admin' ? 'Administrator' : 'User'}</p>
-        <p>{user.email}</p>
+        <h4>{user?.name || 'User'}</h4>
+        <p>{user?.role === 'admin' ? 'Administrator' : 'User'}</p>
+        <p>{user?.email || ''}</p>
       </div>
       
       <nav className="sidebar-nav">
         <ul>
-          <li className={activeTab === 'books' ? 'active' : ''}>
-            <button onClick={() => onTabChange('books')}>
+          <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
+            <Link to="/books" onClick={onClose}>
               <span className="nav-icon">📚</span>
               <span className="nav-text">Books</span>
-            </button>
+            </Link>
           </li>
           
           {user.role === 'user' && (
-            <li className={activeTab === 'borrow' ? 'active' : ''}>
-              <button onClick={() => onTabChange('borrow')}>
+            <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
+              <Link to="/borrow-records" onClick={onClose}>
                 <span className="nav-icon">📖</span>
                 <span className="nav-text">My Borrows</span>
-              </button>
+              </Link>
             </li>
           )}
           
           {user.role === 'admin' && (
             <>
-              <li className={activeTab === 'book-management' ? 'active' : ''}>
-                <button onClick={() => onTabChange('book-management')}>
+              <li className={location.pathname === '/book-management' ? 'active' : ''}>
+                <Link to="/book-management" onClick={onClose}>
                   <span className="nav-icon">📚</span>
                   <span className="nav-text">Book Management</span>
-                </button>
+                </Link>
               </li>
-              <li className={activeTab === 'users' ? 'active' : ''}>
-                <button onClick={() => onTabChange('users')}>
+              <li className={location.pathname === '/users' ? 'active' : ''}>
+                <Link to="/users" onClick={onClose}>
                   <span className="nav-icon">👥</span>
                   <span className="nav-text">User Management</span>
-                </button>
+                </Link>
               </li>
             </>
           )}

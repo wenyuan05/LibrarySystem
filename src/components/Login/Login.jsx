@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
@@ -9,6 +10,7 @@ const Login = () => {
   const [loginError, setLoginError] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const { login, register } = useAuth();
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -58,6 +60,8 @@ const Login = () => {
     
     try {
       await login(formData.username, formData.password);
+      // 登录成功后导航到首页
+      navigate('/');
     } catch (error) {
       setLoginError(error.message);
     } finally {
@@ -164,6 +168,8 @@ const Login = () => {
               
               try {
                 await register(registerData);
+                // 注册成功后导航到首页
+                navigate('/');
               } catch (error) {
                 setLoginError(error.message);
               } finally {

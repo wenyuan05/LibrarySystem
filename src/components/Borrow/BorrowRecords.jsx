@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
 import './Borrow.css';
 
@@ -9,6 +10,7 @@ const BorrowRecords = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // 加载借阅记录和书籍数据
   useEffect(() => {
@@ -59,10 +61,10 @@ const BorrowRecords = () => {
         b.id === book.id ? { ...b, status: 'available' } : b
       ));
       
-      alert('Book returned successfully');
+      showToast('Book returned successfully', 'success');
     } catch (err) {
       setError('Failed to return book');
-      alert(err.message);
+      showToast(err.message, 'error');
       console.error(err);
     }
   };
