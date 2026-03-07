@@ -1,41 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { booksAPI, borrowAPI } from '../../utils/api';
 import './Books.css';
 
-const BookList = () => {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
+  const [editingBook, setEditingBook] = useState(null);
   const { user } = useAuth();
-
-  // 加载书籍数据
-  useEffect(() => {
-    fetchBooks();
-  }, []);
-
-  const fetchBooks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await booksAPI.getAll();
-      setBooks(data);
-    } catch (err) {
-      setError('Failed to load books');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 处理书籍状态更新（管理员）
   const handleUpdateStatus = async (id, currentStatus) => {
     try {
       const newStatus = currentStatus === 'available' ? 'borrowed' : 'available';
       await booksAPI.updateStatus(id, newStatus);
-      setBooks(books.map(book => 
-        book.id === id ? { ...book, status: newStatus } : book
-      ));
+      const updatedBook = { ...books.find(book => book.id === id), status: newStatus };
+      if (onBookUpdated) {
+        onBookUpdated(updatedBook);
+      }
     } catch (err) {
       setError('Failed to update book status');
       console.error(err);
@@ -47,7 +28,9 @@ const BookList = () => {
     if (window.confirm('Are you sure you want to delete this book?')) {
       try {
         await booksAPI.delete(id);
-        setBooks(books.filter(book => book.id !== id));
+        if (onBookDeleted) {
+          onBookDeleted(id);
+        }
       } catch (err) {
         setError('Failed to delete book');
         console.error(err);
@@ -59,9 +42,10 @@ const BookList = () => {
   const handleBorrowBook = async (bookId) => {
     try {
       await borrowAPI.borrow(user.id, bookId);
-      setBooks(books.map(book => 
-        book.id === bookId ? { ...book, status: 'borrowed' } : book
-      ));
+      const updatedBook = { ...books.find(book => book.id === bookId), status: 'borrowed' };
+      if (onBookUpdated) {
+        onBookUpdated(updatedBook);
+      }
       alert('Book borrowed successfully');
     } catch (err) {
       setError('Failed to borrow book');
@@ -74,9 +58,10 @@ const BookList = () => {
   const handleReturnBook = async (bookId) => {
     try {
       await borrowAPI.return(user.id, bookId);
-      setBooks(books.map(book => 
-        book.id === bookId ? { ...book, status: 'available' } : book
-      ));
+      const updatedBook = { ...books.find(book => book.id === bookId), status: 'available' };
+      if (onBookUpdated) {
+        onBookUpdated(updatedBook);
+      }
       alert('Book returned successfully');
     } catch (err) {
       setError('Failed to return book');
@@ -139,6 +124,14 @@ const BookList = () => {
                   )
                 ) : (
                   <>
+                    {showEditButton && (
+                      <button 
+                        className="btn-info"
+                        onClick={() => onEditBook && onEditBook(book)}
+                      >
+                        Edit
+                      </button>
+                    )}
                     <button 
                       className="btn-success"
                       onClick={() => handleUpdateStatus(book.id, book.status)}

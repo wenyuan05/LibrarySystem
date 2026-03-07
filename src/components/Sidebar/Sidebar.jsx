@@ -39,12 +39,20 @@ const Sidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
           )}
           
           {user.role === 'admin' && (
-            <li className={activeTab === 'users' ? 'active' : ''}>
-              <button onClick={() => onTabChange('users')}>
-                <span className="nav-icon">👥</span>
-                <span className="nav-text">User Management</span>
-              </button>
-            </li>
+            <>
+              <li className={activeTab === 'book-management' ? 'active' : ''}>
+                <button onClick={() => onTabChange('book-management')}>
+                  <span className="nav-icon">📚</span>
+                  <span className="nav-text">Book Management</span>
+                </button>
+              </li>
+              <li className={activeTab === 'users' ? 'active' : ''}>
+                <button onClick={() => onTabChange('users')}>
+                  <span className="nav-icon">👥</span>
+                  <span className="nav-text">User Management</span>
+                </button>
+              </li>
+            </>
           )}
         </ul>
       </nav>

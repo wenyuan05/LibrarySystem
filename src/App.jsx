@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login/Login';
 import Sidebar from './components/Sidebar/Sidebar';
 import BookList from './components/Books/BookList';
 import AddBookForm from './components/Books/AddBookForm';
+import EditBookForm from './components/Books/EditBookForm';
 import BorrowRecords from './components/Borrow/BorrowRecords';
 import UserList from './components/Users/UserList';
 import AddUserForm from './components/Users/AddUserForm';
+import { booksAPI } from './utils/api';
 import './styles/global.css';
 
 // 主应用内容组件
@@ -14,6 +16,77 @@ const AppContent = () => {
   const { user, isAuthenticated } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('books');
+  const [books, setBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [booksLoading, setBooksLoading] = useState(true);
+  const [editingBook, setEditingBook] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // 加载书籍数据
+  const fetchBooks = async () => {
+    try {
+      setBooksLoading(true);
+      const data = await booksAPI.getAll();
+      setBooks(data);
+    } catch (err) {
+      console.error('Failed to load books:', err);
+    } finally {
+      setBooksLoading(false);
+    }
+  };
+
+  // 处理书籍添加
+  const handleBookAdded = (newBook) => {
+    setBooks(prevBooks => [...prevBooks, newBook]);
+  };
+
+  // 处理书籍更新
+  const handleBookUpdated = (updatedBook) => {
+    setBooks(prevBooks => prevBooks.map(book => 
+      book.id === updatedBook.id ? updatedBook : book
+    ));
+  };
+
+  // 处理书籍删除
+  const handleBookDeleted = (bookId) => {
+    setBooks(prevBooks => prevBooks.filter(book => book.id !== bookId));
+  };
+
+  // 组件挂载时加载书籍，确保用户已登录
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchBooks();
+    }
+  }, [isAuthenticated]);
+
+  // 处理书籍编辑
+  const handleBookEdit = (updatedBook) => {
+    setBooks(prevBooks => prevBooks.map(book => 
+      book.id === updatedBook.id ? updatedBook : book
+    ));
+  };
+
+  // 处理搜索
+  const handleSearch = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    if (term.trim() === '') {
+      setFilteredBooks(books);
+    } else {
+      const filtered = books.filter(book => 
+        book.title.toLowerCase().includes(term.toLowerCase()) ||
+        book.author.toLowerCase().includes(term.toLowerCase()) ||
+        book.isbn.includes(term)
+      );
+      setFilteredBooks(filtered);
+    }
+  };
+
+  // 当书籍列表变化时，更新过滤后的书籍
+  useEffect(() => {
+    setFilteredBooks(books);
+  }, [books]);
 
   // 如果未认证，显示登录页面
   if (!isAuthenticated) {
@@ -52,15 +125,84 @@ const AppContent = () => {
           {/* 书籍管理 */}
           {activeTab === 'books' && (
             <div className="books-section card fade-in">
-              <h2>Books Management</h2>
+              <h2>Books</h2>
               
-              {/* 添加书籍表单（仅管理员） */}
-              {user.role === 'admin' && (
-                <AddBookForm />
-              )}
+              {/* 搜索栏 */}
+              <div className="search-bar">
+                <input
+                  type="text"
+                  placeholder="Search books by title, author, or ISBN..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="search-input"
+                />
+              </div>
 
               {/* 书籍列表 */}
-              <BookList />
+              <BookList 
+                books={filteredBooks}
+                loading={booksLoading}
+                onBookUpdated={handleBookUpdated}
+                onBookDeleted={handleBookDeleted}
+              />
+            </div>
+          )}
+          
+          {/* 管理员书籍管理专门板块 */}
+          {activeTab === 'book-management' && user.role === 'admin' && (
+            <div className="book-management-section card fade-in">
+              <h2>Book Management</h2>
+              
+              {/* 操作栏 */}
+              <div className="action-bar">
+                <button 
+                  className="btn-primary"
+                  onClick={() => setShowAddForm(!showAddForm)}
+                >
+                  {showAddForm ? 'Cancel' : 'Add New Book'}
+                </button>
+                <div className="search-bar">
+                  <input
+                    type="text"
+                    placeholder="Search books by title, author, or ISBN..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="search-input"
+                  />
+                </div>
+              </div>
+              
+              {/* 添加书籍表单 */}
+              {showAddForm && (
+                <AddBookForm 
+                  onBookAdded={(newBook) => {
+                    handleBookAdded(newBook);
+                    setShowAddForm(false);
+                  }}
+                />
+              )}
+              
+              {/* 编辑书籍表单 */}
+              {editingBook && (
+                <EditBookForm 
+                  book={editingBook}
+                  onEditComplete={(updatedBook) => {
+                    handleBookEdit(updatedBook);
+                    setEditingBook(null);
+                  }}
+                  onCancel={() => setEditingBook(null)}
+                />
+              )}
+
+              {/* 书籍列表（带编辑功能） */}
+              <BookList 
+                books={filteredBooks}
+                loading={booksLoading}
+                onBookUpdated={handleBookUpdated}
+                onBookDeleted={handleBookDeleted}
+                showEditButton={true}
+                onEditBook={setEditingBook}
+              />
             </div>
           )}
 
