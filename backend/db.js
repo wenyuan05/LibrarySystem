@@ -14,7 +14,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       author TEXT NOT NULL,
-      isbn TEXT NOT NULL,
+      isbn TEXT NOT NULL UNIQUE,
       status TEXT DEFAULT 'available'
     )
   `);
@@ -73,7 +73,12 @@ db.serialize(() => {
   insertUser.run('user1', userPasswordHash, 'user', 'John Doe', 'user1@example.com');
   insertUser.finalize();
 
+  // 添加索引以提高查询性能
+  db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_user_id ON borrow_records(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_book_id ON borrow_records(book_id)');
+
   console.log('Database initialized with sample data');
+
 });
 
 module.exports = db;

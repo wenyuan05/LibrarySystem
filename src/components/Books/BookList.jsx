@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { booksAPI, borrowAPI } from '../../utils/api';
+import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
 import './Books.css';
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
+  const [borrowRecords, setBorrowRecords] = useState([]);
   const { user } = useAuth();
+
+  // 获取用户借阅记录
+  useEffect(() => {
+    const fetchBorrowRecords = async () => {
+      if (user && user.id) {
+        try {
+          const records = await usersAPI.getBorrowRecords(user.id);
+          // 过滤出未归还的借阅记录
+          const activeRecords = records.filter(record => !record.return_date);
+          setBorrowRecords(activeRecords);
+        } catch (err) {
+          console.error('Failed to fetch borrow records:', err);
+        }
+      }
+    };
+
+    fetchBorrowRecords();
+  }, [user]);
 
   // 处理书籍状态更新（管理员）
   const handleUpdateStatus = async (id, currentStatus) => {
@@ -41,11 +60,13 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
   // 处理借阅书籍（用户）
   const handleBorrowBook = async (bookId) => {
     try {
-      await borrowAPI.borrow(user.id, bookId);
+      const result = await borrowAPI.borrow(user.id, bookId);
       const updatedBook = { ...books.find(book => book.id === bookId), status: 'borrowed' };
       if (onBookUpdated) {
         onBookUpdated(updatedBook);
       }
+      // 更新借阅记录状态
+      setBorrowRecords(prevRecords => [...prevRecords, result]);
       alert('Book borrowed successfully');
     } catch (err) {
       setError('Failed to borrow book');
@@ -62,6 +83,8 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       if (onBookUpdated) {
         onBookUpdated(updatedBook);
       }
+      // 更新借阅记录状态
+      setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
       alert('Book returned successfully');
     } catch (err) {
       setError('Failed to return book');
@@ -115,12 +138,15 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                       Borrow
                     </button>
                   ) : (
-                    <button 
-                      className="btn-info"
-                      onClick={() => handleReturnBook(book.id)}
-                    >
-                      Return
-                    </button>
+                    // 只有当用户有对应的未归还借阅记录时才显示归还按钮
+                    borrowRecords.some(record => record.book_id === book.id) && (
+                      <button 
+                        className="btn-info"
+                        onClick={() => handleReturnBook(book.id)}
+                      >
+                        Return
+                      </button>
+                    )
                   )
                 ) : (
                   <>

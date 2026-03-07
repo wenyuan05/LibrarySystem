@@ -360,26 +360,42 @@ app.post('/api/borrow', authenticateToken, (req, res) => {
         return;
       }
       
-      // 更新书籍状态
-      db.run('UPDATE books SET status = ? WHERE id = ?', ['borrowed', book_id], (err) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        
-        // 创建借阅记录
-        db.run(
-          'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
-          [user_id, book_id, borrow_date],
-          function(err) {
+      // 检查是否存在该书籍尚未归还的借阅记录
+      db.get(
+        'SELECT id FROM borrow_records WHERE book_id = ? AND return_date IS NULL',
+        [book_id],
+        (err, existingRecord) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          if (existingRecord) {
+            res.status(400).json({ error: 'Book is already borrowed and not returned' });
+            return;
+          }
+          
+          // 更新书籍状态
+          db.run('UPDATE books SET status = ? WHERE id = ?', ['borrowed', book_id], (err) => {
             if (err) {
               res.status(500).json({ error: err.message });
               return;
             }
-            res.json({ id: this.lastID, user_id, book_id, borrow_date });
-          }
-        );
-      });
+            
+            // 创建借阅记录
+            db.run(
+              'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
+              [user_id, book_id, borrow_date],
+              function(err) {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({ id: this.lastID, user_id, book_id, borrow_date });
+              }
+            );
+          });
+        }
+      );
     });
   });
 });
