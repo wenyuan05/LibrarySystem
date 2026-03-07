@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 // 创建数据库连接
 const dbPath = path.resolve(__dirname, 'library.db');
@@ -43,6 +44,20 @@ db.serialize(() => {
     )
   `);
 
+  // 将已有用户的明文密码迁移为哈希（兼容旧数据）
+  db.all('SELECT id, password FROM users', (err, rows) => {
+    if (!err && Array.isArray(rows)) {
+      rows.forEach((row) => {
+        const pwd = row.password || '';
+        // 简单判断：bcrypt 哈希一般以 $2 开头，长度较长
+        if (!pwd.startsWith('$2a$') && !pwd.startsWith('$2b$')) {
+          const hashed = bcrypt.hashSync(pwd, 10);
+          db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, row.id]);
+        }
+      });
+    }
+  });
+
   // 插入一些示例数据
   const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, status) VALUES (?, ?, ?, ?)');
   insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'available');
@@ -50,10 +65,12 @@ db.serialize(() => {
   insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'borrowed');
   insertBook.finalize();
 
-  // 插入示例用户数据
+  // 插入示例用户数据（使用密码哈希）
   const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
-  insertUser.run('admin', 'admin123', 'admin', 'Admin User', 'admin@example.com');
-  insertUser.run('user1', 'user123', 'user', 'John Doe', 'user1@example.com');
+  const adminPasswordHash = bcrypt.hashSync('admin123', 10);
+  const userPasswordHash = bcrypt.hashSync('user123', 10);
+  insertUser.run('admin', adminPasswordHash, 'admin', 'Admin User', 'admin@example.com');
+  insertUser.run('user1', userPasswordHash, 'user', 'John Doe', 'user1@example.com');
   insertUser.finalize();
 
   console.log('Database initialized with sample data');

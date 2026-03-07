@@ -1,19 +1,54 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const db = require('./db');
 
 const app = express();
 const PORT = 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_EXPIRES_IN = '7d';
 
 // 中间件
 app.use(cors());
 app.use(express.json());
 
-// 简单的认证中间件
-const authenticate = (req, res, next) => {
+// 登录请求体验证中间件
+const validateLoginBody = (req, res, next) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    res.status(401).json({ error: 'Username and password are required' });
+    res.status(400).json({ error: 'Username and password are required' });
+    return;
+  }
+  next();
+};
+
+// 解析并验证 JWT 的中间件
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : null;
+
+  if (!token) {
+    res.status(401).json({ error: 'Authorization token is required' });
+    return;
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, payload) => {
+    if (err) {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
+    req.user = { id: payload.id, role: payload.role, username: payload.username };
+    next();
+  });
+};
+
+// 角色控制中间件
+const requireRole = (role) => (req, res, next) => {
+  if (!req.user || req.user.role !== role) {
+    res.status(403).json({ error: 'Forbidden: insufficient permissions' });
     return;
   }
   next();
@@ -22,9 +57,9 @@ const authenticate = (req, res, next) => {
 // API路由
 
 // 用户登录
-app.post('/api/login', authenticate, (req, res) => {
+app.post('/api/login', validateLoginBody, (req, res) => {
   const { username, password } = req.body;
-  db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, user) => {
+  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -33,18 +68,91 @@ app.post('/api/login', authenticate, (req, res) => {
       res.status(401).json({ error: 'Invalid username or password' });
       return;
     }
-    res.json({
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      name: user.name,
-      email: user.email
+
+    try {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        res.status(401).json({ error: 'Invalid username or password' });
+        return;
+      }
+
+      const payload = {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+      };
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+      res.json({
+        ...payload,
+        name: user.name,
+        email: user.email,
+        token,
+      });
+    } catch (compareError) {
+      res.status(500).json({ error: 'Failed to verify credentials' });
+    }
+  });
+});
+
+// 用户注册（普通用户自助注册）
+app.post('/api/register', (req, res) => {
+  const { username, password, name, email } = req.body;
+
+  if (!username || !password || !name || !email) {
+    res.status(400).json({ error: 'Username, password, name and email are required' });
+    return;
+  }
+
+  // 检查用户名是否已存在
+  db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (existingUser) {
+      res.status(400).json({ error: 'Username already exists' });
+      return;
+    }
+
+    // 加密密码并插入新用户，角色默认为 user
+    bcrypt.hash(password, 10, (hashErr, hash) => {
+      if (hashErr) {
+        res.status(500).json({ error: 'Failed to hash password' });
+        return;
+      }
+
+      const role = 'user';
+      db.run(
+        'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
+        [username, hash, role, name, email],
+        function(insertErr) {
+          if (insertErr) {
+            res.status(500).json({ error: insertErr.message });
+            return;
+          }
+
+          const payload = {
+            id: this.lastID,
+            username,
+            role,
+          };
+          const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+          res.status(201).json({
+            ...payload,
+            name,
+            email,
+            token,
+          });
+        }
+      );
     });
   });
 });
 
-// 获取用户信息
-app.get('/api/users/:id', (req, res) => {
+// 获取用户信息（需要登录）
+app.get('/api/users/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   db.get('SELECT id, username, role, name, email FROM users WHERE id = ?', [id], (err, user) => {
     if (err) {
@@ -60,7 +168,7 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // 获取所有用户（管理员）
-app.get('/api/users', (req, res) => {
+app.get('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
   db.all('SELECT id, username, role, name, email FROM users', (err, users) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -71,7 +179,7 @@ app.get('/api/users', (req, res) => {
 });
 
 // 添加用户（管理员）
-app.post('/api/users', (req, res) => {
+app.post('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
   const { username, password, role, name, email } = req.body;
   
   // 检查用户名是否已存在
@@ -85,25 +193,37 @@ app.post('/api/users', (req, res) => {
       return;
     }
     
-    // 插入新用户
-    db.run(
-      'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
-      [username, password, role, name, email],
-      function(err) {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        res.json({ id: this.lastID, username, role, name, email });
+    // 插入新用户（密码加密存储）
+    bcrypt.hash(password, 10, (hashErr, hash) => {
+      if (hashErr) {
+        res.status(500).json({ error: 'Failed to hash password' });
+        return;
       }
-    );
+
+      db.run(
+        'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
+        [username, hash, role, name, email],
+        function(err) {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json({ id: this.lastID, username, role, name, email });
+        }
+      );
+    });
   });
 });
 
-// 更新用户信息
-app.put('/api/users/:id', (req, res) => {
+// 更新用户信息（需要登录，允许本人或管理员）
+app.put('/api/users/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { name, email } = req.body;
+
+  if (Number(id) !== req.user.id && req.user.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden: cannot update other users' });
+    return;
+  }
   db.run(
     'UPDATE users SET name = ?, email = ? WHERE id = ?',
     [name, email, id],
@@ -122,7 +242,7 @@ app.put('/api/users/:id', (req, res) => {
 });
 
 // 删除用户（管理员）
-app.delete('/api/users/:id', (req, res) => {
+app.delete('/api/users/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
     if (err) {
@@ -137,9 +257,13 @@ app.delete('/api/users/:id', (req, res) => {
   });
 });
 
-// 获取用户借阅记录
-app.get('/api/users/:id/borrow-records', (req, res) => {
+// 获取用户借阅记录（需要登录，只能查看自己的记录或管理员）
+app.get('/api/users/:id/borrow-records', authenticateToken, (req, res) => {
   const { id } = req.params;
+  if (Number(id) !== req.user.id && req.user.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden: cannot view other users borrow records' });
+    return;
+  }
   db.all(
     `SELECT br.id, b.title, b.author, br.borrow_date, br.return_date 
      FROM borrow_records br 
@@ -156,9 +280,13 @@ app.get('/api/users/:id/borrow-records', (req, res) => {
   );
 });
 
-// 借阅书籍
-app.post('/api/borrow', (req, res) => {
+// 借阅书籍（需要登录）
+app.post('/api/borrow', authenticateToken, (req, res) => {
   const { user_id, book_id } = req.body;
+  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden: cannot borrow for other users' });
+    return;
+  }
   const borrow_date = new Date().toISOString().split('T')[0];
   
   // 开始事务
@@ -198,9 +326,13 @@ app.post('/api/borrow', (req, res) => {
   });
 });
 
-// 归还书籍
-app.post('/api/return', (req, res) => {
+// 归还书籍（需要登录）
+app.post('/api/return', authenticateToken, (req, res) => {
   const { user_id, book_id } = req.body;
+  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden: cannot return for other users' });
+    return;
+  }
   const return_date = new Date().toISOString().split('T')[0];
   
   // 开始事务
@@ -244,8 +376,8 @@ app.post('/api/return', (req, res) => {
   });
 });
 
-// 获取所有书籍
-app.get('/api/books', (req, res) => {
+// 获取所有书籍（需要登录）
+app.get('/api/books', authenticateToken, (req, res) => {
   db.all('SELECT * FROM books', (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -255,8 +387,8 @@ app.get('/api/books', (req, res) => {
   });
 });
 
-// 获取单本书籍
-app.get('/api/books/:id', (req, res) => {
+// 获取单本书籍（需要登录）
+app.get('/api/books/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM books WHERE id = ?', [id], (err, row) => {
     if (err) {
@@ -271,8 +403,8 @@ app.get('/api/books/:id', (req, res) => {
   });
 });
 
-// 添加书籍
-app.post('/api/books', (req, res) => {
+// 添加书籍（管理员）
+app.post('/api/books', authenticateToken, requireRole('admin'), (req, res) => {
   const { title, author, isbn } = req.body;
   
   // 检查ISBN是否已存在
@@ -301,8 +433,8 @@ app.post('/api/books', (req, res) => {
   });
 });
 
-// 更新书籍状态
-app.put('/api/books/:id', (req, res) => {
+// 更新书籍状态（管理员）
+app.put('/api/books/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   db.run(
@@ -322,8 +454,8 @@ app.put('/api/books/:id', (req, res) => {
   );
 });
 
-// 删除书籍
-app.delete('/api/books/:id', (req, res) => {
+// 删除书籍（管理员）
+app.delete('/api/books/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
     if (err) {

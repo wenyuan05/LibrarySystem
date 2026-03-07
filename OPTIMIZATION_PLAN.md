@@ -3,22 +3,24 @@
 ### 1. 安全与权限控制
 
 - **密码加密存储（高优先级）**
-  - 在 `backend` 中引入 `bcrypt` 或 `argon2` 等密码哈希库。
-  - 新增用户（注册/管理员添加）时，对明文密码进行哈希后再写入数据库。
-  - 登录接口中，改为查询用户名后使用哈希对比，而不是直接用明文密码匹配。
+  - （已完成）在 `backend` 中引入 `bcrypt`，所有用户密码以哈希形式存储。
+  - （已完成）示例用户（`admin/admin123`、`user1/user123`）在初始化时自动写入哈希密码。
+  - （已完成）为兼容旧数据库，启动时会自动扫描 `users` 表，将检测到的明文密码迁移为哈希。
 
 - **会话与鉴权机制（高优先级）**
-  - 使用 JWT 或基于 session 的方式管理登录状态：
-    - 登录成功后生成包含用户 `id` 与 `role` 的 token 返回前端。
-    - 前端在 `authAPI.login` 中存储 token，并在 `request` 封装中自动通过 `Authorization` header 携带。
-  - 所有需要登录访问的接口（如 `/api/books`, `/api/users`, `/api/borrow`, `/api/return` 等）增加鉴权中间件：
-    - 验证 token 是否有效；
-    - 从 token 中解析用户角色，进行后续权限判断。
-  - 针对管理操作（如用户管理、删除书籍等）增加角色控制中间件，仅允许 `admin` 访问。
+  - （已完成）使用 JWT 管理登录状态：
+    - 登录成功后返回包含用户 `id`、`username`、`role` 的 `token`。
+    - 前端在登录成功后将整个用户对象（含 token）存入 `localStorage`。
+  - （已完成）在后端增加鉴权中间件：
+    - `authenticateToken`：校验 `Authorization: Bearer <token>` 头，解析出用户信息。
+    - `requireRole('admin')`：限制仅管理员可访问的接口。
+  - （已完成）保护关键路由：
+    - 所有 `/api/books`、`/api/users`、`/api/borrow`、`/api/return` 相关接口均需携带有效 token。
+    - 用户与借阅记录相关接口增加“本人或管理员”校验。
 
 - **输入校验与基本安全**
-  - 对用户名、密码、邮箱、ISBN 等字段做长度和格式校验（可使用 `Joi`、`zod` 或手写校验）。
-  - 为 API 统一返回规范化错误结构（如 `{ code, message, details }`），隐藏内部实现细节。
+  - （规划中）对用户名、密码、邮箱、ISBN 等字段做长度和格式校验（可使用 `Joi`、`zod` 或手写校验）。
+  - （规划中）为 API 统一返回规范化错误结构（如 `{ code, message, details }`），隐藏内部实现细节。
 
 ### 2. 数据层与一致性
 

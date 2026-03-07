@@ -28,6 +28,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 注册函数（注册成功后自动登录）
+  const register = async ({ username, password, name, email }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const userData = await authAPI.register({ username, password, name, email });
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 登出函数
   const logout = () => {
     setUser(null);
@@ -56,6 +73,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
+    register,
     logout,
     isAuthenticated: !!user,
   };

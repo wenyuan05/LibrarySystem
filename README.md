@@ -92,7 +92,7 @@ npm run dev
 
 #### POST /api/login
 
-用户登录
+用户登录（返回 JWT）
 
 **请求体**：
 ```json
@@ -109,13 +109,26 @@ npm run dev
   "username": "admin",
   "role": "admin",
   "name": "Admin User",
-  "email": "admin@example.com"
+  "email": "admin@example.com",
+  "token": "<JWT_TOKEN>"
 }
 ```
+
+#### 通用认证说明
+
+除 `/api/login` 外，其他需要登录的接口都必须在 HTTP 头中携带 JWT：
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+管理员专用接口需要用户角色为 `admin`。
 
 #### GET /api/users
 
 获取所有用户列表（管理员）
+
+需要管理员权限。
 
 **响应**：
 ```json
@@ -140,6 +153,8 @@ npm run dev
 #### POST /api/users
 
 添加新用户（管理员）
+
+需要管理员权限。
 
 **请求体**：
 ```json
@@ -187,6 +202,8 @@ npm run dev
 #### DELETE /api/users/:id
 
 删除用户（管理员）
+
+需要管理员权限。
 
 **响应**：
 ```json
@@ -287,7 +304,11 @@ npm run dev
 
 #### GET /api/users/:id/borrow-records
 
-获取用户借阅记录
+获取用户借阅记录（本人或管理员）
+
+**说明**：
+- 普通用户只能查看自己的借阅记录；
+- 管理员可以查看任意用户的借阅记录。
 
 **响应**：
 ```json
