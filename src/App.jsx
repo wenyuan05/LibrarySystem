@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './components/login/Login';
-import Sidebar from './components/sidebar/Sidebar';
-import BookList from './components/books/BookList';
-import AddBookForm from './components/books/AddBookForm';
+import Login from './components/Login/Login';
+import Sidebar from './components/Sidebar/Sidebar';
+import BookList from './components/Books/BookList';
+import AddBookForm from './components/Books/AddBookForm';
 import EditBookForm from './components/Books/EditBookForm';
-import BorrowRecords from './components/borrow/BorrowRecords';
-import UserList from './components/users/UserList';
-import AddUserForm from './components/users/AddUserForm';
+import BorrowRecords from './components/Borrow/BorrowRecords';
+import UserList from './components/Users/UserList';
+import AddUserForm from './components/Users/AddUserForm';
 import { booksAPI } from './utils/api';
 import './styles/global.css';
 
@@ -141,12 +141,12 @@ const BooksPage = () => {
 
 // 书籍管理页面（管理员）
 const BookManagementPage = () => {
-  const [books, setBooks] = React.useState([]);
-  const [filteredBooks, setFilteredBooks] = React.useState([]);
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [booksLoading, setBooksLoading] = React.useState(true);
-  const [editingBook, setEditingBook] = React.useState(null);
-  const [showAddForm, setShowAddForm] = React.useState(false);
+  const [books, setBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [booksLoading, setBooksLoading] = useState(true);
+  const [editingBook, setEditingBook] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // 加载书籍数据
   const fetchBooks = async () => {
@@ -314,4 +314,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
