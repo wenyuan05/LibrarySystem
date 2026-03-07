@@ -26,10 +26,35 @@ const Login = () => {
     }));
   };
 
+  const validateLoginForm = () => {
+    if (!formData.username.trim()) {
+      setLoginError('Username is required');
+      return false;
+    }
+    if (formData.username.length < 3 || formData.username.length > 20) {
+      setLoginError('Username must be between 3 and 20 characters');
+      return false;
+    }
+    if (!formData.password) {
+      setLoginError('Password is required');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setLoginError('Password must be at least 6 characters');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setLoginError('');
+    
+    if (!validateLoginForm()) {
+      setIsSubmitting(false);
+      return;
+    }
     
     try {
       await login(formData.username, formData.password);
@@ -38,6 +63,43 @@ const Login = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const validateRegisterForm = () => {
+    if (!registerData.username.trim()) {
+      setLoginError('Username is required');
+      return false;
+    }
+    if (registerData.username.length < 3 || registerData.username.length > 20) {
+      setLoginError('Username must be between 3 and 20 characters');
+      return false;
+    }
+    if (!registerData.password) {
+      setLoginError('Password is required');
+      return false;
+    }
+    if (registerData.password.length < 6) {
+      setLoginError('Password must be at least 6 characters');
+      return false;
+    }
+    if (!registerData.name.trim()) {
+      setLoginError('Name is required');
+      return false;
+    }
+    if (registerData.name.length < 2 || registerData.name.length > 50) {
+      setLoginError('Name must be between 2 and 50 characters');
+      return false;
+    }
+    if (!registerData.email.trim()) {
+      setLoginError('Email is required');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(registerData.email)) {
+      setLoginError('Invalid email format');
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -94,6 +156,12 @@ const Login = () => {
               e.preventDefault();
               setIsSubmitting(true);
               setLoginError('');
+              
+              if (!validateRegisterForm()) {
+                setIsSubmitting(false);
+                return;
+              }
+              
               try {
                 await register(registerData);
               } catch (error) {
