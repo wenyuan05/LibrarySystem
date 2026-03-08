@@ -88,3 +88,13 @@ This file documents all bug fixes applied to the project.
   - Modified api.js to use VITE_API_BASE_URL environment variable
   - Updated server.js to load environment variables and use them for JWT_SECRET and CORS configuration
 - **Reason**: Improve configurability and security by using environment variables instead of hardcoding values
+
+### Fix 14: Fix CORS and public book access
+- **Files modified**: 
+  - `backend/.env`
+  - `backend/server.js`
+- **Changes**: 
+  - Updated FRONTEND_URL in backend/.env to http://localhost:5173
+  - Removed authenticateToken middleware from /api/books and /api/books/:id routes
+  - Made book listings publicly accessible without authentication
+- **Reason**: Fix CORS error and allow users to browse books without logging in
