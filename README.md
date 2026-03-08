@@ -33,6 +33,8 @@ LibrarySystem/
 │   │   └── variables.css  # CSS变量
 │   ├── utils/          # 工具函数
 │   │   └── api.js      # API调用封装
+│   ├── hooks/           # 自定义钩子
+│   │   └── useApiRequest.jsx  # API请求处理钩子
 │   ├── App.jsx         # 主应用组件
 │   ├── App.css         # 应用样式
 │   ├── main.jsx        # 应用入口
@@ -68,6 +70,33 @@ npm install
 cd backend
 npm install
 ```
+
+### 4. 配置环境变量
+
+在项目根目录和 backend 目录中创建 `.env` 文件，配置以下环境变量：
+
+**根目录 .env 文件**：
+
+```env
+# API Configuration
+VITE_API_BASE_URL=http://localhost:3001/api
+FRONTEND_URL=http://localhost:5173
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-here
+```
+
+**backend 目录 .env 文件**：
+
+```env
+# API Configuration
+FRONTEND_URL=http://localhost:5173
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-here
+```
+
+注意：在生产环境中，应使用强随机生成的 JWT_SECRET，并确保其安全存储。
 
 ## 运行方法
 
@@ -119,11 +148,25 @@ npm run dev
 
 #### 通用认证说明
 
-除 `/api/login` 外，其他需要登录的接口都必须在 HTTP 头中携带 JWT：
+以下接口需要登录并在 HTTP 头中携带 JWT：
 
 ```http
 Authorization: Bearer <JWT_TOKEN>
 ```
+
+- `/api/register` - 用户注册
+- `/api/users` - 获取所有用户列表（需要管理员权限）
+- `/api/users/:id` - 获取、更新用户信息
+- `/api/books` - 添加新书籍（需要管理员权限）
+- `/api/books/:id` - 更新、删除书籍（需要管理员权限）
+- `/api/borrow` - 借阅书籍
+- `/api/return` - 归还书籍
+- `/api/users/:id/borrow-records` - 获取用户借阅记录
+
+以下接口无需登录即可访问：
+- `/api/login` - 用户登录
+- `/api/books` - 获取所有书籍列表
+- `/api/books/:id` - 获取单本书籍详情
 
 管理员专用接口需要用户角色为 `admin`。
 
@@ -275,12 +318,15 @@ Authorization: Bearer <JWT_TOKEN>
 
 #### PUT /api/books/:id
 
-更新书籍状态
+更新书籍信息（需要管理员权限）
 
 **请求体**：
 ```json
 {
-  "status": "borrowed"
+  "title": "Updated Title",
+  "author": "Updated Author",
+  "isbn": "1234567890",
+  "status": "available"
 }
 ```
 
@@ -288,7 +334,10 @@ Authorization: Bearer <JWT_TOKEN>
 ```json
 {
   "id": 1,
-  "status": "borrowed"
+  "title": "Updated Title",
+  "author": "Updated Author",
+  "isbn": "1234567890",
+  "status": "available"
 }
 ```
 
@@ -439,7 +488,9 @@ Authorization: Bearer <JWT_TOKEN>
 
 1. **组件结构**：使用React函数组件和Hooks管理状态
 2. **状态管理**：使用React Context API管理全局认证状态
-3. **API调用**：使用封装的API工具函数与后端通信
+3. **API调用**：
+   - 使用封装的API工具函数与后端通信
+   - 使用 `useApiRequest` 自定义 hook 处理API请求，统一管理加载状态和错误处理
 4. **样式**：使用CSS变量和模块化样式，支持响应式布局
 5. **用户体验**：添加加载状态、错误提示和动画效果
 6. **数据验证**：
@@ -457,7 +508,9 @@ Authorization: Bearer <JWT_TOKEN>
 
 1. **服务器配置**：使用Express创建RESTful API
 2. **数据库操作**：使用SQLite3进行数据库操作
-3. **中间件**：使用CORS中间件处理跨域请求
+3. **中间件**：
+   - 使用CORS中间件处理跨域请求
+   - 使用统一错误处理中间件捕获和格式化所有错误
 4. **事务处理**：在借阅和归还操作中使用事务确保数据一致性
 5. **数据去重**：
    - 数据库唯一索引约束
@@ -473,6 +526,7 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
 
 ## 示例数据
 
