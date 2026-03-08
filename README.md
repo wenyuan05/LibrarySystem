@@ -21,13 +21,28 @@ LibrarySystem/
 │   │   ├── Books/      # 书籍管理组件
 │   │   │   ├── BookList.jsx      # 书籍列表
 │   │   │   ├── AddBookForm.jsx    # 添加书籍表单
-│   │   │   └── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   ├── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   └── Books.css          # 书籍组件样式
 │   │   ├── Borrow/     # 借阅记录组件
+│   │   │   ├── BorrowRecords.jsx  # 借阅记录
+│   │   │   └── Borrow.css         # 借阅组件样式
 │   │   ├── Login/      # 登录组件
+│   │   │   ├── Login.jsx          # 登录表单
+│   │   │   └── Login.css          # 登录组件样式
 │   │   ├── Sidebar/    # 侧边栏组件
-│   │   └── Users/      # 用户管理组件
+│   │   │   ├── Sidebar.jsx        # 侧边栏
+│   │   │   └── Sidebar.css        # 侧边栏样式
+│   │   ├── Toast/      # 消息通知组件
+│   │   │   ├── Toast.jsx          # 消息通知
+│   │   │   └── Toast.css          # 消息通知样式
+│   │   ├── Users/      # 用户管理组件
+│   │   │   ├── UserList.jsx       # 用户列表
+│   │   │   ├── AddUserForm.jsx    # 添加用户表单
+│   │   │   └── Users.css          # 用户组件样式
+│   │   └── ProtectedRoute.jsx     # 受保护路由
 │   ├── context/        # 上下文管理
-│   │   └── AuthContext.jsx  # 认证上下文
+│   │   ├── AuthContext.jsx        # 认证上下文
+│   │   └── ToastContext.jsx       # 消息通知上下文
 │   ├── styles/         # 样式文件
 │   │   ├── global.css  # 全局样式
 │   │   └── variables.css  # CSS变量
@@ -38,14 +53,34 @@ LibrarySystem/
 │   ├── App.jsx         # 主应用组件
 │   ├── App.css         # 应用样式
 │   ├── main.jsx        # 应用入口
+│   ├── index.css       # 全局基础样式
 │   └── assets/         # 静态资源
+│       └── react.svg   # React图标
 ├── backend/            # 后端代码
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
+│   ├── check_db.js     # 数据库检查工具
+│   ├── check_indexes.js # 索引检查工具
+│   ├── cleanup.js      # 数据清理工具
+│   ├── fix_book_status.js # 书籍状态修复工具
+│   ├── test_constraints.js # 约束测试工具
 │   ├── package.json    # 后端依赖
+│   ├── package-lock.json # 后端依赖锁文件
+│   ├── .env            # 后端环境变量配置
 │   └── library.db      # SQLite数据库文件
+├── public/             # 公共静态资源
+│   └── vite.svg        # Vite图标
 ├── package.json        # 前端依赖
+├── package-lock.json   # 前端依赖锁文件
 ├── vite.config.js      # Vite配置
+├── .env                # 前端环境变量配置
+├── .gitignore          # Git忽略文件
+├── BUGFIX_LOG.md       #  bug修复日志
+├── OPTIMIZATION_PLAN.md # 优化计划
+├── TEST_CASES.md       # 测试用例
+├── eslint.config.js    # ESLint配置
+├── git-github-guide.md # Git和GitHub使用指南
+├── index.html          # 前端入口HTML
 └── README.md           # 项目文档
 ```
 
@@ -430,30 +465,38 @@ Authorization: Bearer <JWT_TOKEN>
    - `/borrow-records` - 个人借阅记录
    - `/book-management` - 书籍管理（管理员）
    - `/users` - 用户管理（管理员）
-4. **书籍管理**：
+4. **主布局**：包含侧边栏和顶部导航的响应式布局
+   - 侧边栏：显示用户信息和导航菜单
+   - 顶部导航：包含应用标题和用户菜单
+   - 内容区域：根据路由显示不同的页面内容
+5. **书籍管理**：
    - 书籍列表展示
    - 搜索功能（支持按标题、作者、ISBN搜索）
    - 借阅和归还书籍
    - 删除书籍（管理员）
-5. **书籍管理专门板块**（管理员）：
+6. **书籍管理专门板块**（管理员）：
    - 添加新书籍（包含ISBN格式验证和重复检查）
    - 编辑书籍信息
    - 批量管理书籍
    - 实时状态更新
-6. **用户管理**：
+7. **用户管理**：
    - 用户列表展示（管理员）
    - 添加新用户（包含用户名重复检查和表单验证）
    - 编辑用户信息
    - 删除用户（管理员）
-7. **借阅记录**：
+8. **借阅记录**：
    - 个人借阅记录查询
    - 借阅历史查看
-8. **消息通知**：使用全局 toast 组件显示成功/失败消息
-9. **数据验证**：
-   - 表单字段验证
-   - 数据格式检查
-   - 重复数据提示
-10. **安全性**：
+9. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
+   - 支持多种消息类型：info、success、error
+   - 消息自动消失（默认3秒）
+   - 可手动关闭消息
+   - 全局可访问的消息通知系统
+10. **数据验证**：
+    - 表单字段验证
+    - 数据格式检查
+    - 重复数据提示
+11. **安全性**：
     - 前端输入验证
     - 密码强度检查
     - 实时错误提示
@@ -481,6 +524,12 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+9. **数据库工具**：
+   - `check_db.js` - 检查数据库中的书籍和借阅记录
+   - `check_indexes.js` - 检查数据库索引状态和数据
+   - `cleanup.js` - 清理数据库重复数据并添加唯一约束
+   - `fix_book_status.js` - 修复书籍状态
+   - `test_constraints.js` - 测试数据库唯一约束
 
 ## 开发指南
 
