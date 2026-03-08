@@ -511,8 +511,8 @@ app.post('/api/return', authenticateToken, (req, res) => {
   });
 });
 
-// 获取所有书籍（需要登录）
-app.get('/api/books', authenticateToken, (req, res) => {
+// 获取所有书籍（无需登录，公开访问）
+app.get('/api/books', (req, res) => {
   db.all('SELECT * FROM books', (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -522,8 +522,8 @@ app.get('/api/books', authenticateToken, (req, res) => {
   });
 });
 
-// 获取单本书籍（需要登录）
-app.get('/api/books/:id', authenticateToken, (req, res) => {
+// 获取单本书籍（无需登录，公开访问）
+app.get('/api/books/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM books WHERE id = ?', [id], (err, row) => {
     if (err) {
