@@ -224,9 +224,16 @@ app.post('/api/register', validateRegisterBody, (req, res) => {
   });
 });
 
-// 获取用户信息（需要登录）
+// 获取用户信息（需要登录，只能查看自己的信息或管理员）
 app.get('/api/users/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
+  
+  // 检查是否是用户本人或管理员
+  if (Number(id) !== req.user.id && req.user.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden: cannot view other users information' });
+    return;
+  }
+  
   db.get('SELECT id, username, role, name, email FROM users WHERE id = ?', [id], (err, user) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -560,25 +567,61 @@ app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody
   });
 });
 
-// 更新书籍状态（管理员）
+// 更新书籍信息（管理员）
 app.put('/api/books/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
-  db.run(
-    'UPDATE books SET status = ? WHERE id = ?',
-    [status, id],
-    function(err) {
+  const { title, author, isbn, status } = req.body;
+  
+  // 构建更新语句
+  const updateFields = [];
+  const updateValues = [];
+  
+  if (title !== undefined) {
+    updateFields.push('title = ?');
+    updateValues.push(title);
+  }
+  if (author !== undefined) {
+    updateFields.push('author = ?');
+    updateValues.push(author);
+  }
+  if (isbn !== undefined) {
+    updateFields.push('isbn = ?');
+    updateValues.push(isbn);
+  }
+  if (status !== undefined) {
+    updateFields.push('status = ?');
+    updateValues.push(status);
+  }
+  
+  if (updateFields.length === 0) {
+    res.status(400).json({ error: 'No fields to update' });
+    return;
+  }
+  
+  // 添加 id 到参数列表
+  updateValues.push(id);
+  
+  // 执行更新
+  const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
+  db.run(sql, updateValues, function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+    
+    // 返回更新后的书籍信息
+    db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      if (this.changes === 0) {
-        res.status(404).json({ error: 'Book not found' });
-        return;
-      }
-      res.json({ id, status });
-    }
-  );
+      res.json(book);
+    });
+  });
 });
 
 // 删除书籍（管理员）

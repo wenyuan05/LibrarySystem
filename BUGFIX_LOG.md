@@ -53,3 +53,24 @@ This file documents all bug fixes applied to the project.
 - **Files modified**: `backend/server.js`
 - **Changes**: Added proper BEGIN TRANSACTION and ROLLBACK/COMMIT statements to borrow and return routes
 - **Reason**: Ensure data consistency and handle errors properly during transactions
+
+### Fix 10: Add aria-label to toast close button
+- **Files modified**: `src/components/Toast/Toast.jsx`
+- **Changes**: Added aria-label="Close toast" to the close button
+- **Reason**: Improve accessibility for screen readers
+
+### Fix 11: Implement book update functionality
+- **Files modified**: 
+  - `backend/server.js`
+  - `src/utils/api.js`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated backend `/api/books/:id` route to support updating all book fields
+  - Added booksAPI.update method
+  - Modified EditBookForm to call the actual API instead of using mock data
+- **Reason**: Make EditBookForm functional and persist changes
+
+### Fix 12: Improve user API access control
+- **Files modified**: `backend/server.js`
+- **Changes**: Added access control to `/api/users/:id` route to only allow users to view their own information or admins to view all
+- **Reason**: Enhance security and protect user privacy

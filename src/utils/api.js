@@ -97,6 +97,14 @@ export const booksAPI = {
     });
   },
   
+  // 更新书籍信息
+  update: async (id, bookData) => {
+    return request(`/books/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bookData),
+    });
+  },
+  
   // 删除书籍
   delete: async (id) => {
     return request(`/books/${id}`, {
