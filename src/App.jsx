@@ -281,9 +281,6 @@ const UserManagementPage = () => {
     <div className="users-section card fade-in">
       <h2>User Management</h2>
       
-      {/* 添加用户表单 */}
-      <AddUserForm />
-
       {/* 用户列表 */}
       <UserList />
     </div>
@@ -299,10 +296,10 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
-            <Route path="/books" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
-            <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
-            <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />
-            <Route path="/users" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserManagementPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserManagementPage /></MainLayout></ProtectedRoute>} />
           </Routes>
         </Router>
       </ToastProvider>

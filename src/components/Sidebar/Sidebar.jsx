@@ -24,12 +24,14 @@ const Sidebar = ({ isOpen, onClose }) => {
       
       <nav className="sidebar-nav">
         <ul>
-          <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
-            <Link to="/books" onClick={onClose}>
-              <span className="nav-icon">📚</span>
-              <span className="nav-text">Books</span>
-            </Link>
-          </li>
+          {user.role !== 'admin' && (
+            <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
+              <Link to="/books" onClick={onClose}>
+                <span className="nav-icon">📚</span>
+                <span className="nav-text">Books</span>
+              </Link>
+            </li>
+          )}
           
           {user.role === 'user' && (
             <li className={location.pathname === '/borrow-records' ? 'active' : ''}>

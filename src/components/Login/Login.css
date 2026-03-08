@@ -4,11 +4,16 @@
 /* 登录容器 */
 .login-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   background-color: var(--bg-primary);
   padding: var(--spacing-lg);
+  width: 100%;
+  margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* 登录表单 */
@@ -17,6 +22,10 @@
   max-width: 400px;
   padding: var(--spacing-xl);
   text-align: center;
+  margin: 0 auto !important;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
 }
 
 .login-form h1 {
