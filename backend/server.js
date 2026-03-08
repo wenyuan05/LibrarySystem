@@ -641,6 +641,16 @@ app.delete('/api/books/:id', authenticateToken, requireRole('admin'), (req, res)
   });
 });
 
+// 统一错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  console.error('Stack:', err.stack);
+  
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error'
+  });
+});
+
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

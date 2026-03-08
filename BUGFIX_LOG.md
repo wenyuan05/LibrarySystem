@@ -98,3 +98,13 @@ This file documents all bug fixes applied to the project.
   - Removed authenticateToken middleware from /api/books and /api/books/:id routes
   - Made book listings publicly accessible without authentication
 - **Reason**: Fix CORS error and allow users to browse books without logging in
+
+### Fix 15: Implement unified error handling
+- **Files modified**: 
+  - `backend/server.js`
+  - `src/hooks/useApiRequest.jsx`
+- **Changes**: 
+  - Added unified error handling middleware in backend to catch and format all errors
+  - Created useApiRequest custom hook for frontend to handle API requests with loading states and error messages
+  - Added error logging with stack traces in backend for better debugging
+- **Reason**: Improve error handling consistency and reduce code duplication
