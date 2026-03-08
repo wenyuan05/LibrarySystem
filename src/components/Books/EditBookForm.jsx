@@ -58,12 +58,8 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     }
 
     try {
-      // 这里需要后端支持书籍更新API
-      // 暂时使用模拟数据
-      const updatedBook = {
-        ...book,
-        ...formData
-      };
+      // 调用后端 API 更新书籍
+      const updatedBook = await booksAPI.update(book.id, formData);
       setSuccess('Book updated successfully!');
       // 通知父组件编辑完成
       if (onEditComplete) {

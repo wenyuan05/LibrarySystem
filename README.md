@@ -21,29 +21,66 @@ LibrarySystem/
 │   │   ├── Books/      # 书籍管理组件
 │   │   │   ├── BookList.jsx      # 书籍列表
 │   │   │   ├── AddBookForm.jsx    # 添加书籍表单
-│   │   │   └── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   ├── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   └── Books.css          # 书籍组件样式
 │   │   ├── Borrow/     # 借阅记录组件
+│   │   │   ├── BorrowRecords.jsx  # 借阅记录
+│   │   │   └── Borrow.css         # 借阅组件样式
 │   │   ├── Login/      # 登录组件
+│   │   │   ├── Login.jsx          # 登录表单
+│   │   │   └── Login.css          # 登录组件样式
 │   │   ├── Sidebar/    # 侧边栏组件
-│   │   └── Users/      # 用户管理组件
+│   │   │   ├── Sidebar.jsx        # 侧边栏
+│   │   │   └── Sidebar.css        # 侧边栏样式
+│   │   ├── Toast/      # 消息通知组件
+│   │   │   ├── Toast.jsx          # 消息通知
+│   │   │   └── Toast.css          # 消息通知样式
+│   │   ├── Users/      # 用户管理组件
+│   │   │   ├── UserList.jsx       # 用户列表
+│   │   │   ├── AddUserForm.jsx    # 添加用户表单
+│   │   │   └── Users.css          # 用户组件样式
+│   │   └── ProtectedRoute.jsx     # 受保护路由
 │   ├── context/        # 上下文管理
-│   │   └── AuthContext.jsx  # 认证上下文
+│   │   ├── AuthContext.jsx        # 认证上下文
+│   │   └── ToastContext.jsx       # 消息通知上下文
 │   ├── styles/         # 样式文件
 │   │   ├── global.css  # 全局样式
 │   │   └── variables.css  # CSS变量
 │   ├── utils/          # 工具函数
 │   │   └── api.js      # API调用封装
+│   ├── hooks/           # 自定义钩子
+│   │   └── useApiRequest.jsx  # API请求处理钩子
 │   ├── App.jsx         # 主应用组件
 │   ├── App.css         # 应用样式
 │   ├── main.jsx        # 应用入口
+│   ├── index.css       # 全局基础样式
 │   └── assets/         # 静态资源
+│       └── react.svg   # React图标
 ├── backend/            # 后端代码
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
+│   ├── check_db.js     # 数据库检查工具
+│   ├── check_indexes.js # 索引检查工具
+│   ├── cleanup.js      # 数据清理工具
+│   ├── fix_book_status.js # 书籍状态修复工具
+│   ├── test_constraints.js # 约束测试工具
 │   ├── package.json    # 后端依赖
+│   ├── package-lock.json # 后端依赖锁文件
+│   ├── .env            # 后端环境变量配置
 │   └── library.db      # SQLite数据库文件
+├── public/             # 公共静态资源
+│   └── vite.svg        # Vite图标
 ├── package.json        # 前端依赖
+├── package-lock.json   # 前端依赖锁文件
 ├── vite.config.js      # Vite配置
+├── .env                # 前端环境变量配置
+├── .gitignore          # Git忽略文件
+├── BUGFIX_LOG.md       #  bug修复日志
+├── OPTIMIZATION_PLAN.md # 优化计划
+├── TEST_CASES.md       # 测试用例
+├── eslint.config.js    # ESLint配置
+├── git-github-guide.md # Git和GitHub使用指南
+├── index.html          # 前端入口HTML
 └── README.md           # 项目文档
 ```
 
@@ -68,6 +105,33 @@ npm install
 cd backend
 npm install
 ```
+
+### 4. 配置环境变量
+
+在项目根目录和 backend 目录中创建 `.env` 文件，配置以下环境变量：
+
+**根目录 .env 文件**：
+
+```env
+# API Configuration
+VITE_API_BASE_URL=http://localhost:3001/api
+FRONTEND_URL=http://localhost:5173
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-here
+```
+
+**backend 目录 .env 文件**：
+
+```env
+# API Configuration
+FRONTEND_URL=http://localhost:5173
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-here
+```
+
+注意：在生产环境中，应使用强随机生成的 JWT_SECRET，并确保其安全存储。
 
 ## 运行方法
 
@@ -119,11 +183,25 @@ npm run dev
 
 #### 通用认证说明
 
-除 `/api/login` 外，其他需要登录的接口都必须在 HTTP 头中携带 JWT：
+以下接口需要登录并在 HTTP 头中携带 JWT：
 
 ```http
 Authorization: Bearer <JWT_TOKEN>
 ```
+
+- `/api/register` - 用户注册
+- `/api/users` - 获取所有用户列表（需要管理员权限）
+- `/api/users/:id` - 获取、更新用户信息
+- `/api/books` - 添加新书籍（需要管理员权限）
+- `/api/books/:id` - 更新、删除书籍（需要管理员权限）
+- `/api/borrow` - 借阅书籍
+- `/api/return` - 归还书籍
+- `/api/users/:id/borrow-records` - 获取用户借阅记录
+
+以下接口无需登录即可访问：
+- `/api/login` - 用户登录
+- `/api/books` - 获取所有书籍列表
+- `/api/books/:id` - 获取单本书籍详情
 
 管理员专用接口需要用户角色为 `admin`。
 
@@ -275,12 +353,15 @@ Authorization: Bearer <JWT_TOKEN>
 
 #### PUT /api/books/:id
 
-更新书籍状态
+更新书籍信息（需要管理员权限）
 
 **请求体**：
 ```json
 {
-  "status": "borrowed"
+  "title": "Updated Title",
+  "author": "Updated Author",
+  "isbn": "1234567890",
+  "status": "available"
 }
 ```
 
@@ -288,7 +369,10 @@ Authorization: Bearer <JWT_TOKEN>
 ```json
 {
   "id": 1,
-  "status": "borrowed"
+  "title": "Updated Title",
+  "author": "Updated Author",
+  "isbn": "1234567890",
+  "status": "available"
 }
 ```
 
@@ -381,30 +465,38 @@ Authorization: Bearer <JWT_TOKEN>
    - `/borrow-records` - 个人借阅记录
    - `/book-management` - 书籍管理（管理员）
    - `/users` - 用户管理（管理员）
-4. **书籍管理**：
+4. **主布局**：包含侧边栏和顶部导航的响应式布局
+   - 侧边栏：显示用户信息和导航菜单
+   - 顶部导航：包含应用标题和用户菜单
+   - 内容区域：根据路由显示不同的页面内容
+5. **书籍管理**：
    - 书籍列表展示
    - 搜索功能（支持按标题、作者、ISBN搜索）
    - 借阅和归还书籍
    - 删除书籍（管理员）
-5. **书籍管理专门板块**（管理员）：
+6. **书籍管理专门板块**（管理员）：
    - 添加新书籍（包含ISBN格式验证和重复检查）
    - 编辑书籍信息
    - 批量管理书籍
    - 实时状态更新
-6. **用户管理**：
+7. **用户管理**：
    - 用户列表展示（管理员）
    - 添加新用户（包含用户名重复检查和表单验证）
    - 编辑用户信息
    - 删除用户（管理员）
-7. **借阅记录**：
+8. **借阅记录**：
    - 个人借阅记录查询
    - 借阅历史查看
-8. **消息通知**：使用全局 toast 组件显示成功/失败消息
-9. **数据验证**：
-   - 表单字段验证
-   - 数据格式检查
-   - 重复数据提示
-10. **安全性**：
+9. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
+   - 支持多种消息类型：info、success、error
+   - 消息自动消失（默认3秒）
+   - 可手动关闭消息
+   - 全局可访问的消息通知系统
+10. **数据验证**：
+    - 表单字段验证
+    - 数据格式检查
+    - 重复数据提示
+11. **安全性**：
     - 前端输入验证
     - 密码强度检查
     - 实时错误提示
@@ -432,6 +524,12 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+9. **数据库工具**：
+   - `check_db.js` - 检查数据库中的书籍和借阅记录
+   - `check_indexes.js` - 检查数据库索引状态和数据
+   - `cleanup.js` - 清理数据库重复数据并添加唯一约束
+   - `fix_book_status.js` - 修复书籍状态
+   - `test_constraints.js` - 测试数据库唯一约束
 
 ## 开发指南
 
@@ -439,7 +537,9 @@ Authorization: Bearer <JWT_TOKEN>
 
 1. **组件结构**：使用React函数组件和Hooks管理状态
 2. **状态管理**：使用React Context API管理全局认证状态
-3. **API调用**：使用封装的API工具函数与后端通信
+3. **API调用**：
+   - 使用封装的API工具函数与后端通信
+   - 使用 `useApiRequest` 自定义 hook 处理API请求，统一管理加载状态和错误处理
 4. **样式**：使用CSS变量和模块化样式，支持响应式布局
 5. **用户体验**：添加加载状态、错误提示和动画效果
 6. **数据验证**：
@@ -457,7 +557,9 @@ Authorization: Bearer <JWT_TOKEN>
 
 1. **服务器配置**：使用Express创建RESTful API
 2. **数据库操作**：使用SQLite3进行数据库操作
-3. **中间件**：使用CORS中间件处理跨域请求
+3. **中间件**：
+   - 使用CORS中间件处理跨域请求
+   - 使用统一错误处理中间件捕获和格式化所有错误
 4. **事务处理**：在借阅和归还操作中使用事务确保数据一致性
 5. **数据去重**：
    - 数据库唯一索引约束
@@ -473,6 +575,7 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
 
 ## 示例数据
 

@@ -23,10 +23,6 @@ const MainLayout = ({ children }) => {
     return <div className="loading">Loading...</div>;
   }
 
-  if (!user) {
-    return <div className="error-message">User not found</div>;
-  }
-
   return (
     <div className="app-container">
       {/* 侧边栏 */}

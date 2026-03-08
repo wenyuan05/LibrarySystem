@@ -8,7 +8,6 @@ import './Books.css';
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
-  const [editingBook, setEditingBook] = useState(null);
   const [borrowRecords, setBorrowRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -36,11 +35,16 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     try {
       const newStatus = currentStatus === 'available' ? 'borrowed' : 'available';
       await booksAPI.updateStatus(id, newStatus);
-      const updatedBook = { ...books.find(book => book.id === id), status: newStatus };
-      if (onBookUpdated) {
-        onBookUpdated(updatedBook);
+      const book = books.find(book => book.id === id);
+      if (book) {
+        const updatedBook = { ...book, status: newStatus };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        showToast(`Book status updated to ${newStatus}`, 'success');
+      } else {
+        throw new Error('Book not found');
       }
-      showToast(`Book status updated to ${newStatus}`, 'success');
     } catch (err) {
       setError('Failed to update book status');
       showToast('Failed to update book status', 'error');
@@ -72,13 +76,18 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         throw new Error('User not authenticated');
       }
       const result = await borrowAPI.borrow(user.id, bookId);
-      const updatedBook = { ...books.find(book => book.id === bookId), status: 'borrowed' };
-      if (onBookUpdated) {
-        onBookUpdated(updatedBook);
+      const book = books.find(book => book.id === bookId);
+      if (book) {
+        const updatedBook = { ...book, status: 'borrowed' };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        // 更新借阅记录状态
+        setBorrowRecords(prevRecords => [...prevRecords, result]);
+        showToast('Book borrowed successfully', 'success');
+      } else {
+        throw new Error('Book not found');
       }
-      // 更新借阅记录状态
-      setBorrowRecords(prevRecords => [...prevRecords, result]);
-      showToast('Book borrowed successfully', 'success');
     } catch (err) {
       setError('Failed to borrow book');
       showToast(err.message, 'error');
@@ -93,13 +102,18 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         throw new Error('User not authenticated');
       }
       await borrowAPI.return(user.id, bookId);
-      const updatedBook = { ...books.find(book => book.id === bookId), status: 'available' };
-      if (onBookUpdated) {
-        onBookUpdated(updatedBook);
+      const book = books.find(book => book.id === bookId);
+      if (book) {
+        const updatedBook = { ...book, status: 'available' };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        // 更新借阅记录状态
+        setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
+        showToast('Book returned successfully', 'success');
+      } else {
+        throw new Error('Book not found');
       }
-      // 更新借阅记录状态
-      setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
-      showToast('Book returned successfully', 'success');
     } catch (err) {
       setError('Failed to return book');
       showToast(err.message, 'error');
@@ -115,7 +129,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     return (
       <div className="error-message">
         {error}
-        <button onClick={() => window.location.reload()} className="btn-primary">Retry</button>
+        <button onClick={() => setError(null)} className="btn-primary">Retry</button>
       </div>
     );
   }

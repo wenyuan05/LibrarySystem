@@ -1,5 +1,5 @@
 // API基础URL
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // 从本地存储读取 token
 const getAuthToken = () => {
@@ -94,6 +94,14 @@ export const booksAPI = {
     return request(`/books/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    });
+  },
+  
+  // 更新书籍信息
+  update: async (id, bookData) => {
+    return request(`/books/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bookData),
     });
   },
   

@@ -244,6 +244,8 @@ const Login = () => {
               onClick={() => {
                 setLoginError('');
                 setIsRegisterMode(!isRegisterMode);
+                // 重置 registerData 状态，避免在切换模式时保留数据
+                setRegisterData({ username: '', password: '', name: '', email: '' });
               }}
               disabled={isSubmitting}
             >

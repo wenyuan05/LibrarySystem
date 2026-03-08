@@ -50,9 +50,12 @@ db.serialize(() => {
       rows.forEach((row) => {
         const pwd = row.password || '';
         // 简单判断：bcrypt 哈希一般以 $2 开头，长度较长
-        if (!pwd.startsWith('$2a$') && !pwd.startsWith('$2b$')) {
-          const hashed = bcrypt.hashSync(pwd, 10);
-          db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, row.id]);
+        if (pwd && (!pwd.startsWith('$2a$') && !pwd.startsWith('$2b$') && !pwd.startsWith('$2y$'))) {
+          bcrypt.hash(pwd, 10, (hashErr, hashed) => {
+            if (!hashErr) {
+              db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, row.id]);
+            }
+          });
         }
       });
     }

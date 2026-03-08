@@ -42,7 +42,7 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
           ></div>
         </div>
       </div>
-      <button className="toast-close" onClick={onClose}>×</button>
+      <button className="toast-close" onClick={onClose} aria-label="Close toast">×</button>
     </div>
   );
 };
