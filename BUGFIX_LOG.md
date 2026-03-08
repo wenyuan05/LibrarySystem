@@ -108,3 +108,26 @@ This file documents all bug fixes applied to the project.
   - Created useApiRequest custom hook for frontend to handle API requests with loading states and error messages
   - Added error logging with stack traces in backend for better debugging
 - **Reason**: Improve error handling consistency and reduce code duplication
+
+## 2026-03-08
+
+### Fix 16: Optimize user interface and permission control
+- **Files modified**: 
+  - `src/App.jsx`
+  - `src/components/Login/Login.css`
+  - `src/components/ProtectedRoute.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Users/Users.css`
+  - `src/index.css`
+  - `README.md`
+- **Changes**: 
+  - Optimized App.jsx route configuration, added user role requirement for /books path
+  - Improved Login.css styles, enhanced login form layout
+  - Enhanced ProtectedRoute.jsx permission control, implemented admin redirection
+  - Improved Sidebar.jsx navigation logic, displayed different menus based on user role
+  - Optimized UserList.jsx, added search functionality and deletion confirmation
+  - Improved Users.css styles, added responsive design
+  - Optimized index.css layout styles
+  - Updated README.md documentation, added new feature descriptions
+- **Reason**: Enhance user experience, improve permission control, and optimize interface design
