@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
+import SkeletonLoader from './SkeletonLoader';
 import './Books.css';
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
@@ -106,7 +108,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
   };
 
   if (loading) {
-    return <div className="loading">Loading books...</div>;
+    return <SkeletonLoader count={5} />;
   }
 
   if (error) {
@@ -118,77 +120,99 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     );
   }
 
+  // 动画变量
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    }
+  };
+
   return (
     <div className="book-list">
       <h3>Books</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Author</th>
-            <th>ISBN</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {books.map(book => (
-            <tr key={book.id} className="fade-in">
-              <td>{book.id}</td>
-              <td>{book.title}</td>
-              <td>{book.author}</td>
-              <td>{book.isbn}</td>
-              <td className={`status-${book.status}`}>{book.status}</td>
-              <td>
-                {user.role === 'user' ? (
-                  book.status === 'available' ? (
-                    <button 
-                      className="btn-warning"
-                      onClick={() => handleBorrowBook(book.id)}
-                    >
-                      Borrow
-                    </button>
-                  ) : (
-                    // 只有当用户有对应的未归还借阅记录时才显示归还按钮
-                    borrowRecords.some(record => record.book_id === book.id) && (
-                      <button 
-                        className="btn-info"
-                        onClick={() => handleReturnBook(book.id)}
-                      >
-                        Return
-                      </button>
-                    )
-                  )
+      <motion.div
+        className="book-grid"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {books.map(book => (
+          <motion.div 
+            key={book.id} 
+            variants={itemVariants}
+            className="book-card"
+          >
+            <div className="book-card-header">
+              <span className={`status-badge status-${book.status}`}>{book.status}</span>
+              <span className="book-id">ID: {book.id}</span>
+            </div>
+            <h4 className="book-title">{book.title}</h4>
+            <p className="book-author">by {book.author}</p>
+            <p className="book-isbn">ISBN: {book.isbn}</p>
+            <div className="book-actions">
+              {user.role === 'user' ? (
+                book.status === 'available' ? (
+                  <button 
+                    className="btn-warning"
+                    onClick={() => handleBorrowBook(book.id)}
+                  >
+                    Borrow
+                  </button>
                 ) : (
-                  <>
-                    {showEditButton && (
-                      <button 
-                        className="btn-info"
-                        onClick={() => onEditBook && onEditBook(book)}
-                      >
-                        Edit
-                      </button>
-                    )}
+                  // 只有当用户有对应的未归还借阅记录时才显示归还按钮
+                  borrowRecords.some(record => record.book_id === book.id) && (
                     <button 
-                      className="btn-success"
-                      onClick={() => handleUpdateStatus(book.id, book.status)}
+                      className="btn-info"
+                      onClick={() => handleReturnBook(book.id)}
                     >
-                      {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
+                      Return
                     </button>
+                  )
+                )
+              ) : (
+                <>
+                  {showEditButton && (
                     <button 
-                      className="btn-danger"
-                      onClick={() => handleDeleteBook(book.id)}
+                      className="btn-info"
+                      onClick={() => onEditBook && onEditBook(book)}
                     >
-                      Delete
+                      Edit
                     </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  )}
+                  <button 
+                    className="btn-success"
+                    onClick={() => handleUpdateStatus(book.id, book.status)}
+                  >
+                    {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
+                  </button>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => handleDeleteBook(book.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
   );
 };
