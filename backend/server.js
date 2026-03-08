@@ -6,8 +6,17 @@ const db = require('./db');
 
 const app = express();
 const PORT = 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+// JWT 配置
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
+
+// 检查 JWT_SECRET 是否设置
+if (!JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET environment variable not set. Using a temporary secret for development only.');
+  console.warn('⚠️  This is insecure for production environments.');
+  // 仅在开发环境中使用默认值
+  process.env.JWT_SECRET = 'dev-secret';
+}
 
 // 中间件
 app.use(cors());
@@ -93,7 +102,7 @@ const authenticateToken = (req, res, next) => {
     return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, payload) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, payload) => {
     if (err) {
       res.status(401).json({ error: 'Invalid or expired token' });
       return;
@@ -139,7 +148,7 @@ app.post('/api/login', validateLoginBody, (req, res) => {
         username: user.username,
         role: user.role,
       };
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
       res.json({
         ...payload,
@@ -195,7 +204,7 @@ app.post('/api/register', validateRegisterBody, (req, res) => {
             username,
             role,
           };
-          const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+          const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
           res.status(201).json({
             ...payload,
