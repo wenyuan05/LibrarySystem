@@ -19,7 +19,13 @@ if (!JWT_SECRET) {
 }
 
 // 中间件
-app.use(cors());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // 登录请求体验证中间件
@@ -358,53 +364,73 @@ app.post('/api/borrow', authenticateToken, (req, res) => {
   
   // 开始事务
   db.serialize(() => {
-    // 检查书籍是否可用
-    db.get('SELECT status FROM books WHERE id = ?', [book_id], (err, book) => {
+    db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      if (!book || book.status !== 'available') {
-        res.status(400).json({ error: 'Book is not available' });
-        return;
-      }
-      
-      // 检查是否存在该书籍尚未归还的借阅记录
-      db.get(
-        'SELECT id FROM borrow_records WHERE book_id = ? AND return_date IS NULL',
-        [book_id],
-        (err, existingRecord) => {
-          if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-          }
-          if (existingRecord) {
-            res.status(400).json({ error: 'Book is already borrowed and not returned' });
-            return;
-          }
-          
-          // 更新书籍状态
-          db.run('UPDATE books SET status = ? WHERE id = ?', ['borrowed', book_id], (err) => {
+
+      // 检查书籍是否可用
+      db.get('SELECT status FROM books WHERE id = ?', [book_id], (err, book) => {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!book || book.status !== 'available') {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Book is not available' });
+          return;
+        }
+        
+        // 检查是否存在该书籍尚未归还的借阅记录
+        db.get(
+          'SELECT id FROM borrow_records WHERE book_id = ? AND return_date IS NULL',
+          [book_id],
+          (err, existingRecord) => {
             if (err) {
+              db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
+            if (existingRecord) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: 'Book is already borrowed and not returned' });
+              return;
+            }
             
-            // 创建借阅记录
-            db.run(
-              'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
-              [user_id, book_id, borrow_date],
-              function(err) {
-                if (err) {
-                  res.status(500).json({ error: err.message });
-                  return;
-                }
-                res.json({ id: this.lastID, user_id, book_id, borrow_date });
+            // 更新书籍状态
+            db.run('UPDATE books SET status = ? WHERE id = ?', ['borrowed', book_id], (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
               }
-            );
-          });
-        }
-      );
+              
+              // 创建借阅记录
+              db.run(
+                'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
+                [user_id, book_id, borrow_date],
+                function(err) {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  
+                  db.run('COMMIT', (err) => {
+                    if (err) {
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+                    res.json({ id: this.lastID, user_id, book_id, borrow_date });
+                  });
+                }
+              );
+            });
+          }
+        );
+      });
     });
   });
 });
@@ -420,42 +446,60 @@ app.post('/api/return', authenticateToken, (req, res) => {
   
   // 开始事务
   db.serialize(() => {
-    // 查找未归还的借阅记录
-    db.get(
-      'SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND return_date IS NULL',
-      [user_id, book_id],
-      (err, record) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        if (!record) {
-          res.status(400).json({ error: 'No active borrow record found' });
-          return;
-        }
-        
-        // 更新借阅记录
-        db.run(
-          'UPDATE borrow_records SET return_date = ? WHERE id = ?',
-          [return_date, record.id],
-          (err) => {
-            if (err) {
-              res.status(500).json({ error: err.message });
-              return;
-            }
-            
-            // 更新书籍状态
-            db.run('UPDATE books SET status = ? WHERE id = ?', ['available', book_id], (err) => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 查找未归还的借阅记录
+      db.get(
+        'SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND return_date IS NULL',
+        [user_id, book_id],
+        (err, record) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          if (!record) {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'No active borrow record found' });
+            return;
+          }
+          
+          // 更新借阅记录
+          db.run(
+            'UPDATE borrow_records SET return_date = ? WHERE id = ?',
+            [return_date, record.id],
+            (err) => {
               if (err) {
+                db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
                 return;
               }
-              res.json({ message: 'Book returned successfully', return_date });
-            });
-          }
-        );
-      }
-    );
+              
+              // 更新书籍状态
+              db.run('UPDATE books SET status = ? WHERE id = ?', ['available', book_id], (err) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({ message: 'Book returned successfully', return_date });
+                });
+              });
+            }
+          );
+        }
+      );
+    });
   });
 });
 

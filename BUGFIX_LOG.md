@@ -38,3 +38,18 @@ This file documents all bug fixes applied to the project.
   - Updated all JWT operations to use process.env.JWT_SECRET
   - Added security note about using environment variables in production
 - **Reason**: Enhance security by encouraging proper JWT secret management in production
+
+### Fix 7: Improve CORS configuration
+- **Files modified**: `backend/server.js`
+- **Changes**: Updated CORS configuration to use specific origin and allowed methods
+- **Reason**: Enhance security by restricting CORS to specific origins
+
+### Fix 8: Use async bcrypt hashing
+- **Files modified**: `backend/db.js`
+- **Changes**: Changed bcrypt.hashSync to bcrypt.hash in the password migration loop
+- **Reason**: Prevent blocking the event loop with synchronous hashing
+
+### Fix 9: Improve transaction handling
+- **Files modified**: `backend/server.js`
+- **Changes**: Added proper BEGIN TRANSACTION and ROLLBACK/COMMIT statements to borrow and return routes
+- **Reason**: Ensure data consistency and handle errors properly during transactions
