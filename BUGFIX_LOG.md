@@ -74,3 +74,17 @@ This file documents all bug fixes applied to the project.
 - **Files modified**: `backend/server.js`
 - **Changes**: Added access control to `/api/users/:id` route to only allow users to view their own information or admins to view all
 - **Reason**: Enhance security and protect user privacy
+
+### Fix 13: Extract environment variables
+- **Files modified**: 
+  - `.env`
+  - `backend/.env`
+  - `backend/package.json`
+  - `backend/server.js`
+  - `src/utils/api.js`
+- **Changes**: 
+  - Created .env files for both frontend and backend
+  - Added dotenv dependency to backend
+  - Modified api.js to use VITE_API_BASE_URL environment variable
+  - Updated server.js to load environment variables and use them for JWT_SECRET and CORS configuration
+- **Reason**: Improve configurability and security by using environment variables instead of hardcoding values
