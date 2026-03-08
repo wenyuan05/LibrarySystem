@@ -6,7 +6,6 @@ import './Books.css';
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
-  const [editingBook, setEditingBook] = useState(null);
   const [borrowRecords, setBorrowRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -128,7 +127,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     return (
       <div className="error-message">
         {error}
-        <button onClick={() => window.location.reload()} className="btn-primary">Retry</button>
+        <button onClick={() => setError(null)} className="btn-primary">Retry</button>
       </div>
     );
   }

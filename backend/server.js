@@ -323,7 +323,7 @@ app.get('/api/users/:id/borrow-records', authenticateToken, (req, res) => {
     return;
   }
   db.all(
-    `SELECT br.id, b.title, b.author, br.borrow_date, br.return_date 
+    `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.return_date 
      FROM borrow_records br 
      JOIN books b ON br.book_id = b.id 
      WHERE br.user_id = ?`,
