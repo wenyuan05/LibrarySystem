@@ -290,3 +290,13 @@ This file documents all bug fixes applied to the project.
   - Removed unnecessary books state and fetchBooks call
   - Added validation for book_id presence
 - **Reason**: Prevent returning the wrong book when titles are not unique, and simplify the component
+
+### Fix 35: Add validation for PUT /api/books/:id
+- **Files modified**: 
+  - `backend/server.js`
+- **Changes**: 
+  - Added validateBookUpdateBody middleware
+  - Added validation for title, author, isbn, and status fields
+  - Added status whitelist validation (only "available" or "borrowed")
+  - Added type and length validation for all fields
+- **Reason**: Prevent invalid data from being submitted and provide clear 400 error responses
