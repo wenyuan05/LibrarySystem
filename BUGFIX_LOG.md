@@ -187,3 +187,10 @@ This file documents all bug fixes applied to the project.
   - Updated README.md with detailed environment variable configuration instructions
   - Added security notes about JWT_SECRET management
 - **Reason**: Prevent secrets from being committed to version control and improve security practices
+
+### Fix 22: Fix undefined CSS variable
+- **Files modified**: 
+  - `src/components/Users/Users.css`
+- **Changes**: 
+  - Replaced undefined `--font-size-base` variable with existing `--font-size-md` variable
+- **Reason**: Ensure CSS variables are properly defined and avoid fallback to browser defaults
