@@ -528,6 +528,7 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+   - 严格的角色验证（只允许'user'或'admin'）
 9. **数据库工具**：
    - `check_db.js` - 检查数据库中的书籍和借阅记录
    - `check_indexes.js` - 检查数据库索引状态和数据
@@ -579,6 +580,7 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
+   - 严格的角色验证（只允许'user'或'admin'）
 8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
 
 ## 示例数据

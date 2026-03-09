@@ -131,3 +131,23 @@ This file documents all bug fixes applied to the project.
   - Optimized index.css layout styles
   - Updated README.md documentation, added new feature descriptions
 - **Reason**: Enhance user experience, improve permission control, and optimize interface design
+
+## 2026-03-09
+
+### Fix 17: Add request validation for admin add user
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Created `validateAdminAddUserBody` middleware for POST /api/users route
+  - Added validation for all required fields (username, password, role, name, email)
+  - Added length validation for username, password, and name
+  - Added email format validation
+  - Added strict role validation (only 'user' or 'admin' allowed)
+  - Updated POST /api/users route to use the new validation middleware
+- **Reason**: Prevent creation of invalid users and return consistent 400 responses
+
+### Fix 18: Update documentation
+- **Files modified**: `README.md`
+- **Changes**: 
+  - Updated security section to include strict role validation
+  - Updated backend development guide to include role validation
+- **Reason**: Keep documentation in sync with code changes

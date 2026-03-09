@@ -97,6 +97,38 @@ const validateBookBody = (req, res, next) => {
   next();
 };
 
+// 管理员添加用户请求体验证中间件
+const validateAdminAddUserBody = (req, res, next) => {
+  const { username, password, role, name, email } = req.body;
+  if (!username || !password || !role || !name || !email) {
+    res.status(400).json({ error: 'Username, password, role, name and email are required' });
+    return;
+  }
+  if (username.length < 3 || username.length > 20) {
+    res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return;
+  }
+  if (name.length < 2 || name.length > 50) {
+    res.status(400).json({ error: 'Name must be between 2 and 50 characters' });
+    return;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ error: 'Invalid email format' });
+    return;
+  }
+  // 严格验证role字段，只允许'user'或'admin'
+  if (!['user', 'admin'].includes(role)) {
+    res.status(400).json({ error: 'Role must be either "user" or "admin"' });
+    return;
+  }
+  next();
+};
+
 // 解析并验证 JWT 的中间件
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -260,7 +292,7 @@ app.get('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
 });
 
 // 添加用户（管理员）
-app.post('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
+app.post('/api/users', authenticateToken, requireRole('admin'), validateAdminAddUserBody, (req, res) => {
   const { username, password, role, name, email } = req.body;
   
   // 检查用户名是否已存在
