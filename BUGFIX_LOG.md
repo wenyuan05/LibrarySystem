@@ -211,3 +211,11 @@ This file documents all bug fixes applied to the project.
   - Retained the centered versions with max-width constraints
   - Added responsive media query for .action-bar
 - **Reason**: Eliminate CSS-order-dependent behavior and maintain a single source of truth for shared layout classes
+
+### Fix 25: Add ISBN unique index
+- **Files modified**: 
+  - `backend/db.js`
+- **Changes**: 
+  - Added CREATE UNIQUE INDEX IF NOT EXISTS for books(isbn)
+  - Ensures ISBN uniqueness even on already-created databases
+- **Reason**: Enforce ISBN uniqueness across all database instances, including existing ones

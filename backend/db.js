@@ -79,6 +79,8 @@ db.serialize(() => {
   // 添加索引以提高查询性能
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_user_id ON borrow_records(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_book_id ON borrow_records(book_id)');
+  // 添加ISBN唯一索引以确保唯一性
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)');
 
   console.log('Database initialized with sample data');
 
