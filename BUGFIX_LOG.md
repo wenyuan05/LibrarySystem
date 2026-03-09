@@ -194,3 +194,11 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Replaced undefined `--font-size-base` variable with existing `--font-size-md` variable
 - **Reason**: Ensure CSS variables are properly defined and avoid fallback to browser defaults
+
+### Fix 23: Add null/undefined guard for user search
+- **Files modified**: 
+  - `src/components/Users/UserList.jsx`
+- **Changes**: 
+  - Added null/undefined guards for username, name, and email fields before calling toLowerCase()
+  - Used (value || '') pattern to default to empty string for missing fields
+- **Reason**: Prevent search functionality from crashing on incomplete user records with null/undefined fields

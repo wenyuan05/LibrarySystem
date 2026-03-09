@@ -63,9 +63,9 @@ const UserList = () => {
       setFilteredUsers(users);
     } else {
       const filtered = users.filter(userItem => 
-        userItem.username.toLowerCase().includes(term.toLowerCase()) ||
-        userItem.name.toLowerCase().includes(term.toLowerCase()) ||
-        userItem.email.toLowerCase().includes(term.toLowerCase())
+        (userItem.username || '').toLowerCase().includes(term.toLowerCase()) ||
+        (userItem.name || '').toLowerCase().includes(term.toLowerCase()) ||
+        (userItem.email || '').toLowerCase().includes(term.toLowerCase())
       );
       setFilteredUsers(filtered);
     }
