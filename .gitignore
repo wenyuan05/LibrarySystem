@@ -38,3 +38,7 @@ backend/.env.local
 backend/.env.development.local
 backend/.env.test.local
 backend/.env.production.local
+
+# Optimization logs
+OPTIMIZATION_PLAN.md
+OPTIMIZATION_STATUS.md
