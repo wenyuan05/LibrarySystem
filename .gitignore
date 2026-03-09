@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Database files
+backend/library.db
+.trae/documents/project_sharing_plan.md
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+
+# Optimization logs
+OPTIMIZATION_PLAN.md
+OPTIMIZATION_STATUS.md

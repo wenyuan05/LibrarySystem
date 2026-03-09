@@ -1,0 +1,33 @@
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const ProtectedRoute = ({ children, requiredRole = null }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    // 管理员用户访问需要user角色的路径时，重定向到BookManagement
+    if (user.role === 'admin' && (location.pathname === '/' || location.pathname === '/books')) {
+      return <Navigate to="/book-management" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  // 管理员用户访问根路径时，重定向到BookManagement
+  if (user.role === 'admin' && location.pathname === '/') {
+    return <Navigate to="/book-management" replace />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;

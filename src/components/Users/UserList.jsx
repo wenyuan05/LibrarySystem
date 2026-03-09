@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usersAPI } from '../../utils/api';
+import AddUserForm from './AddUserForm';
 import './Users.css';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
   const { user } = useAuth();
 
   // 加载用户数据
@@ -46,6 +50,32 @@ const UserList = () => {
     }
   };
 
+  // 处理用户添加
+  const handleUserAdded = (newUser) => {
+    setUsers(prevUsers => [...prevUsers, newUser]);
+  };
+
+  // 处理搜索
+  const handleSearch = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    if (term.trim() === '') {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(userItem => 
+        (userItem.username || '').toLowerCase().includes(term.toLowerCase()) ||
+        (userItem.name || '').toLowerCase().includes(term.toLowerCase()) ||
+        (userItem.email || '').toLowerCase().includes(term.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+  };
+
+  // 当用户列表变化时，更新过滤后的用户
+  useEffect(() => {
+    setFilteredUsers(users);
+  }, [users]);
+
   if (loading) {
     return <div className="loading">Loading users...</div>;
   }
@@ -61,7 +91,35 @@ const UserList = () => {
 
   return (
     <div className="user-list">
-      <h3>Users</h3>
+      {/* 操作栏 */}
+      <div className="action-bar">
+        <button 
+          className="btn-primary"
+          onClick={() => setShowAddForm(!showAddForm)}
+        >
+          {showAddForm ? 'Cancel' : 'Add User'}
+        </button>
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search users by username, name, or email..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="search-input"
+          />
+        </div>
+      </div>
+      
+      {/* 添加用户表单 */}
+      {showAddForm && (
+        <AddUserForm 
+          onUserAdded={(newUser) => {
+            handleUserAdded(newUser);
+            setShowAddForm(false);
+          }}
+        />
+      )}
+      
       <table>
         <thead>
           <tr>
@@ -74,7 +132,7 @@ const UserList = () => {
           </tr>
         </thead>
         <tbody>
-          {users.map(userItem => (
+          {filteredUsers.map(userItem => (
             <tr key={userItem.id} className="fade-in">
               <td>{userItem.id}</td>
               <td>{userItem.username}</td>

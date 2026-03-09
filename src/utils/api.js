@@ -1,13 +1,28 @@
 // API基础URL
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
+// 从本地存储读取 token
+const getAuthToken = () => {
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return null;
+    const parsed = JSON.parse(storedUser);
+    return parsed.token || null;
+  } catch (e) {
+    console.error('Failed to read auth token from localStorage', e);
+    return null;
+  }
+};
 
 // 通用请求函数
 const request = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  const token = getAuthToken();
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };
   
@@ -44,6 +59,14 @@ export const authAPI = {
       body: JSON.stringify({ username, password }),
     });
   },
+
+  // 用户注册
+  register: async ({ username, password, name, email }) => {
+    return request('/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, name, email }),
+    });
+  },
 };
 
 // 书籍相关API
@@ -71,6 +94,14 @@ export const booksAPI = {
     return request(`/books/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    });
+  },
+  
+  // 更新书籍信息
+  update: async (id, bookData) => {
+    return request(`/books/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bookData),
     });
   },
   

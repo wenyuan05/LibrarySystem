@@ -1,43 +1,53 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { booksAPI, borrowAPI } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
+import SkeletonLoader from './SkeletonLoader';
 import './Books.css';
 
-const BookList = () => {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
+  const [borrowRecords, setBorrowRecords] = useState([]);
   const { user } = useAuth();
+  const { showToast } = useToast();
 
-  // 加载书籍数据
+  // 获取用户借阅记录
   useEffect(() => {
-    fetchBooks();
-  }, []);
+    const fetchBorrowRecords = async () => {
+      if (user?.id) {
+        try {
+          const records = await usersAPI.getBorrowRecords(user.id);
+          // 过滤出未归还的借阅记录
+          const activeRecords = records.filter(record => !record.return_date);
+          setBorrowRecords(activeRecords);
+        } catch (err) {
+          console.error('Failed to fetch borrow records:', err);
+        }
+      }
+    };
 
-  const fetchBooks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await booksAPI.getAll();
-      setBooks(data);
-    } catch (err) {
-      setError('Failed to load books');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchBorrowRecords();
+  }, [user]);
 
   // 处理书籍状态更新（管理员）
   const handleUpdateStatus = async (id, currentStatus) => {
     try {
       const newStatus = currentStatus === 'available' ? 'borrowed' : 'available';
       await booksAPI.updateStatus(id, newStatus);
-      setBooks(books.map(book => 
-        book.id === id ? { ...book, status: newStatus } : book
-      ));
+      const book = books.find(book => book.id === id);
+      if (book) {
+        const updatedBook = { ...book, status: newStatus };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        showToast(`Book status updated to ${newStatus}`, 'success');
+      } else {
+        throw new Error('Book not found');
+      }
     } catch (err) {
       setError('Failed to update book status');
+      showToast('Failed to update book status', 'error');
       console.error(err);
     }
   };
@@ -47,9 +57,13 @@ const BookList = () => {
     if (window.confirm('Are you sure you want to delete this book?')) {
       try {
         await booksAPI.delete(id);
-        setBooks(books.filter(book => book.id !== id));
+        if (onBookDeleted) {
+          onBookDeleted(id);
+        }
+        showToast('Book deleted successfully', 'success');
       } catch (err) {
         setError('Failed to delete book');
+        showToast('Failed to delete book', 'error');
         console.error(err);
       }
     }
@@ -58,14 +72,25 @@ const BookList = () => {
   // 处理借阅书籍（用户）
   const handleBorrowBook = async (bookId) => {
     try {
-      await borrowAPI.borrow(user.id, bookId);
-      setBooks(books.map(book => 
-        book.id === bookId ? { ...book, status: 'borrowed' } : book
-      ));
-      alert('Book borrowed successfully');
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      const result = await borrowAPI.borrow(user.id, bookId);
+      const book = books.find(book => book.id === bookId);
+      if (book) {
+        const updatedBook = { ...book, status: 'borrowed' };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        // 更新借阅记录状态
+        setBorrowRecords(prevRecords => [...prevRecords, result]);
+        showToast('Book borrowed successfully', 'success');
+      } else {
+        throw new Error('Book not found');
+      }
     } catch (err) {
       setError('Failed to borrow book');
-      alert(err.message);
+      showToast(err.message, 'error');
       console.error(err);
     }
   };
@@ -73,63 +98,99 @@ const BookList = () => {
   // 处理归还书籍（用户）
   const handleReturnBook = async (bookId) => {
     try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
       await borrowAPI.return(user.id, bookId);
-      setBooks(books.map(book => 
-        book.id === bookId ? { ...book, status: 'available' } : book
-      ));
-      alert('Book returned successfully');
+      const book = books.find(book => book.id === bookId);
+      if (book) {
+        const updatedBook = { ...book, status: 'available' };
+        if (onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+        // 更新借阅记录状态
+        setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
+        showToast('Book returned successfully', 'success');
+      } else {
+        throw new Error('Book not found');
+      }
     } catch (err) {
       setError('Failed to return book');
-      alert(err.message);
+      showToast(err.message, 'error');
       console.error(err);
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading books...</div>;
+    return <SkeletonLoader count={5} />;
   }
 
   if (error) {
     return (
       <div className="error-message">
         {error}
-        <button onClick={fetchBooks} className="btn-primary">Retry</button>
+        <button onClick={() => setError(null)} className="btn-primary">Dismiss</button>
       </div>
     );
   }
 
+  // 动画变量
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    }
+  };
+
   return (
     <div className="book-list">
       <h3>Books</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Author</th>
-            <th>ISBN</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {books.map(book => (
-            <tr key={book.id} className="fade-in">
-              <td>{book.id}</td>
-              <td>{book.title}</td>
-              <td>{book.author}</td>
-              <td>{book.isbn}</td>
-              <td className={`status-${book.status}`}>{book.status}</td>
-              <td>
-                {user.role === 'user' ? (
-                  book.status === 'available' ? (
-                    <button 
-                      className="btn-warning"
-                      onClick={() => handleBorrowBook(book.id)}
-                    >
-                      Borrow
-                    </button>
-                  ) : (
+      <motion.div
+        className="book-grid"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {books.map(book => (
+          <motion.div 
+            key={book.id} 
+            variants={itemVariants}
+            className="book-card"
+          >
+            <div className="book-card-header">
+              <span className={`status-badge status-${book.status}`}>{book.status}</span>
+              <span className="book-id">ID: {book.id}</span>
+            </div>
+            <h4 className="book-title">{book.title}</h4>
+            <p className="book-author">by {book.author}</p>
+            <p className="book-isbn">ISBN: {book.isbn}</p>
+            <div className="book-actions">
+              {user.role === 'user' ? (
+                book.status === 'available' ? (
+                  <button 
+                    className="btn-warning"
+                    onClick={() => handleBorrowBook(book.id)}
+                  >
+                    Borrow
+                  </button>
+                ) : (
+                  // 只有当用户有对应的未归还借阅记录时才显示归还按钮
+                  borrowRecords.some(record => record.book_id === book.id) && (
                     <button 
                       className="btn-info"
                       onClick={() => handleReturnBook(book.id)}
@@ -137,27 +198,35 @@ const BookList = () => {
                       Return
                     </button>
                   )
-                ) : (
-                  <>
+                )
+              ) : (
+                <>
+                  {showEditButton && (
                     <button 
-                      className="btn-success"
-                      onClick={() => handleUpdateStatus(book.id, book.status)}
+                      className="btn-info"
+                      onClick={() => onEditBook && onEditBook(book)}
                     >
-                      {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
+                      Edit
                     </button>
-                    <button 
-                      className="btn-danger"
-                      onClick={() => handleDeleteBook(book.id)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  )}
+                  <button 
+                    className="btn-success"
+                    onClick={() => handleUpdateStatus(book.id, book.status)}
+                  >
+                    {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
+                  </button>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => handleDeleteBook(book.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
   );
 };

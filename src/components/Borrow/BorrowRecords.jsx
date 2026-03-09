@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import { usersAPI, borrowAPI } from '../../utils/api';
 import './Borrow.css';
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
-  const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  const { showToast } = useToast();
 
-  // 加载借阅记录和书籍数据
+  // 加载借阅记录
   useEffect(() => {
     fetchBorrowRecords();
-    fetchBooks();
   }, []);
 
   const fetchBorrowRecords = async () => {
@@ -30,39 +30,24 @@ const BorrowRecords = () => {
     }
   };
 
-  const fetchBooks = async () => {
-    try {
-      const data = await booksAPI.getAll();
-      setBooks(data);
-    } catch (err) {
-      console.error('Failed to load books:', err);
-    }
-  };
-
   // 处理归还书籍
   const handleReturnBook = async (record) => {
     try {
-      const book = books.find(b => b.title === record.title);
-      if (!book) {
-        throw new Error('Book not found');
+      if (!record.book_id) {
+        throw new Error('Book ID not found in record');
       }
       
-      await borrowAPI.return(user.id, book.id);
+      await borrowAPI.return(user.id, record.book_id);
       
       // 更新借阅记录
       setRecords(records.map(r => 
         r.id === record.id ? { ...r, return_date: new Date().toISOString().split('T')[0] } : r
       ));
       
-      // 更新书籍状态
-      setBooks(books.map(b => 
-        b.id === book.id ? { ...b, status: 'available' } : b
-      ));
-      
-      alert('Book returned successfully');
+      showToast('Book returned successfully', 'success');
     } catch (err) {
       setError('Failed to return book');
-      alert(err.message);
+      showToast(err.message, 'error');
       console.error(err);
     }
   };
