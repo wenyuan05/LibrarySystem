@@ -226,3 +226,12 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Added engines field specifying node >= 20.0.0
 - **Reason**: Ensure compatibility with react-router-dom@7.13.1 which requires Node.js >= 20
+
+### Fix 27: Add error handling for fetchBooks
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Added error state management for BooksPage and BookManagementPage
+  - Added toast notifications for error messages
+  - Added error UI with retry button
+- **Reason**: Provide user-friendly error feedback when book loading fails, instead of just logging to console

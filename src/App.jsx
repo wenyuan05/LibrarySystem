@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login/Login';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -57,15 +57,21 @@ const BooksPage = () => {
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { addToast } = useToast();
 
   // 加载书籍数据
   const fetchBooks = async () => {
     try {
       setBooksLoading(true);
+      setError(null);
       const data = await booksAPI.getAll();
       setBooks(data);
     } catch (err) {
       console.error('Failed to load books:', err);
+      const errorMessage = 'Failed to load books. Please try again.';
+      setError(errorMessage);
+      addToast({ message: errorMessage, type: 'error' });
     } finally {
       setBooksLoading(false);
     }
@@ -109,6 +115,18 @@ const BooksPage = () => {
     setFilteredBooks(books);
   }, [books]);
 
+  if (error) {
+    return (
+      <div className="books-section card fade-in">
+        <h2>Books</h2>
+        <div className="error-message">
+          {error}
+          <button onClick={fetchBooks} className="btn-primary">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="books-section card fade-in">
       <h2>Books</h2>
@@ -143,15 +161,21 @@ const BookManagementPage = () => {
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [error, setError] = useState(null);
+  const { addToast } = useToast();
 
   // 加载书籍数据
   const fetchBooks = async () => {
     try {
       setBooksLoading(true);
+      setError(null);
       const data = await booksAPI.getAll();
       setBooks(data);
     } catch (err) {
       console.error('Failed to load books:', err);
+      const errorMessage = 'Failed to load books. Please try again.';
+      setError(errorMessage);
+      addToast({ message: errorMessage, type: 'error' });
     } finally {
       setBooksLoading(false);
     }
@@ -206,6 +230,18 @@ const BookManagementPage = () => {
   useEffect(() => {
     setFilteredBooks(books);
   }, [books]);
+
+  if (error) {
+    return (
+      <div className="book-management-section card fade-in">
+        <h2>Book Management</h2>
+        <div className="error-message">
+          {error}
+          <button onClick={fetchBooks} className="btn-primary">Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="book-management-section card fade-in">
