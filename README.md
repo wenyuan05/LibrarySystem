@@ -204,7 +204,6 @@ npm run dev
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-- `/api/register` - 用户注册
 - `/api/users` - 获取所有用户列表（需要管理员权限）
 - `/api/users/:id` - 获取、更新用户信息
 - `/api/books` - 添加新书籍（需要管理员权限）
@@ -215,6 +214,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 以下接口无需登录即可访问：
 - `/api/login` - 用户登录
+- `/api/register` - 用户注册
 - `/api/books` - 获取所有书籍列表
 - `/api/books/:id` - 获取单本书籍详情
 

@@ -244,3 +244,10 @@ This file documents all bug fixes applied to the project.
   - Rotated JWT_SECRET to a new value
   - Ensured only backend/.env.example remains in git
 - **Reason**: Prevent secrets from being committed to version control and improve security
+
+### Fix 29: Fix README.md API authentication documentation
+- **Files modified**: 
+  - `README.md`
+- **Changes**: 
+  - Moved `/api/register` from the authenticated endpoints list to the public endpoints list
+- **Reason**: Correct documentation to reflect that the register endpoint is public and doesn't require an Authorization header
