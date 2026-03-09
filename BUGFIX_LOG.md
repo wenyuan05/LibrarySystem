@@ -307,3 +307,11 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Removed display:flex, place-items, and justify-content from body
 - **Reason**: Allow #root to stretch to viewport and prevent layout/scroll issues with the full-screen app layout
+
+### Fix 37: Fix useToast usage in App.jsx
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Replaced `addToast` with `showToast` in BooksPage and BookManagementPage components
+  - Updated function call signature from `addToast({ message, type })` to `showToast(message, type)`
+- **Reason**: Fix runtime error caused by using the wrong function name and signature for toast notifications
