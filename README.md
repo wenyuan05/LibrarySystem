@@ -22,6 +22,7 @@ LibrarySystem/
 │   │   │   ├── BookList.jsx      # 书籍列表
 │   │   │   ├── AddBookForm.jsx    # 添加书籍表单
 │   │   │   ├── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   ├── SkeletonLoader.jsx # 加载骨架屏
 │   │   │   └── Books.css          # 书籍组件样式
 │   │   ├── Borrow/     # 借阅记录组件
 │   │   │   ├── BorrowRecords.jsx  # 借阅记录
@@ -515,11 +516,15 @@ Authorization: Bearer <JWT_TOKEN>
    - 每个toast独立倒计时，按照创建顺序消失
    - 当一个toast消失时，其他toast会平滑上移
    - 手动关闭toast时也会有平滑的消失动画
-10. **数据验证**：
+10. **加载状态**：使用 SkeletonLoader 组件显示加载状态
+    - 书籍列表加载时显示骨架屏
+    - 提升用户体验，减少加载等待感
+    - 响应式设计，适配不同屏幕尺寸
+11. **数据验证**：
     - 表单字段验证
     - 数据格式检查
     - 重复数据提示
-11. **安全性**：
+12. **安全性**：
     - 前端输入验证
     - 密码强度检查
     - 实时错误提示

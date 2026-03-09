@@ -129,7 +129,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     return (
       <div className="error-message">
         {error}
-        <button onClick={() => setError(null)} className="btn-primary">Retry</button>
+        <button onClick={() => setError(null)} className="btn-primary">Dismiss</button>
       </div>
     );
   }

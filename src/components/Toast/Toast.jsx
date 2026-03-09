@@ -5,16 +5,16 @@ const Toast = ({ id, message, type = 'info', duration = 3000, onClose }) => {
   const [progress, setProgress] = useState(100);
   const [isClosing, setIsClosing] = useState(false);
   const toastRef = useRef(null);
+  const animationEndTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsClosing(true);
       // 等待动画结束后再调用onClose
-      const animationEndTimer = setTimeout(() => {
+      animationEndTimerRef.current = setTimeout(() => {
         onClose(id);
       }, 300); // 与CSS动画持续时间一致
-      
-      return () => clearTimeout(animationEndTimer);
     }, duration);
 
     const interval = setInterval(() => {
@@ -27,6 +27,12 @@ const Toast = ({ id, message, type = 'info', duration = 3000, onClose }) => {
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
+      if (animationEndTimerRef.current) {
+        clearTimeout(animationEndTimerRef.current);
+      }
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
     };
   }, [duration, onClose, id]);
 
@@ -34,7 +40,7 @@ const Toast = ({ id, message, type = 'info', duration = 3000, onClose }) => {
   const handleClose = () => {
     setIsClosing(true);
     // 等待动画结束后再调用onClose
-    setTimeout(() => {
+    closeTimerRef.current = setTimeout(() => {
       onClose(id);
     }, 300); // 与CSS动画持续时间一致
   };
