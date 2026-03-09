@@ -315,3 +315,12 @@ This file documents all bug fixes applied to the project.
   - Replaced `addToast` with `showToast` in BooksPage and BookManagementPage components
   - Updated function call signature from `addToast({ message, type })` to `showToast(message, type)`
 - **Reason**: Fix runtime error caused by using the wrong function name and signature for toast notifications
+
+### Fix 38: Fix search bar styles
+- **Files modified**: 
+  - `src/styles/global.css`
+- **Changes**: 
+  - Added global `.search-input` styles with proper background color, border, and focus effects
+  - Ensured search input uses `--bg-secondary` for background and `--text-primary` for text
+  - Added consistent padding, border radius, and transition effects
+- **Reason**: Fix search bar appearing with black background and inconsistent styling across pages
