@@ -171,3 +171,19 @@ This file documents all bug fixes applied to the project.
   - Consolidated into a single .card definition with consistent styling
   - Retained max-width: 1000px and centering behavior
 - **Reason**: Avoid unintentional style overrides and make layout changes predictable
+
+### Fix 21: Secure environment variables
+- **Files modified**: 
+  - `.env`
+  - `backend/.env`
+  - `.gitignore`
+  - `.env.example`
+  - `backend/.env.example`
+  - `README.md`
+- **Changes**: 
+  - Created `.env.example` files for both root and backend directories
+  - Updated `.gitignore` to exclude all .env files
+  - Rotated JWT_SECRET to a new value
+  - Updated README.md with detailed environment variable configuration instructions
+  - Added security notes about JWT_SECRET management
+- **Reason**: Prevent secrets from being committed to version control and improve security practices

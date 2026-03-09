@@ -108,9 +108,15 @@ npm install
 
 ### 4. 配置环境变量
 
-在项目根目录和 backend 目录中创建 `.env` 文件，配置以下环境变量：
+1. **复制环境变量示例文件**：
+   - 将 `.env.example` 复制为 `.env`
+   - 将 `backend/.env.example` 复制为 `backend/.env`
 
-**根目录 .env 文件**：
+2. **配置环境变量**：
+   - 编辑 `.env` 文件，设置适当的值
+   - 编辑 `backend/.env` 文件，确保与根目录的 `.env` 文件中的 JWT_SECRET 一致
+
+**根目录 .env 文件示例**：
 
 ```env
 # API Configuration
@@ -121,7 +127,7 @@ FRONTEND_URL=http://localhost:5173
 JWT_SECRET=your-secret-key-here
 ```
 
-**backend 目录 .env 文件**：
+**backend 目录 .env 文件示例**：
 
 ```env
 # API Configuration
@@ -131,7 +137,16 @@ FRONTEND_URL=http://localhost:5173
 JWT_SECRET=your-secret-key-here
 ```
 
-注意：在生产环境中，应使用强随机生成的 JWT_SECRET，并确保其安全存储。
+**重要安全注意事项**：
+- 不要将 `.env` 文件提交到版本控制系统中
+- 使用强随机生成的 JWT_SECRET，特别是在生产环境中
+- 定期旋转 JWT_SECRET 以增强安全性
+- 确保 `.env` 文件的权限设置为只有所有者可以读取
+
+**环境变量说明**：
+- `VITE_API_BASE_URL`：后端 API 的基础 URL
+- `FRONTEND_URL`：前端应用的 URL，用于 CORS 配置
+- `JWT_SECRET`：用于生成和验证 JWT token 的密钥
 
 ## 运行方法
 
