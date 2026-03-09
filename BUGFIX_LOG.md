@@ -151,3 +151,16 @@ This file documents all bug fixes applied to the project.
   - Updated security section to include strict role validation
   - Updated backend development guide to include role validation
 - **Reason**: Keep documentation in sync with code changes
+
+### Fix 19: Fix Toast component lifecycle reset issue
+- **Files modified**: 
+  - `src/components/Toast/Toast.css`
+  - `src/components/Toast/Toast.jsx`
+  - `src/context/ToastContext.jsx`
+- **Changes**: 
+  - Added `transition: all 0.3s ease;` to toast-container for smooth animations
+  - Modified Toast.jsx to receive and use id prop
+  - Updated onClose calls to pass id parameter
+  - Added useCallback to cache removeToast function in ToastContext
+  - Updated ToastProvider to pass id and removeToast directly
+- **Reason**: Fix issue where remaining toasts would reset their lifecycle when one toast disappears, ensuring each toast has independent countdown and proper animation

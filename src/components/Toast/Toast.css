@@ -1,18 +1,29 @@
-.toast {
+.toast-container {
   position: fixed;
   top: var(--spacing-lg);
   right: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  z-index: 1000;
+  max-width: 400px;
+  transition: all 0.3s ease;
+}
+
+.toast {
+  position: relative;
   padding: var(--spacing-md);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-md);
-  z-index: 1000;
   min-width: 320px;
   max-width: 400px;
   animation: slideIn 0.3s ease-out;
   transition: all 0.3s ease;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .toast-icon {

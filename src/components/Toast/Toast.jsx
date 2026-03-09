@@ -1,12 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './Toast.css';
 
-const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
+const Toast = ({ id, message, type = 'info', duration = 3000, onClose }) => {
   const [progress, setProgress] = useState(100);
+  const [isClosing, setIsClosing] = useState(false);
+  const toastRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      setIsClosing(true);
+      // 等待动画结束后再调用onClose
+      const animationEndTimer = setTimeout(() => {
+        onClose(id);
+      }, 300); // 与CSS动画持续时间一致
+      
+      return () => clearTimeout(animationEndTimer);
     }, duration);
 
     const interval = setInterval(() => {
@@ -20,7 +28,16 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
       clearTimeout(timer);
       clearInterval(interval);
     };
-  }, [duration, onClose]);
+  }, [duration, onClose, id]);
+
+  // 处理手动关闭
+  const handleClose = () => {
+    setIsClosing(true);
+    // 等待动画结束后再调用onClose
+    setTimeout(() => {
+      onClose(id);
+    }, 300); // 与CSS动画持续时间一致
+  };
 
   // 图标映射
   const icons = {
@@ -31,7 +48,10 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   };
 
   return (
-    <div className={`toast toast-${type}`}>
+    <div 
+      ref={toastRef}
+      className={`toast toast-${type} ${isClosing ? 'closing' : ''}`}
+    >
       <div className="toast-icon">{icons[type]}</div>
       <div className="toast-content">
         <div className="toast-message">{message}</div>
@@ -42,7 +62,7 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
           ></div>
         </div>
       </div>
-      <button className="toast-close" onClick={onClose} aria-label="Close toast">×</button>
+      <button className="toast-close" onClick={handleClose} aria-label="Close toast">×</button>
     </div>
   );
 };
