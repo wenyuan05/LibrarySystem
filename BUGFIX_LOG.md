@@ -235,3 +235,12 @@ This file documents all bug fixes applied to the project.
   - Added toast notifications for error messages
   - Added error UI with retry button
 - **Reason**: Provide user-friendly error feedback when book loading fails, instead of just logging to console
+
+### Fix 28: Remove backend/.env from version control and rotate JWT secret
+- **Files modified**: 
+  - `backend/.env` (removed from git)
+- **Changes**: 
+  - Removed backend/.env from version control using git rm --cached
+  - Rotated JWT_SECRET to a new value
+  - Ensured only backend/.env.example remains in git
+- **Reason**: Prevent secrets from being committed to version control and improve security
