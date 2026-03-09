@@ -281,3 +281,12 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Changed error state button text from "Retry" to "Dismiss"
 - **Reason**: The button only clears the error state, not retry any action, so the text should accurately reflect its function
+
+### Fix 34: Use book_id for returning books in BorrowRecords
+- **Files modified**: 
+  - `src/components/borrow/BorrowRecords.jsx`
+- **Changes**: 
+  - Updated handleReturnBook to use record.book_id directly
+  - Removed unnecessary books state and fetchBooks call
+  - Added validation for book_id presence
+- **Reason**: Prevent returning the wrong book when titles are not unique, and simplify the component
