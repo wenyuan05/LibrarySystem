@@ -267,3 +267,10 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Replaced Date.now() with crypto.randomUUID() for toast IDs
 - **Reason**: Prevent ID collisions when multiple toasts are created within the same millisecond
+
+### Fix 32: Scope Users.css styles to avoid global conflicts
+- **Files modified**: 
+  - `src/components/Users/Users.css`
+- **Changes**: 
+  - Scoped .action-bar, .search-bar, and .search-input selectors under .user-list
+- **Reason**: Prevent CSS class name collisions with global styles and avoid order-dependent behavior
