@@ -58,7 +58,7 @@ const BooksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { addToast } = useToast();
+  const { showToast } = useToast();
 
   // 加载书籍数据
   const fetchBooks = async () => {
@@ -71,7 +71,7 @@ const BooksPage = () => {
       console.error('Failed to load books:', err);
       const errorMessage = 'Failed to load books. Please try again.';
       setError(errorMessage);
-      addToast({ message: errorMessage, type: 'error' });
+      showToast(errorMessage, 'error');
     } finally {
       setBooksLoading(false);
     }
@@ -162,7 +162,7 @@ const BookManagementPage = () => {
   const [editingBook, setEditingBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [error, setError] = useState(null);
-  const { addToast } = useToast();
+  const { showToast } = useToast();
 
   // 加载书籍数据
   const fetchBooks = async () => {
@@ -175,7 +175,7 @@ const BookManagementPage = () => {
       console.error('Failed to load books:', err);
       const errorMessage = 'Failed to load books. Please try again.';
       setError(errorMessage);
-      addToast({ message: errorMessage, type: 'error' });
+      showToast(errorMessage, 'error');
     } finally {
       setBooksLoading(false);
     }
