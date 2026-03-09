@@ -274,3 +274,10 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Scoped .action-bar, .search-bar, and .search-input selectors under .user-list
 - **Reason**: Prevent CSS class name collisions with global styles and avoid order-dependent behavior
+
+### Fix 33: Fix BookList.jsx error button text
+- **Files modified**: 
+  - `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Changed error state button text from "Retry" to "Dismiss"
+- **Reason**: The button only clears the error state, not retry any action, so the text should accurately reflect its function
