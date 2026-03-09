@@ -260,3 +260,10 @@ This file documents all bug fixes applied to the project.
   - Updated cleanup function to clear all timers
   - Fixed ineffective cleanup of animationEndTimer
 - **Reason**: Prevent calling onClose after component unmount and avoid memory leaks
+
+### Fix 31: Fix toast ID generation to prevent collisions
+- **Files modified**: 
+  - `src/context/ToastContext.jsx`
+- **Changes**: 
+  - Replaced Date.now() with crypto.randomUUID() for toast IDs
+- **Reason**: Prevent ID collisions when multiple toasts are created within the same millisecond
