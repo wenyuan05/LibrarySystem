@@ -251,3 +251,12 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Moved `/api/register` from the authenticated endpoints list to the public endpoints list
 - **Reason**: Correct documentation to reflect that the register endpoint is public and doesn't require an Authorization header
+
+### Fix 30: Fix Toast.jsx animationEndTimer cleanup
+- **Files modified**: 
+  - `src/components/toast/Toast.jsx`
+- **Changes**: 
+  - Added refs to store timeout IDs
+  - Updated cleanup function to clear all timers
+  - Fixed ineffective cleanup of animationEndTimer
+- **Reason**: Prevent calling onClose after component unmount and avoid memory leaks
