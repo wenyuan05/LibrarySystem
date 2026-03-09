@@ -219,3 +219,10 @@ This file documents all bug fixes applied to the project.
   - Added CREATE UNIQUE INDEX IF NOT EXISTS for books(isbn)
   - Ensures ISBN uniqueness even on already-created databases
 - **Reason**: Enforce ISBN uniqueness across all database instances, including existing ones
+
+### Fix 26: Add Node.js version requirement
+- **Files modified**: 
+  - `package.json`
+- **Changes**: 
+  - Added engines field specifying node >= 20.0.0
+- **Reason**: Ensure compatibility with react-router-dom@7.13.1 which requires Node.js >= 20
