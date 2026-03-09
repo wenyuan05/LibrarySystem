@@ -324,3 +324,10 @@ This file documents all bug fixes applied to the project.
   - Ensured search input uses `--bg-secondary` for background and `--text-primary` for text
   - Added consistent padding, border radius, and transition effects
 - **Reason**: Fix search bar appearing with black background and inconsistent styling across pages
+
+### Fix 39: Remove unused AddUserForm import
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Removed unused `AddUserForm` import
+- **Reason**: Fix no-unused-vars linting error and clean up unused imports
