@@ -300,3 +300,10 @@ This file documents all bug fixes applied to the project.
   - Added status whitelist validation (only "available" or "borrowed")
   - Added type and length validation for all fields
 - **Reason**: Prevent invalid data from being submitted and provide clear 400 error responses
+
+### Fix 36: Fix body layout in index.css
+- **Files modified**: 
+  - `src/index.css`
+- **Changes**: 
+  - Removed display:flex, place-items, and justify-content from body
+- **Reason**: Allow #root to stretch to viewport and prevent layout/scroll issues with the full-screen app layout
