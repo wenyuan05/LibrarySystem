@@ -202,3 +202,12 @@ This file documents all bug fixes applied to the project.
   - Added null/undefined guards for username, name, and email fields before calling toLowerCase()
   - Used (value || '') pattern to default to empty string for missing fields
 - **Reason**: Prevent search functionality from crashing on incomplete user records with null/undefined fields
+
+### Fix 24: Remove duplicate CSS definitions
+- **Files modified**: 
+  - `src/styles/global.css`
+- **Changes**: 
+  - Removed duplicate .search-bar, .action-bar, and .form-actions definitions
+  - Retained the centered versions with max-width constraints
+  - Added responsive media query for .action-bar
+- **Reason**: Eliminate CSS-order-dependent behavior and maintain a single source of truth for shared layout classes
