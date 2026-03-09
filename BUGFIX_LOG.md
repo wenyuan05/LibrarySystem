@@ -152,15 +152,22 @@ This file documents all bug fixes applied to the project.
   - Updated backend development guide to include role validation
 - **Reason**: Keep documentation in sync with code changes
 
-### Fix 19: Fix Toast component lifecycle reset issue
+### Fix 19: Fix toast stacking and animation
 - **Files modified**: 
-  - `src/components/Toast/Toast.css`
-  - `src/components/Toast/Toast.jsx`
   - `src/context/ToastContext.jsx`
+  - `src/components/Toast/Toast.jsx`
+  - `src/components/Toast/Toast.css`
 - **Changes**: 
-  - Added `transition: all 0.3s ease;` to toast-container for smooth animations
-  - Modified Toast.jsx to receive and use id prop
-  - Updated onClose calls to pass id parameter
-  - Added useCallback to cache removeToast function in ToastContext
-  - Updated ToastProvider to pass id and removeToast directly
-- **Reason**: Fix issue where remaining toasts would reset their lifecycle when one toast disappears, ensuring each toast has independent countdown and proper animation
+  - Added toast-container to handle multiple toasts
+  - Updated toast styles to use relative positioning
+  - Added closing animation for toasts
+  - Ensured toasts stack and animate independently
+- **Reason**: Fix multiple toasts overlapping and ensure smooth animations
+
+### Fix 20: Consolidate card styles
+- **Files modified**: `src/styles/global.css`
+- **Changes**: 
+  - Removed duplicate .card and .card:hover definitions
+  - Consolidated into a single .card definition with consistent styling
+  - Retained max-width: 1000px and centering behavior
+- **Reason**: Avoid unintentional style overrides and make layout changes predictable
