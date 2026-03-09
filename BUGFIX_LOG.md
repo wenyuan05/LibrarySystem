@@ -331,3 +331,13 @@ This file documents all bug fixes applied to the project.
 - **Changes**: 
   - Removed unused `AddUserForm` import
 - **Reason**: Fix no-unused-vars linting error and clean up unused imports
+
+### Fix 40: Remove .env from version control and rotate JWT_SECRET
+- **Files modified**: 
+  - `.env` (removed from git)
+  - `backend/.env`
+- **Changes**: 
+  - Removed `.env` from version control using git rm --cached
+  - Rotated JWT_SECRET to a new secure value
+  - Updated both root and backend .env files with the new secret
+- **Reason**: Prevent secrets from being committed to version control and improve security
