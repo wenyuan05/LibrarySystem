@@ -367,3 +367,11 @@ This file documents all bug fixes applied to the project.
   - Ensured only admins can access user borrow records
 - **Reason**: Allow administrators to view and manage user borrow records, including manually returning books
 
+### Fix 33: Add back button to user borrow records page
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Added useNavigate hook for navigation
+  - Added "Back to Users" button at the top of the page
+  - Implemented handleBackToUsers function to navigate back to user list
+- **Reason**: Improve user experience by providing an easy way for administrators to return to the user list page
+

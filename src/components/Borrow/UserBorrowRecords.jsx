@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI } from '../../utils/api';
 import './Borrow.css';
@@ -11,6 +11,12 @@ const UserBorrowRecords = () => {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const { showToast } = useToast();
+  const navigate = useNavigate();
+
+  // 处理返回用户列表
+  const handleBackToUsers = () => {
+    navigate('/users');
+  };
 
   // 加载用户信息和借阅记录
   useEffect(() => {
@@ -74,6 +80,14 @@ const UserBorrowRecords = () => {
 
   return (
     <div className="borrow-section card fade-in">
+      <div className="action-bar">
+        <button 
+          className="btn-secondary"
+          onClick={handleBackToUsers}
+        >
+          Back to Users
+        </button>
+      </div>
       <h2>User Borrow Records</h2>
       {user && (
         <div className="user-info">
