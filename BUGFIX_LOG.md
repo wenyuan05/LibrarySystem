@@ -375,3 +375,11 @@ This file documents all bug fixes applied to the project.
   - Implemented handleBackToUsers function to navigate back to user list
 - **Reason**: Improve user experience by providing an easy way for administrators to return to the user list page
 
+### Fix 44: Fix animation name conflict in Books.css
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Renamed `fadeIn` animation to `booksModalFadeIn`
+  - Renamed `slideIn` animation to `booksModalSlideIn`
+  - Updated all references to these animations in the file
+- **Reason**: Avoid conflicts with globally defined animations in global.css, ensuring animations don't override each other across the application
+

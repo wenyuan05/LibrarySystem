@@ -111,7 +111,7 @@
 /* 添加书籍表单 */
 .add-book-form {
   margin-bottom: var(--spacing-lg);
-  animation: fadeIn 0.3s ease forwards;
+  animation: booksModalFadeIn 0.3s ease forwards;
   width: 100%;
   max-width: 600px;
 }
@@ -147,7 +147,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease;
+  animation: booksModalFadeIn 0.3s ease;
 }
 
 .modal-content {
@@ -159,7 +159,7 @@
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  animation: slideIn 0.3s ease;
+  animation: booksModalSlideIn 0.3s ease;
 }
 
 .modal-header {
@@ -192,7 +192,7 @@
 }
 
 /* 动画 */
-@keyframes fadeIn {
+@keyframes booksModalFadeIn {
   from {
     opacity: 0;
   }
@@ -201,7 +201,7 @@
   }
 }
 
-@keyframes slideIn {
+@keyframes booksModalSlideIn {
   from {
     transform: translateY(-20px);
     opacity: 0;
