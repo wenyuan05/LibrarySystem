@@ -75,81 +75,93 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     }
   };
 
+  const handleModalClose = (e) => {
+    e.stopPropagation();
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
   if (!book) {
     return null;
   }
 
   return (
-    <div className="edit-book-form card">
-      <h3>Edit Book</h3>
-      
-      {error && (
-        <div className="error-message">
-          {error}
+    <div className="modal-overlay" onClick={handleModalClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Edit Book</h3>
+          <button className="modal-close" onClick={handleModalClose} aria-label="Close">×</button>
         </div>
-      )}
-      
-      {success && (
-        <div className="success-message">
-          {success}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="title">Title:</label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="author">Author:</label>
-          <input
-            type="text"
-            id="author"
-            name="author"
-            value={formData.author}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="isbn">ISBN:</label>
-          <input
-            type="text"
-            id="isbn"
-            name="isbn"
-            value={formData.isbn}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="form-actions">
-          <button 
-            type="submit" 
-            className="btn-primary" 
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Updating...' : 'Update Book'}
-          </button>
-          <button 
-            type="button" 
-            className="btn-secondary" 
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+        
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="success-message">
+            {success}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="title">Title:</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="author">Author:</label>
+            <input
+              type="text"
+              id="author"
+              name="author"
+              value={formData.author}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="isbn">ISBN:</label>
+            <input
+              type="text"
+              id="isbn"
+              name="isbn"
+              value={formData.isbn}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-actions">
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Updating...' : 'Update Book'}
+            </button>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={handleModalClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
