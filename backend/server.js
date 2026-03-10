@@ -76,7 +76,7 @@ const validateRegisterBody = (req, res, next) => {
 
 // 书籍请求体验证中间件
 const validateBookBody = (req, res, next) => {
-  const { title, author, isbn } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
   if (!title || !author || !isbn) {
     res.status(400).json({ error: 'Title, author and ISBN are required' });
     return;
@@ -94,12 +94,35 @@ const validateBookBody = (req, res, next) => {
     res.status(400).json({ error: 'ISBN must be 10 or 13 digits' });
     return;
   }
+  if (publisher && (publisher.length < 1 || publisher.length > 100)) {
+    res.status(400).json({ error: 'Publisher must be between 1 and 100 characters' });
+    return;
+  }
+  if (publication_date) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(publication_date)) {
+      res.status(400).json({ error: 'Publication date must be in YYYY-MM-DD format' });
+      return;
+    }
+  }
+  if (description && description.length > 1000) {
+    res.status(400).json({ error: 'Description must be less than 1000 characters' });
+    return;
+  }
+  if (total_copies && (typeof total_copies !== 'number' || total_copies < 1)) {
+    res.status(400).json({ error: 'Total copies must be a positive number' });
+    return;
+  }
+  if (available_copies && (typeof available_copies !== 'number' || available_copies < 0)) {
+    res.status(400).json({ error: 'Available copies must be a non-negative number' });
+    return;
+  }
   next();
 };
 
 // 书籍部分更新验证中间件
 const validateBookUpdateBody = (req, res, next) => {
-  const { title, author, isbn, status } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
   
   // 验证title字段
   if (title !== undefined) {
@@ -138,14 +161,55 @@ const validateBookUpdateBody = (req, res, next) => {
     }
   }
   
-  // 验证status字段（白名单）
-  if (status !== undefined) {
-    if (typeof status !== 'string') {
-      res.status(400).json({ error: 'Status must be a string' });
+  // 验证publisher字段
+  if (publisher !== undefined) {
+    if (typeof publisher !== 'string') {
+      res.status(400).json({ error: 'Publisher must be a string' });
       return;
     }
-    if (!['available', 'borrowed'].includes(status)) {
-      res.status(400).json({ error: 'Status must be either "available" or "borrowed"' });
+    if (publisher.length < 1 || publisher.length > 100) {
+      res.status(400).json({ error: 'Publisher must be between 1 and 100 characters' });
+      return;
+    }
+  }
+  
+  // 验证publication_date字段
+  if (publication_date !== undefined) {
+    if (typeof publication_date !== 'string') {
+      res.status(400).json({ error: 'Publication date must be a string' });
+      return;
+    }
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(publication_date)) {
+      res.status(400).json({ error: 'Publication date must be in YYYY-MM-DD format' });
+      return;
+    }
+  }
+  
+  // 验证description字段
+  if (description !== undefined) {
+    if (typeof description !== 'string') {
+      res.status(400).json({ error: 'Description must be a string' });
+      return;
+    }
+    if (description.length > 1000) {
+      res.status(400).json({ error: 'Description must be less than 1000 characters' });
+      return;
+    }
+  }
+  
+  // 验证total_copies字段
+  if (total_copies !== undefined) {
+    if (typeof total_copies !== 'number' || total_copies < 1) {
+      res.status(400).json({ error: 'Total copies must be a positive number' });
+      return;
+    }
+  }
+  
+  // 验证available_copies字段
+  if (available_copies !== undefined) {
+    if (typeof available_copies !== 'number' || available_copies < 0) {
+      res.status(400).json({ error: 'Available copies must be a non-negative number' });
       return;
     }
   }
@@ -467,62 +531,44 @@ app.post('/api/borrow', authenticateToken, (req, res) => {
       }
 
       // 检查书籍是否可用
-      db.get('SELECT status FROM books WHERE id = ?', [book_id], (err, book) => {
+      db.get('SELECT available_copies FROM books WHERE id = ?', [book_id], (err, book) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
-        if (!book || book.status !== 'available') {
+        if (!book || book.available_copies <= 0) {
           db.run('ROLLBACK');
           res.status(400).json({ error: 'Book is not available' });
           return;
         }
         
-        // 检查是否存在该书籍尚未归还的借阅记录
-        db.get(
-          'SELECT id FROM borrow_records WHERE book_id = ? AND return_date IS NULL',
-          [book_id],
-          (err, existingRecord) => {
+        // 创建借阅记录
+        db.run(
+          'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
+          [user_id, book_id, borrow_date],
+          function(err) {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (existingRecord) {
-              db.run('ROLLBACK');
-              res.status(400).json({ error: 'Book is already borrowed and not returned' });
-              return;
-            }
             
-            // 更新书籍状态
-            db.run('UPDATE books SET status = ? WHERE id = ?', ['borrowed', book_id], (err) => {
+            // 更新书籍可借数量
+            db.run('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id], (err) => {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
                 return;
               }
               
-              // 创建借阅记录
-              db.run(
-                'INSERT INTO borrow_records (user_id, book_id, borrow_date) VALUES (?, ?, ?)',
-                [user_id, book_id, borrow_date],
-                function(err) {
-                  if (err) {
-                    db.run('ROLLBACK');
-                    res.status(500).json({ error: err.message });
-                    return;
-                  }
-                  
-                  db.run('COMMIT', (err) => {
-                    if (err) {
-                      res.status(500).json({ error: err.message });
-                      return;
-                    }
-                    res.json({ id: this.lastID, user_id, book_id, borrow_date });
-                  });
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
                 }
-              );
+                res.json({ id: this.lastID, user_id, book_id, borrow_date });
+              });
             });
           }
         );
@@ -575,8 +621,8 @@ app.post('/api/return', authenticateToken, (req, res) => {
                 return;
               }
               
-              // 更新书籍状态
-              db.run('UPDATE books SET status = ? WHERE id = ?', ['available', book_id], (err) => {
+              // 更新书籍可借数量
+              db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [book_id], (err) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -628,7 +674,7 @@ app.get('/api/books/:id', (req, res) => {
 
 // 添加书籍（管理员）
 app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody, (req, res) => {
-  const { title, author, isbn } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies = 1, available_copies = 1 } = req.body;
   
   // 检查ISBN是否已存在
   db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
@@ -643,14 +689,14 @@ app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody
     
     // 插入新书籍
     db.run(
-      'INSERT INTO books (title, author, isbn) VALUES (?, ?, ?)',
-      [title, author, isbn],
+      'INSERT INTO books (title, author, isbn, publisher, publication_date, description, total_copies, available_copies) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, author, isbn, publisher, publication_date, description, total_copies, available_copies],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        res.json({ id: this.lastID, title, author, isbn, status: 'available' });
+        res.json({ id: this.lastID, title, author, isbn, publisher, publication_date, description, total_copies, available_copies });
       }
     );
   });
@@ -659,7 +705,7 @@ app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody
 // 更新书籍信息（管理员）
 app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookUpdateBody, (req, res) => {
   const { id } = req.params;
-  const { title, author, isbn, status } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
   
   // 构建更新语句
   const updateFields = [];
@@ -677,9 +723,25 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
     updateFields.push('isbn = ?');
     updateValues.push(isbn);
   }
-  if (status !== undefined) {
-    updateFields.push('status = ?');
-    updateValues.push(status);
+  if (publisher !== undefined) {
+    updateFields.push('publisher = ?');
+    updateValues.push(publisher);
+  }
+  if (publication_date !== undefined) {
+    updateFields.push('publication_date = ?');
+    updateValues.push(publication_date);
+  }
+  if (description !== undefined) {
+    updateFields.push('description = ?');
+    updateValues.push(description);
+  }
+  if (total_copies !== undefined) {
+    updateFields.push('total_copies = ?');
+    updateValues.push(total_copies);
+  }
+  if (available_copies !== undefined) {
+    updateFields.push('available_copies = ?');
+    updateValues.push(available_copies);
   }
   
   if (updateFields.length === 0) {

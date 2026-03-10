@@ -3,7 +3,16 @@ import { booksAPI } from '../../utils/api';
 import './Books.css';
 
 const EditBookForm = ({ book, onEditComplete, onCancel }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '' });
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    author: '', 
+    isbn: '',
+    publisher: '',
+    publication_date: '',
+    description: '',
+    total_copies: 1,
+    available_copies: 1
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -15,7 +24,12 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       setFormData({
         title: book.title || '',
         author: book.author || '',
-        isbn: book.isbn || ''
+        isbn: book.isbn || '',
+        publisher: book.publisher || '',
+        publication_date: book.publication_date || '',
+        description: book.description || '',
+        total_copies: book.total_copies || 1,
+        available_copies: book.available_copies || 1
       });
       // 聚焦到标题输入框
       setTimeout(() => {
@@ -168,6 +182,67 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               required
               disabled={isSubmitting}
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="publisher">Publisher:</label>
+            <input
+              type="text"
+              id="publisher"
+              name="publisher"
+              value={formData.publisher}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="publication_date">Publication Date:</label>
+            <input
+              type="date"
+              id="publication_date"
+              name="publication_date"
+              value={formData.publication_date}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="description">Description:</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows="4"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="total_copies">Total Copies:</label>
+              <input
+                type="number"
+                id="total_copies"
+                name="total_copies"
+                value={formData.total_copies}
+                onChange={handleChange}
+                min="1"
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="available_copies">Available Copies:</label>
+              <input
+                type="number"
+                id="available_copies"
+                name="available_copies"
+                value={formData.available_copies}
+                onChange={handleChange}
+                min="0"
+                required
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
           <div className="form-actions">
             <button 

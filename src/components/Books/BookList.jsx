@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
@@ -11,6 +11,12 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
   const [borrowRecords, setBorrowRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
+
+  // 处理书籍点击，跳转到详情页
+  const handleBookClick = (bookId) => {
+    navigate(`/books/${bookId}`);
+  };
 
   // 获取用户借阅记录
   useEffect(() => {
@@ -78,7 +84,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       const result = await borrowAPI.borrow(user.id, bookId);
       const book = books.find(book => book.id === bookId);
       if (book) {
-        const updatedBook = { ...book, status: 'borrowed' };
+        const updatedBook = { ...book, available_copies: book.available_copies - 1 };
         if (onBookUpdated) {
           onBookUpdated(updatedBook);
         }
@@ -104,7 +110,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       await borrowAPI.return(user.id, bookId);
       const book = books.find(book => book.id === bookId);
       if (book) {
-        const updatedBook = { ...book, status: 'available' };
+        const updatedBook = { ...book, available_copies: book.available_copies + 1 };
         if (onBookUpdated) {
           onBookUpdated(updatedBook);
         }
@@ -171,20 +177,30 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
             key={book.id} 
             variants={itemVariants}
             className="book-card"
+            onClick={() => handleBookClick(book.id)}
+            style={{ cursor: 'pointer' }}
           >
             <div className="book-card-header">
-              <span className={`status-badge status-${book.status}`}>{book.status}</span>
+              <span className={`status-badge ${book.available_copies > 0 ? 'status-available' : 'status-borrowed'}`}>
+                {book.available_copies > 0 ? 'Available' : 'Not Available'}
+              </span>
               <span className="book-id">ID: {book.id}</span>
             </div>
             <h4 className="book-title">{book.title}</h4>
             <p className="book-author">by {book.author}</p>
             <p className="book-isbn">ISBN: {book.isbn}</p>
+            {book.publisher && <p className="book-publisher">Publisher: {book.publisher}</p>}
+            {book.publication_date && <p className="book-date">Published: {book.publication_date}</p>}
+            <p className="book-copies">Available: {book.available_copies}/{book.total_copies}</p>
             <div className="book-actions">
               {user.role === 'user' ? (
-                book.status === 'available' ? (
+                book.available_copies > 0 ? (
                   <button 
                     className="btn-warning"
-                    onClick={() => handleBorrowBook(book.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBorrowBook(book.id);
+                    }}
                   >
                     Borrow
                   </button>
@@ -193,7 +209,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                   borrowRecords.some(record => record.book_id === book.id) && (
                     <button 
                       className="btn-info"
-                      onClick={() => handleReturnBook(book.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReturnBook(book.id);
+                      }}
                     >
                       Return
                     </button>
@@ -204,20 +223,20 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                   {showEditButton && (
                     <button 
                       className="btn-info"
-                      onClick={() => onEditBook && onEditBook(book)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditBook && onEditBook(book);
+                      }}
                     >
                       Edit
                     </button>
                   )}
                   <button 
-                    className="btn-success"
-                    onClick={() => handleUpdateStatus(book.id, book.status)}
-                  >
-                    {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
-                  </button>
-                  <button 
                     className="btn-danger"
-                    onClick={() => handleDeleteBook(book.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteBook(book.id);
+                    }}
                   >
                     Delete
                   </button>

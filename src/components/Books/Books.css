@@ -95,6 +95,28 @@
   margin: 0;
 }
 
+/* 书籍出版社 */
+.book-publisher {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* 书籍出版日期 */
+.book-date {
+  font-size: var(--font-size-sm);
+  color: var(--text-light);
+  margin: 0;
+}
+
+/* 书籍复本信息 */
+.book-copies {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
 /* 书籍操作按钮 */
 .book-actions {
   display: flex;
@@ -191,6 +213,105 @@
   color: var(--text-primary);
 }
 
+/* 书籍详情页 */
+.book-detail-section {
+  padding: var(--spacing-xl);
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.book-detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.book-detail-header h2 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  color: var(--text-primary);
+}
+
+.book-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.book-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.book-info h3 {
+  font-size: var(--font-size-2xl);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.book-info .author {
+  font-size: var(--font-size-lg);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.book-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--border-radius-md);
+}
+
+.book-meta p {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.book-meta strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.book-description {
+  margin-top: var(--spacing-md);
+}
+
+.book-description h4 {
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.book-description p {
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.book-actions {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+/* 表单行布局 */
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
 /* 动画 */
 @keyframes booksModalFadeIn {
   from {
@@ -209,5 +330,29 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .book-detail-section {
+    padding: var(--spacing-md);
+  }
+  
+  .book-detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .book-actions {
+    flex-direction: column;
+  }
+  
+  .book-actions button {
+    width: 100%;
   }
 }
