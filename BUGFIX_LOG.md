@@ -399,3 +399,10 @@ This file documents all bug fixes applied to the project.
   - Changed `setRecords(records.map(...))` to use functional state update `setRecords(prevRecords => prevRecords.map(...))`
 - **Reason**: Avoid stale state issues when multiple updates happen close together, ensuring the update always applies to the latest state
 
+### Fix 47: Improve error handling in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Removed `setError('Failed to return book')` from return-book error path
+  - Kept only `showToast(err.message, 'error')` for action-level failures
+- **Reason**: Prevent the entire page from switching to error UI when a single return action fails, keeping the records list visible and only showing error via toast
+

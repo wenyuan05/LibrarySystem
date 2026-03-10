@@ -59,7 +59,6 @@ const UserBorrowRecords = () => {
       
       showToast('Book returned successfully', 'success');
     } catch (err) {
-      setError('Failed to return book');
       showToast(err.message, 'error');
       console.error(err);
     }
