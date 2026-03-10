@@ -53,7 +53,7 @@ const UserBorrowRecords = () => {
       await borrowAPI.return(userId, record.book_id);
       
       // 更新借阅记录
-      setRecords(records.map(r => 
+      setRecords(prevRecords => prevRecords.map(r => 
         r.id === record.id ? { ...r, return_date: new Date().toISOString().split('T')[0] } : r
       ));
       

@@ -393,3 +393,9 @@ This file documents all bug fixes applied to the project.
   - Added proper focus trapping and cleanup
 - **Reason**: Improve accessibility for keyboard users and screen readers, making the modal more usable for all users
 
+### Fix 46: Fix stale state in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Changed `setRecords(records.map(...))` to use functional state update `setRecords(prevRecords => prevRecords.map(...))`
+- **Reason**: Avoid stale state issues when multiple updates happen close together, ensuring the update always applies to the latest state
+
