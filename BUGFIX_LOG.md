@@ -342,7 +342,7 @@ This file documents all bug fixes applied to the project.
   - Updated both root and backend .env files with the new secret
 - **Reason**: Prevent secrets from being committed to version control and improve security
 
-### Fix 31: Convert EditBookForm to modal popup
+### Fix 41: Convert EditBookForm to modal popup
 - **Files modified**: 
   - `src/components/Books/Books.css`
   - `src/components/Books/EditBookForm.jsx`
@@ -354,7 +354,7 @@ This file documents all bug fixes applied to the project.
   - Ensured form functionality remains unchanged
 - **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
 
-### Fix 32: Add admin user borrow records management
+### Fix 42: Add admin user borrow records management
 - **Files modified**: 
   - `src/components/Users/UserList.jsx`
   - `src/components/Borrow/UserBorrowRecords.jsx`
@@ -367,7 +367,7 @@ This file documents all bug fixes applied to the project.
   - Ensured only admins can access user borrow records
 - **Reason**: Allow administrators to view and manage user borrow records, including manually returning books
 
-### Fix 33: Add back button to user borrow records page
+### Fix 43: Add back button to user borrow records page
 - **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
 - **Changes**: 
   - Added useNavigate hook for navigation
