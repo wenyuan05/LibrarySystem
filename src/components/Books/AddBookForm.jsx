@@ -155,6 +155,7 @@ const AddBookForm = ({ onBookAdded }) => {
             name="publication_date"
             value={formData.publication_date}
             onChange={handleChange}
+            placeholder="YYYY-MM-DD"
             disabled={isSubmitting}
           />
         </div>
