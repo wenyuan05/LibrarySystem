@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { booksAPI } from '../../utils/api';
 import './Books.css';
 
@@ -7,8 +7,9 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const titleInputRef = useRef(null);
 
-  // 初始化表单数据
+  // 初始化表单数据和焦点管理
   useEffect(() => {
     if (book) {
       setFormData({
@@ -16,8 +17,26 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         author: book.author || '',
         isbn: book.isbn || ''
       });
+      // 聚焦到标题输入框
+      setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 100);
     }
   }, [book]);
+
+  // 键盘事件处理
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleModalClose(e);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,10 +107,16 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
 
   return (
     <div className="modal-overlay" onClick={handleModalClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="modal-content" 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
         <div className="modal-header">
-          <h3>Edit Book</h3>
-          <button className="modal-close" onClick={handleModalClose} aria-label="Close">×</button>
+          <h3 id="modal-title">Edit Book</h3>
+          <button className="modal-close" onClick={handleModalClose} aria-label="Close modal">×</button>
         </div>
         
         {error && (
@@ -110,6 +135,7 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
           <div className="form-group">
             <label htmlFor="title">Title:</label>
             <input
+              ref={titleInputRef}
               type="text"
               id="title"
               name="title"

@@ -383,3 +383,13 @@ This file documents all bug fixes applied to the project.
   - Updated all references to these animations in the file
 - **Reason**: Avoid conflicts with globally defined animations in global.css, ensuring animations don't override each other across the application
 
+### Fix 45: Improve modal accessibility in EditBookForm
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added `role="dialog"`, `aria-modal="true"`, and `aria-labelledby="modal-title"` attributes to modal
+  - Added keyboard handling for Escape key to close modal
+  - Added focus management to automatically focus on title input when modal opens
+  - Updated `aria-label` for close button to be more descriptive
+  - Added proper focus trapping and cleanup
+- **Reason**: Improve accessibility for keyboard users and screen readers, making the modal more usable for all users
+
