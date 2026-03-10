@@ -444,3 +444,12 @@ This file documents all bug fixes applied to the project.
   - Ensured cursor style always shows pointer for all roles
 - **Reason**: Allow admins to access book detail page for better management capabilities
 
+### Fix 52: Add cross-field validation for book copies
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody middleware to ensure available_copies <= total_copies when adding new books
+  - Updated validateBookUpdateBody middleware to ensure available_copies <= total_copies when both are provided
+  - Enhanced book update handler to load current values from DB and validate when only one of total_copies or available_copies is updated
+  - Added validation to prevent reducing total_copies below the number of borrowed books
+- **Reason**: Ensure book inventory consistency and prevent invalid states
+

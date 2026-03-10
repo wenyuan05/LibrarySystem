@@ -117,6 +117,14 @@ const validateBookBody = (req, res, next) => {
     res.status(400).json({ error: 'Available copies must be a non-negative number' });
     return;
   }
+  
+  // 交叉验证：available_copies <= total_copies
+  if (total_copies && available_copies) {
+    if (available_copies > total_copies) {
+      res.status(400).json({ error: 'Available copies cannot exceed total copies' });
+      return;
+    }
+  }
   next();
 };
 
@@ -210,6 +218,14 @@ const validateBookUpdateBody = (req, res, next) => {
   if (available_copies !== undefined) {
     if (typeof available_copies !== 'number' || available_copies < 0) {
       res.status(400).json({ error: 'Available copies must be a non-negative number' });
+      return;
+    }
+  }
+  
+  // 交叉验证：available_copies <= total_copies（如果两者都提供）
+  if (total_copies !== undefined && available_copies !== undefined) {
+    if (available_copies > total_copies) {
+      res.status(400).json({ error: 'Available copies cannot exceed total copies' });
       return;
     }
   }
@@ -707,72 +723,170 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
   const { id } = req.params;
   const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
   
-  // 构建更新语句
-  const updateFields = [];
-  const updateValues = [];
-  
-  if (title !== undefined) {
-    updateFields.push('title = ?');
-    updateValues.push(title);
-  }
-  if (author !== undefined) {
-    updateFields.push('author = ?');
-    updateValues.push(author);
-  }
-  if (isbn !== undefined) {
-    updateFields.push('isbn = ?');
-    updateValues.push(isbn);
-  }
-  if (publisher !== undefined) {
-    updateFields.push('publisher = ?');
-    updateValues.push(publisher);
-  }
-  if (publication_date !== undefined) {
-    updateFields.push('publication_date = ?');
-    updateValues.push(publication_date);
-  }
-  if (description !== undefined) {
-    updateFields.push('description = ?');
-    updateValues.push(description);
-  }
-  if (total_copies !== undefined) {
-    updateFields.push('total_copies = ?');
-    updateValues.push(total_copies);
-  }
-  if (available_copies !== undefined) {
-    updateFields.push('available_copies = ?');
-    updateValues.push(available_copies);
-  }
-  
-  if (updateFields.length === 0) {
-    res.status(400).json({ error: 'No fields to update' });
-    return;
-  }
-  
-  // 添加 id 到参数列表
-  updateValues.push(id);
-  
-  // 执行更新
-  const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
-  db.run(sql, updateValues, function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
-    
-    // 返回更新后的书籍信息
-    db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+  // 检查是否需要加载当前值进行交叉验证
+  if (total_copies !== undefined || available_copies !== undefined) {
+    // 加载当前书籍信息
+    db.get('SELECT total_copies AS current_total, available_copies AS current_available FROM books WHERE id = ?', [id], (err, book) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json(book);
+      if (!book) {
+        res.status(404).json({ error: 'Book not found' });
+        return;
+      }
+      
+      // 验证：如果只更新 total_copies，确保不小于已借出的数量
+      if (total_copies !== undefined) {
+        const borrowed = book.current_total - book.current_available;
+        if (total_copies < borrowed) {
+          res.status(400).json({ error: `Total copies cannot be less than the number of borrowed books (${borrowed})` });
+          return;
+        }
+        // 如果只更新 total_copies，确保 available_copies 不超过新的 total_copies
+        if (available_copies === undefined) {
+          if (book.current_available > total_copies) {
+            res.status(400).json({ error: 'Available copies cannot exceed new total copies' });
+            return;
+          }
+        }
+      }
+      
+      // 验证：如果只更新 available_copies，确保不超过当前 total_copies
+      if (available_copies !== undefined && total_copies === undefined) {
+        if (available_copies > book.current_total) {
+          res.status(400).json({ error: 'Available copies cannot exceed current total copies' });
+          return;
+        }
+      }
+      
+      // 构建更新语句
+      const updateFields = [];
+      const updateValues = [];
+      
+      if (title !== undefined) {
+        updateFields.push('title = ?');
+        updateValues.push(title);
+      }
+      if (author !== undefined) {
+        updateFields.push('author = ?');
+        updateValues.push(author);
+      }
+      if (isbn !== undefined) {
+        updateFields.push('isbn = ?');
+        updateValues.push(isbn);
+      }
+      if (publisher !== undefined) {
+        updateFields.push('publisher = ?');
+        updateValues.push(publisher);
+      }
+      if (publication_date !== undefined) {
+        updateFields.push('publication_date = ?');
+        updateValues.push(publication_date);
+      }
+      if (description !== undefined) {
+        updateFields.push('description = ?');
+        updateValues.push(description);
+      }
+      if (total_copies !== undefined) {
+        updateFields.push('total_copies = ?');
+        updateValues.push(total_copies);
+      }
+      if (available_copies !== undefined) {
+        updateFields.push('available_copies = ?');
+        updateValues.push(available_copies);
+      }
+      
+      if (updateFields.length === 0) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
+      
+      // 添加 id 到参数列表
+      updateValues.push(id);
+      
+      // 执行更新
+      const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.run(sql, updateValues, function(err) {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          res.status(404).json({ error: 'Book not found' });
+          return;
+        }
+        
+        // 返回更新后的书籍信息
+        db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json(book);
+        });
+      });
     });
-  });
+  } else {
+    // 不需要更新 copies 相关字段，直接构建更新语句
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (title !== undefined) {
+      updateFields.push('title = ?');
+      updateValues.push(title);
+    }
+    if (author !== undefined) {
+      updateFields.push('author = ?');
+      updateValues.push(author);
+    }
+    if (isbn !== undefined) {
+      updateFields.push('isbn = ?');
+      updateValues.push(isbn);
+    }
+    if (publisher !== undefined) {
+      updateFields.push('publisher = ?');
+      updateValues.push(publisher);
+    }
+    if (publication_date !== undefined) {
+      updateFields.push('publication_date = ?');
+      updateValues.push(publication_date);
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description);
+    }
+    
+    if (updateFields.length === 0) {
+      res.status(400).json({ error: 'No fields to update' });
+      return;
+    }
+    
+    // 添加 id 到参数列表
+    updateValues.push(id);
+    
+    // 执行更新
+    const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
+    db.run(sql, updateValues, function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (this.changes === 0) {
+        res.status(404).json({ error: 'Book not found' });
+        return;
+      }
+      
+      // 返回更新后的书籍信息
+      db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        res.json(book);
+      });
+    });
+  }
 });
 
 // 删除书籍（管理员）
