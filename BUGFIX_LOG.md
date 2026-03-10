@@ -406,3 +406,31 @@ This file documents all bug fixes applied to the project.
   - Kept only `showToast(err.message, 'error')` for action-level failures
 - **Reason**: Prevent the entire page from switching to error UI when a single return action fails, keeping the records list visible and only showing error via toast
 
+## 2026-03-10
+
+### Fix 48: Implement book detail page and database refactoring
+- **Files modified**: 
+  - `backend/db.js`
+  - `backend/server.js`
+  - `src/App.jsx`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/BookDetail.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added new fields to books table: publisher, publication_date, description, total_copies, available_copies
+  - Updated database initialization with sample data
+  - Modified borrow and return functionality to use available_copies field
+  - Created BookDetail component for book detail page
+  - Updated BookList component to support click-to-detail functionality
+  - Modified AddBookForm and EditBookForm to support new fields
+  - Added corresponding styles for new components and fields
+- **Reason**: Enhance book information display and improve borrowing functionality
+
+### Fix 49: Fix import error in BookList.jsx
+- **Files modified**: `src/components/Books/BookList.jsx`
+- **Changes**: 
+  - Changed import statement to import motion from framer-motion instead of react-router-dom
+- **Reason**: Fix SyntaxError caused by incorrect import path
+
