@@ -334,7 +334,7 @@ function App() {
             <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
         <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
-        <Route path="/books/:id" element={<ProtectedRoute requiredRole="user"><MainLayout><BookDetail /></MainLayout></ProtectedRoute>} />
+        <Route path="/books/:id" element={<ProtectedRoute><MainLayout><BookDetail /></MainLayout></ProtectedRoute>} />
         <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
         <Route path="/user-borrow-records/:userId" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserBorrowRecords /></MainLayout></ProtectedRoute>} />
         <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />

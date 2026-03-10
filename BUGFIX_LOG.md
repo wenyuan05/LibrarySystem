@@ -434,3 +434,13 @@ This file documents all bug fixes applied to the project.
   - Changed import statement to import motion from framer-motion instead of react-router-dom
 - **Reason**: Fix SyntaxError caused by incorrect import path
 
+### Fix 51: Allow admins to access book detail page
+- **Files modified**: 
+  - `src/App.jsx`
+  - `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated /books/:id route in App.jsx to remove user-only restriction
+  - Reverted BookList changes to allow all roles to click on cards
+  - Ensured cursor style always shows pointer for all roles
+- **Reason**: Allow admins to access book detail page for better management capabilities
+
