@@ -342,7 +342,7 @@ This file documents all bug fixes applied to the project.
   - Updated both root and backend .env files with the new secret
 - **Reason**: Prevent secrets from being committed to version control and improve security
 
-### Fix 41: Convert EditBookForm to modal popup
+### Fix 31: Convert EditBookForm to modal popup
 - **Files modified**: 
   - `src/components/Books/Books.css`
   - `src/components/Books/EditBookForm.jsx`
@@ -353,4 +353,17 @@ This file documents all bug fixes applied to the project.
   - Updated event handling for modal closing
   - Ensured form functionality remains unchanged
 - **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
+
+### Fix 32: Add admin user borrow records management
+- **Files modified**: 
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/App.jsx`
+- **Changes**: 
+  - Added "Borrow Records" button to each user in UserList
+  - Created UserBorrowRecords component to display user-specific borrow records
+  - Added new route `/user-borrow-records/:userId` for admin access
+  - Implemented return functionality for admin to manage borrow status
+  - Ensured only admins can access user borrow records
+- **Reason**: Allow administrators to view and manage user borrow records, including manually returning books
 

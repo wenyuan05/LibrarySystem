@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { usersAPI } from '../../utils/api';
 import AddUserForm from './AddUserForm';
 import './Users.css';
@@ -12,6 +13,12 @@ const UserList = () => {
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // 处理查看用户借阅记录
+  const handleViewBorrowRecords = (userId) => {
+    navigate(`/user-borrow-records/${userId}`);
+  };
 
   // 加载用户数据
   useEffect(() => {
@@ -140,6 +147,12 @@ const UserList = () => {
               <td>{userItem.name}</td>
               <td>{userItem.email}</td>
               <td>
+                <button 
+                  className="btn-info"
+                  onClick={() => handleViewBorrowRecords(userItem.id)}
+                >
+                  Borrow Records
+                </button>
                 <button 
                   className="btn-danger"
                   onClick={() => handleDeleteUser(userItem.id)}

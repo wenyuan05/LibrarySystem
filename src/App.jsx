@@ -9,6 +9,7 @@ import BookList from './components/Books/BookList';
 import AddBookForm from './components/Books/AddBookForm';
 import EditBookForm from './components/Books/EditBookForm';
 import BorrowRecords from './components/Borrow/BorrowRecords';
+import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import UserList from './components/Users/UserList';
 import { booksAPI } from './utils/api';
 import './styles/global.css';
@@ -333,6 +334,7 @@ function App() {
             <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
           <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
           <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/user-borrow-records/:userId" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserBorrowRecords /></MainLayout></ProtectedRoute>} />
           <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserManagementPage /></MainLayout></ProtectedRoute>} />
           </Routes>
