@@ -341,3 +341,68 @@ This file documents all bug fixes applied to the project.
   - Rotated JWT_SECRET to a new secure value
   - Updated both root and backend .env files with the new secret
 - **Reason**: Prevent secrets from being committed to version control and improve security
+
+### Fix 41: Convert EditBookForm to modal popup
+- **Files modified**: 
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added modal styles to Books.css including overlay, content, and animations
+  - Modified EditBookForm.jsx to use modal structure
+  - Added modal header with close button
+  - Updated event handling for modal closing
+  - Ensured form functionality remains unchanged
+- **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
+
+### Fix 42: Add admin user borrow records management
+- **Files modified**: 
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/App.jsx`
+- **Changes**: 
+  - Added "Borrow Records" button to each user in UserList
+  - Created UserBorrowRecords component to display user-specific borrow records
+  - Added new route `/user-borrow-records/:userId` for admin access
+  - Implemented return functionality for admin to manage borrow status
+  - Ensured only admins can access user borrow records
+- **Reason**: Allow administrators to view and manage user borrow records, including manually returning books
+
+### Fix 43: Add back button to user borrow records page
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Added useNavigate hook for navigation
+  - Added "Back to Users" button at the top of the page
+  - Implemented handleBackToUsers function to navigate back to user list
+- **Reason**: Improve user experience by providing an easy way for administrators to return to the user list page
+
+### Fix 44: Fix animation name conflict in Books.css
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Renamed `fadeIn` animation to `booksModalFadeIn`
+  - Renamed `slideIn` animation to `booksModalSlideIn`
+  - Updated all references to these animations in the file
+- **Reason**: Avoid conflicts with globally defined animations in global.css, ensuring animations don't override each other across the application
+
+### Fix 45: Improve modal accessibility in EditBookForm
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added `role="dialog"`, `aria-modal="true"`, and `aria-labelledby="modal-title"` attributes to modal
+  - Added keyboard handling for Escape key to close modal
+  - Added focus management to automatically focus on title input when modal opens
+  - Updated `aria-label` for close button to be more descriptive
+  - Added proper focus trapping and cleanup
+- **Reason**: Improve accessibility for keyboard users and screen readers, making the modal more usable for all users
+
+### Fix 46: Fix stale state in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Changed `setRecords(records.map(...))` to use functional state update `setRecords(prevRecords => prevRecords.map(...))`
+- **Reason**: Avoid stale state issues when multiple updates happen close together, ensuring the update always applies to the latest state
+
+### Fix 47: Improve error handling in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Removed `setError('Failed to return book')` from return-book error path
+  - Kept only `showToast(err.message, 'error')` for action-level failures
+- **Reason**: Prevent the entire page from switching to error UI when a single return action fails, keeping the records list visible and only showing error via toast
+
