@@ -25,7 +25,7 @@ dist-ssr
 
 # Database files
 backend/library.db
-.trae/documents/project_sharing_plan.md
+.trae/
 
 # Environment files
 .env

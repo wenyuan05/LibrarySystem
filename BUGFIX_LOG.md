@@ -252,18 +252,6 @@ This file documents all bug fixes applied to the project.
   - Moved `/api/register` from the authenticated endpoints list to the public endpoints list
 - **Reason**: Correct documentation to reflect that the register endpoint is public and doesn't require an Authorization header
 
-### Fix 31: Convert EditBookForm to modal popup
-- **Files modified**: 
-  - `src/components/Books/Books.css`
-  - `src/components/Books/EditBookForm.jsx`
-- **Changes**: 
-  - Added modal styles to Books.css including overlay, content, and animations
-  - Modified EditBookForm.jsx to use modal structure
-  - Added modal header with close button
-  - Updated event handling for modal closing
-  - Ensured form functionality remains unchanged
-- **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
-
 ### Fix 30: Fix Toast.jsx animationEndTimer cleanup
 - **Files modified**: 
   - `src/components/toast/Toast.jsx`
@@ -353,3 +341,16 @@ This file documents all bug fixes applied to the project.
   - Rotated JWT_SECRET to a new secure value
   - Updated both root and backend .env files with the new secret
 - **Reason**: Prevent secrets from being committed to version control and improve security
+
+### Fix 41: Convert EditBookForm to modal popup
+- **Files modified**: 
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added modal styles to Books.css including overlay, content, and animations
+  - Modified EditBookForm.jsx to use modal structure
+  - Added modal header with close button
+  - Updated event handling for modal closing
+  - Ensured form functionality remains unchanged
+- **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
+
