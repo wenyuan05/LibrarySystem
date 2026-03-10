@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
