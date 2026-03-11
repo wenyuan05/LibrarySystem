@@ -489,3 +489,13 @@ This file documents all bug fixes applied to the project.
   - Ensured proper validation of 0 values
 - **Reason**: Fix validation issues with numeric fields, especially when values are 0 or come as strings from HTML inputs
 
+### Fix 57: Fix concurrent borrow issue
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated borrow flow to add conditional update for available_copies
+  - Added WHERE clause to ensure only available books are borrowed
+  - Added check for affected rows to handle concurrent borrows
+  - Updated return flow to check for affected rows
+  - Ensured proper rollback when no rows are affected
+- **Reason**: Prevent available_copies from going negative during concurrent borrow operations
+

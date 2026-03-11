@@ -578,11 +578,18 @@ app.post('/api/borrow', authenticateToken, (req, res) => {
               return;
             }
             
-            // 更新书籍可借数量
-            db.run('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id], (err) => {
+            // 更新书籍可借数量（添加条件，确保只有在有可用副本时才更新）
+            db.run('UPDATE books SET available_copies = available_copies - 1 WHERE id = ? AND available_copies > 0', [book_id], function(err) {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
+                return;
+              }
+              
+              // 检查是否有行被更新
+              if (this.changes === 0) {
+                db.run('ROLLBACK');
+                res.status(400).json({ error: 'Book is not available' });
                 return;
               }
               
@@ -646,10 +653,17 @@ app.post('/api/return', authenticateToken, (req, res) => {
               }
               
               // 更新书籍可借数量
-              db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [book_id], (err) => {
+              db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [book_id], function(err) {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
+                  return;
+                }
+                
+                // 检查是否有行被更新
+                if (this.changes === 0) {
+                  db.run('ROLLBACK');
+                  res.status(404).json({ error: 'Book not found' });
                   return;
                 }
                 
@@ -661,9 +675,8 @@ app.post('/api/return', authenticateToken, (req, res) => {
                   res.json({ message: 'Book returned successfully', return_date });
                 });
               });
-            }
-          );
-        }
+          });
+        });
       );
     });
   });
