@@ -532,3 +532,11 @@ This file documents all bug fixes applied to the project.
   - Updated both update branches to handle empty publication_date properly
 - **Reason**: Fix 400 errors when updating books with empty publication_date from frontend date inputs
 
+### Fix 62: Fix EditBookForm parseInt handling for 0 values
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated parseInt logic to use isNaN check instead of logical OR
+  - Ensured legitimate 0 values are preserved instead of being converted to 1
+  - Improved number parsing reliability
+- **Reason**: Fix incorrect conversion of 0 values to 1 when initializing form data
+

@@ -28,8 +28,8 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         publisher: book.publisher || '',
         publication_date: book.publication_date || '',
         description: book.description || '',
-        total_copies: parseInt(book.total_copies, 10) || 1,
-        available_copies: parseInt(book.available_copies, 10) || 1
+        total_copies: isNaN(parseInt(book.total_copies, 10)) ? 1 : parseInt(book.total_copies, 10),
+        available_copies: isNaN(parseInt(book.available_copies, 10)) ? 1 : parseInt(book.available_copies, 10)
       });
       // 聚焦到标题输入框
       setTimeout(() => {
