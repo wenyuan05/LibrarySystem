@@ -507,3 +507,12 @@ This file documents all bug fixes applied to the project.
   - Maintained consistency with AddBookForm's number handling
 - **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields when editing books
 
+### Fix 59: Fix const variable reassignment in backend validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use separate local variables for numeric coercion
+  - Updated validateBookUpdateBody to use separate local variables for numeric coercion
+  - Updated book update handler to use separate local variables for numeric coercion
+  - Renamed request body variables to avoid const reassignment
+- **Reason**: Fix runtime errors caused by trying to reassign const variables during numeric coercion
+

@@ -76,7 +76,7 @@ const validateRegisterBody = (req, res, next) => {
 
 // 书籍请求体验证中间件
 const validateBookBody = (req, res, next) => {
-  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies: req_total_copies, available_copies: req_available_copies } = req.body;
   if (!title || !author || !isbn) {
     res.status(400).json({ error: 'Title, author and ISBN are required' });
     return;
@@ -109,15 +109,16 @@ const validateBookBody = (req, res, next) => {
     res.status(400).json({ error: 'Description must be less than 1000 characters' });
     return;
   }
-  if (total_copies !== undefined) {
-    total_copies = Number(total_copies);
+  let total_copies, available_copies;
+  if (req_total_copies !== undefined) {
+    total_copies = Number(req_total_copies);
     if (isNaN(total_copies) || total_copies < 1) {
       res.status(400).json({ error: 'Total copies must be a positive number' });
       return;
     }
   }
-  if (available_copies !== undefined) {
-    available_copies = Number(available_copies);
+  if (req_available_copies !== undefined) {
+    available_copies = Number(req_available_copies);
     if (isNaN(available_copies) || available_copies < 0) {
       res.status(400).json({ error: 'Available copies must be a non-negative number' });
       return;
@@ -136,7 +137,7 @@ const validateBookBody = (req, res, next) => {
 
 // 书籍部分更新验证中间件
 const validateBookUpdateBody = (req, res, next) => {
-  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies: req_total_copies, available_copies: req_available_copies } = req.body;
   
   // 验证title字段
   if (title !== undefined) {
@@ -212,9 +213,10 @@ const validateBookUpdateBody = (req, res, next) => {
     }
   }
   
+  let total_copies, available_copies;
   // 验证total_copies字段
-  if (total_copies !== undefined) {
-    total_copies = Number(total_copies);
+  if (req_total_copies !== undefined) {
+    total_copies = Number(req_total_copies);
     if (isNaN(total_copies) || total_copies < 1) {
       res.status(400).json({ error: 'Total copies must be a positive number' });
       return;
@@ -222,8 +224,8 @@ const validateBookUpdateBody = (req, res, next) => {
   }
   
   // 验证available_copies字段
-  if (available_copies !== undefined) {
-    available_copies = Number(available_copies);
+  if (req_available_copies !== undefined) {
+    available_copies = Number(req_available_copies);
     if (isNaN(available_copies) || available_copies < 0) {
       res.status(400).json({ error: 'Available copies must be a non-negative number' });
       return;
@@ -742,20 +744,21 @@ app.post('/api/books', authenticateToken, requireRole('admin'), validateBookBody
 // 更新书籍信息（管理员）
 app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookUpdateBody, (req, res) => {
   const { id } = req.params;
-  const { title, author, isbn, publisher, publication_date, description, total_copies, available_copies } = req.body;
+  const { title, author, isbn, publisher, publication_date, description, total_copies: req_total_copies, available_copies: req_available_copies } = req.body;
   
   // 检查是否需要加载当前值进行交叉验证
-  if (total_copies !== undefined || available_copies !== undefined) {
+  if (req_total_copies !== undefined || req_available_copies !== undefined) {
     // 转换为数字类型
-    if (total_copies !== undefined) {
-      total_copies = Number(total_copies);
+    let total_copies, available_copies;
+    if (req_total_copies !== undefined) {
+      total_copies = Number(req_total_copies);
       if (isNaN(total_copies)) {
         res.status(400).json({ error: 'Total copies must be a number' });
         return;
       }
     }
-    if (available_copies !== undefined) {
-      available_copies = Number(available_copies);
+    if (req_available_copies !== undefined) {
+      available_copies = Number(req_available_copies);
       if (isNaN(available_copies)) {
         res.status(400).json({ error: 'Available copies must be a number' });
         return;
