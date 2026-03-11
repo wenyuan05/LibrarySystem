@@ -109,17 +109,23 @@ const validateBookBody = (req, res, next) => {
     res.status(400).json({ error: 'Description must be less than 1000 characters' });
     return;
   }
-  if (total_copies && (typeof total_copies !== 'number' || total_copies < 1)) {
-    res.status(400).json({ error: 'Total copies must be a positive number' });
-    return;
+  if (total_copies !== undefined) {
+    total_copies = Number(total_copies);
+    if (isNaN(total_copies) || total_copies < 1) {
+      res.status(400).json({ error: 'Total copies must be a positive number' });
+      return;
+    }
   }
-  if (available_copies && (typeof available_copies !== 'number' || available_copies < 0)) {
-    res.status(400).json({ error: 'Available copies must be a non-negative number' });
-    return;
+  if (available_copies !== undefined) {
+    available_copies = Number(available_copies);
+    if (isNaN(available_copies) || available_copies < 0) {
+      res.status(400).json({ error: 'Available copies must be a non-negative number' });
+      return;
+    }
   }
   
   // 交叉验证：available_copies <= total_copies
-  if (total_copies && available_copies) {
+  if (total_copies !== undefined && available_copies !== undefined) {
     if (available_copies > total_copies) {
       res.status(400).json({ error: 'Available copies cannot exceed total copies' });
       return;
@@ -208,7 +214,8 @@ const validateBookUpdateBody = (req, res, next) => {
   
   // 验证total_copies字段
   if (total_copies !== undefined) {
-    if (typeof total_copies !== 'number' || total_copies < 1) {
+    total_copies = Number(total_copies);
+    if (isNaN(total_copies) || total_copies < 1) {
       res.status(400).json({ error: 'Total copies must be a positive number' });
       return;
     }
@@ -216,7 +223,8 @@ const validateBookUpdateBody = (req, res, next) => {
   
   // 验证available_copies字段
   if (available_copies !== undefined) {
-    if (typeof available_copies !== 'number' || available_copies < 0) {
+    available_copies = Number(available_copies);
+    if (isNaN(available_copies) || available_copies < 0) {
       res.status(400).json({ error: 'Available copies must be a non-negative number' });
       return;
     }
@@ -725,6 +733,22 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
   
   // 检查是否需要加载当前值进行交叉验证
   if (total_copies !== undefined || available_copies !== undefined) {
+    // 转换为数字类型
+    if (total_copies !== undefined) {
+      total_copies = Number(total_copies);
+      if (isNaN(total_copies)) {
+        res.status(400).json({ error: 'Total copies must be a number' });
+        return;
+      }
+    }
+    if (available_copies !== undefined) {
+      available_copies = Number(available_copies);
+      if (isNaN(available_copies)) {
+        res.status(400).json({ error: 'Available copies must be a number' });
+        return;
+      }
+    }
+    
     // 加载当前书籍信息
     db.get('SELECT total_copies AS current_total, available_copies AS current_available FROM books WHERE id = ?', [id], (err, book) => {
       if (err) {

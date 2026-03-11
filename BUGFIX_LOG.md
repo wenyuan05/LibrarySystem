@@ -479,3 +479,13 @@ This file documents all bug fixes applied to the project.
   - Now both buttons can be displayed simultaneously for books with multiple copies
 - **Reason**: Allow users to return borrowed books even when copies are still available
 
+### Fix 56: Fix numeric field validation in backend
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use !== undefined checks for numeric fields
+  - Added string-to-number coercion for numeric fields
+  - Updated validateBookUpdateBody with the same fixes
+  - Added numeric conversion in book update handler
+  - Ensured proper validation of 0 values
+- **Reason**: Fix validation issues with numeric fields, especially when values are 0 or come as strings from HTML inputs
+
