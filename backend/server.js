@@ -189,7 +189,7 @@ const validateBookUpdateBody = (req, res, next) => {
   }
   
   // 验证publication_date字段
-  if (publication_date !== undefined) {
+  if (publication_date !== undefined && publication_date !== '') {
     if (typeof publication_date !== 'string') {
       res.status(400).json({ error: 'Publication date must be a string' });
       return;
@@ -820,7 +820,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
         updateFields.push('publisher = ?');
         updateValues.push(publisher);
       }
-      if (publication_date !== undefined) {
+      if (publication_date !== undefined && publication_date !== '') {
         updateFields.push('publication_date = ?');
         updateValues.push(publication_date);
       }
@@ -888,7 +888,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
       updateFields.push('publisher = ?');
       updateValues.push(publisher);
     }
-    if (publication_date !== undefined) {
+    if (publication_date !== undefined && publication_date !== '') {
       updateFields.push('publication_date = ?');
       updateValues.push(publication_date);
     }

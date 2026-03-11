@@ -524,3 +524,11 @@ This file documents all bug fixes applied to the project.
   - Ensured toast ID generation works in all environments
 - **Reason**: Fix "crypto.randomUUID is not a function" error when deploying to servers that don't support this API
 
+### Fix 61: Fix publication_date empty string validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publication_date
+  - Modified book update handler to skip updating publication_date when value is empty string
+  - Updated both update branches to handle empty publication_date properly
+- **Reason**: Fix 400 errors when updating books with empty publication_date from frontend date inputs
+
