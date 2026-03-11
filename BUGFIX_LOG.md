@@ -471,3 +471,11 @@ This file documents all bug fixes applied to the project.
   - Updated responsive styles to maintain proper scoping
 - **Reason**: Prevent styling conflicts between book list and detail page actions
 
+### Fix 55: Fix book list button logic for multiple copies
+- **Files modified**: `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated render logic to show Return button whenever user has an active borrow record
+  - Updated render logic to show Borrow button when available_copies > 0
+  - Now both buttons can be displayed simultaneously for books with multiple copies
+- **Reason**: Allow users to return borrowed books even when copies are still available
+

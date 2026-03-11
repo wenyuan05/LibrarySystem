@@ -195,19 +195,9 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
             <p className="book-copies">Available: {book.available_copies}/{book.total_copies}</p>
             <div className="book-actions">
               {user.role === 'user' ? (
-                book.available_copies > 0 ? (
-                  <button 
-                    className="btn-warning"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBorrowBook(book.id);
-                    }}
-                  >
-                    Borrow
-                  </button>
-                ) : (
-                  // 只有当用户有对应的未归还借阅记录时才显示归还按钮
-                  borrowRecords.some(record => record.book_id === book.id) && (
+                <>
+                  {/* 显示归还按钮（如果用户有未归还的借阅记录） */}
+                  {borrowRecords.some(record => record.book_id === book.id) && (
                     <button 
                       className="btn-info"
                       onClick={(e) => {
@@ -217,8 +207,20 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     >
                       Return
                     </button>
-                  )
-                )
+                  )}
+                  {/* 显示借阅按钮（如果有可用副本） */}
+                  {book.available_copies > 0 && (
+                    <button 
+                      className="btn-warning"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBorrowBook(book.id);
+                      }}
+                    >
+                      Borrow
+                    </button>
+                  )}
+                </>
               ) : (
                 <>
                   {showEditButton && (
