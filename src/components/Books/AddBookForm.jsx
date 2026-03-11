@@ -18,10 +18,10 @@ const AddBookForm = ({ onBookAdded }) => {
   const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'number' ? parseInt(value, 10) || 0 : value
     }));
   };
 
@@ -51,6 +51,13 @@ const AddBookForm = ({ onBookAdded }) => {
     const isbnPattern = /^\d{10}(?:\d{3})?$/;
     if (!isbnPattern.test(formData.isbn)) {
       setError('ISBN must be 10 or 13 digits');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // 验证available_copies <= total_copies
+    if (formData.available_copies > formData.total_copies) {
+      setError('Available copies cannot exceed total copies');
       setIsSubmitting(false);
       return;
     }

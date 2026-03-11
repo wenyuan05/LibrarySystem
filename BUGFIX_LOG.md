@@ -453,3 +453,13 @@ This file documents all bug fixes applied to the project.
   - Added validation to prevent reducing total_copies below the number of borrowed books
 - **Reason**: Ensure book inventory consistency and prevent invalid states
 
+### Fix 53: Fix number input handling in book forms
+- **Files modified**: 
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated handleChange functions to convert number input values to integers
+  - Added validation for available_copies <= total_copies in both forms
+  - Ensured proper type handling when submitting form data to the API
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields
+
