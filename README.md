@@ -668,6 +668,10 @@ Authorization: Bearer <JWT_TOKEN>
    - 表单提交前会进行前端验证
    - API请求会进行后端验证
    - 数据库层面有唯一约束保护
+8. 数据库迁移：
+   - 如果使用旧的 library.db 文件（包含旧的书籍表结构），可能会出现 "no such column: available_copies" 错误
+   - 建议删除旧的 library.db 文件，让系统自动重新创建新的数据库结构
+   - 或者使用数据库工具（如 SQLite Browser）手动更新表结构
 
 ## 扩展建议
 
