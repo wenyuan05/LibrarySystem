@@ -177,7 +177,7 @@ const validateBookUpdateBody = (req, res, next) => {
   }
   
   // 验证publisher字段
-  if (publisher !== undefined) {
+  if (publisher !== undefined && publisher !== '') {
     if (typeof publisher !== 'string') {
       res.status(400).json({ error: 'Publisher must be a string' });
       return;
@@ -202,7 +202,7 @@ const validateBookUpdateBody = (req, res, next) => {
   }
   
   // 验证description字段
-  if (description !== undefined) {
+  if (description !== undefined && description !== '') {
     if (typeof description !== 'string') {
       res.status(400).json({ error: 'Description must be a string' });
       return;
@@ -620,8 +620,8 @@ app.post('/api/return', authenticateToken, (req, res) => {
   const return_date = new Date().toISOString().split('T')[0];
   
   // 开始事务
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION', (err) => {
+  db.serialize(function() {
+    db.run('BEGIN TRANSACTION', function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -631,7 +631,7 @@ app.post('/api/return', authenticateToken, (req, res) => {
       db.get(
         'SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND return_date IS NULL',
         [user_id, book_id],
-        (err, record) => {
+        function(err, record) {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
@@ -647,7 +647,7 @@ app.post('/api/return', authenticateToken, (req, res) => {
           db.run(
             'UPDATE borrow_records SET return_date = ? WHERE id = ?',
             [return_date, record.id],
-            (err) => {
+            function(err) {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
@@ -669,7 +669,7 @@ app.post('/api/return', authenticateToken, (req, res) => {
                   return;
                 }
                 
-                db.run('COMMIT', (err) => {
+                db.run('COMMIT', function(err) {
                   if (err) {
                     res.status(500).json({ error: err.message });
                     return;
@@ -677,8 +677,9 @@ app.post('/api/return', authenticateToken, (req, res) => {
                   res.json({ message: 'Book returned successfully', return_date });
                 });
               });
-          });
-        });
+            }
+          );
+        }
       );
     });
   });
@@ -816,7 +817,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
         updateFields.push('isbn = ?');
         updateValues.push(isbn);
       }
-      if (publisher !== undefined) {
+      if (publisher !== undefined && publisher !== '') {
         updateFields.push('publisher = ?');
         updateValues.push(publisher);
       }
@@ -824,7 +825,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
         updateFields.push('publication_date = ?');
         updateValues.push(publication_date);
       }
-      if (description !== undefined) {
+      if (description !== undefined && description !== '') {
         updateFields.push('description = ?');
         updateValues.push(description);
       }
@@ -884,7 +885,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
       updateFields.push('isbn = ?');
       updateValues.push(isbn);
     }
-    if (publisher !== undefined) {
+    if (publisher !== undefined && publisher !== '') {
       updateFields.push('publisher = ?');
       updateValues.push(publisher);
     }
@@ -892,7 +893,7 @@ app.put('/api/books/:id', authenticateToken, requireRole('admin'), validateBookU
       updateFields.push('publication_date = ?');
       updateValues.push(publication_date);
     }
-    if (description !== undefined) {
+    if (description !== undefined && description !== '') {
       updateFields.push('description = ?');
       updateValues.push(description);
     }

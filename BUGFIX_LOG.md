@@ -540,3 +540,11 @@ This file documents all bug fixes applied to the project.
   - Improved number parsing reliability
 - **Reason**: Fix incorrect conversion of 0 values to 1 when initializing form data
 
+### Fix 63: Fix optional fields validation for empty strings
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publisher and description fields
+  - Modified book update handler to skip updating publisher and description when values are empty strings
+  - Updated both update branches to handle empty optional fields properly
+- **Reason**: Fix 400 errors when editing books with empty optional fields from frontend forms
+
