@@ -118,14 +118,14 @@
 }
 
 /* 书籍操作按钮 */
-.book-actions {
+.book-card .book-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-md);
 }
 
-.book-actions button {
+.book-card .book-actions button {
   flex: 1;
   min-width: 80px;
 }
@@ -148,11 +148,11 @@
     grid-template-columns: 1fr;
   }
   
-  .book-actions {
+  .book-card .book-actions {
     flex-direction: column;
   }
   
-  .book-actions button {
+  .book-card .book-actions button {
     width: 100%;
   }
 }
@@ -295,7 +295,7 @@
   margin: 0;
 }
 
-.book-actions {
+.book-detail-section .book-actions {
   margin-top: var(--spacing-lg);
   display: flex;
   gap: var(--spacing-md);
@@ -348,11 +348,11 @@
     flex-direction: column;
   }
   
-  .book-actions {
+  .book-detail-section .book-actions {
     flex-direction: column;
   }
   
-  .book-actions button {
+  .book-detail-section .book-actions button {
     width: 100%;
   }
 }

@@ -463,3 +463,11 @@ This file documents all bug fixes applied to the project.
   - Ensured proper type handling when submitting form data to the API
 - **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields
 
+### Fix 54: Fix CSS styling conflicts for book actions
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Scoped book card actions to .book-card .book-actions
+  - Scoped book detail actions to .book-detail-section .book-actions
+  - Updated responsive styles to maintain proper scoping
+- **Reason**: Prevent styling conflicts between book list and detail page actions
+
