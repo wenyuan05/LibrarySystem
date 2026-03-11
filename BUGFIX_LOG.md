@@ -499,3 +499,11 @@ This file documents all bug fixes applied to the project.
   - Ensured proper rollback when no rows are affected
 - **Reason**: Prevent available_copies from going negative during concurrent borrow operations
 
+### Fix 58: Fix EditBookForm numeric field initialization
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated useEffect initialization to parse total_copies and available_copies as integers
+  - Ensured numeric fields are properly converted from strings to numbers when initializing form data
+  - Maintained consistency with AddBookForm's number handling
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields when editing books
+
