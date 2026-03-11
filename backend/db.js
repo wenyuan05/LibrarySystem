@@ -15,7 +15,11 @@ db.serialize(() => {
       title TEXT NOT NULL,
       author TEXT NOT NULL,
       isbn TEXT NOT NULL UNIQUE,
-      status TEXT DEFAULT 'available'
+      publisher TEXT,
+      publication_date TEXT,
+      description TEXT,
+      total_copies INTEGER DEFAULT 1,
+      available_copies INTEGER DEFAULT 1
     )
   `);
 
@@ -62,10 +66,10 @@ db.serialize(() => {
   });
 
   // 插入一些示例数据
-  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, status) VALUES (?, ?, ?, ?)');
-  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'available');
-  insertBook.run('1984', 'George Orwell', '9780451524935', 'available');
-  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'borrowed');
+  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, publisher, publication_date, description, total_copies, available_copies) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'Scribner', '1925-04-10', 'A story of wealth, love, and tragedy set in the Roaring Twenties.', 3, 3);
+  insertBook.run('1984', 'George Orwell', '9780451524935', 'Secker & Warburg', '1949-06-08', 'A dystopian novel set in a totalitarian society.', 2, 2);
+  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'J.B. Lippincott & Co.', '1960-07-11', 'A coming-of-age story about racial injustice in the American South.', 4, 3);
   insertBook.finalize();
 
   // 插入示例用户数据（使用密码哈希）

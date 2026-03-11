@@ -22,6 +22,7 @@ LibrarySystem/
 │   │   │   ├── BookList.jsx      # 书籍列表
 │   │   │   ├── AddBookForm.jsx    # 添加书籍表单
 │   │   │   ├── EditBookForm.jsx   # 编辑书籍表单
+│   │   │   ├── BookDetail.jsx     # 书籍详情页
 │   │   │   ├── SkeletonLoader.jsx # 加载骨架屏
 │   │   │   └── Books.css          # 书籍组件样式
 │   │   ├── Borrow/     # 借阅记录组件
@@ -323,7 +324,11 @@ Authorization: Bearer <JWT_TOKEN>
     "title": "The Great Gatsby",
     "author": "F. Scott Fitzgerald",
     "isbn": "9780743273565",
-    "status": "available"
+    "publisher": "Scribner",
+    "publication_date": "1925-04-10",
+    "description": "A story of wealth, love, and tragedy set in the Roaring Twenties.",
+    "total_copies": 3,
+    "available_copies": 3
   }
 ]
 ```
@@ -339,7 +344,11 @@ Authorization: Bearer <JWT_TOKEN>
   "title": "The Great Gatsby",
   "author": "F. Scott Fitzgerald",
   "isbn": "9780743273565",
-  "status": "available"
+  "publisher": "Scribner",
+  "publication_date": "1925-04-10",
+  "description": "A story of wealth, love, and tragedy set in the Roaring Twenties.",
+  "total_copies": 3,
+  "available_copies": 3
 }
 ```
 
@@ -352,7 +361,12 @@ Authorization: Bearer <JWT_TOKEN>
 {
   "title": "New Book",
   "author": "Author Name",
-  "isbn": "1234567890"
+  "isbn": "1234567890",
+  "publisher": "Publisher Name",
+  "publication_date": "2024-01-01",
+  "description": "Book description",
+  "total_copies": 5,
+  "available_copies": 5
 }
 ```
 
@@ -363,7 +377,11 @@ Authorization: Bearer <JWT_TOKEN>
   "title": "New Book",
   "author": "Author Name",
   "isbn": "1234567890",
-  "status": "available"
+  "publisher": "Publisher Name",
+  "publication_date": "2024-01-01",
+  "description": "Book description",
+  "total_copies": 5,
+  "available_copies": 5
 }
 ```
 
@@ -377,7 +395,11 @@ Authorization: Bearer <JWT_TOKEN>
   "title": "Updated Title",
   "author": "Updated Author",
   "isbn": "1234567890",
-  "status": "available"
+  "publisher": "Updated Publisher",
+  "publication_date": "2024-01-01",
+  "description": "Updated description",
+  "total_copies": 10,
+  "available_copies": 8
 }
 ```
 
@@ -388,7 +410,11 @@ Authorization: Bearer <JWT_TOKEN>
   "title": "Updated Title",
   "author": "Updated Author",
   "isbn": "1234567890",
-  "status": "available"
+  "publisher": "Updated Publisher",
+  "publication_date": "2024-01-01",
+  "description": "Updated description",
+  "total_copies": 10,
+  "available_copies": 8
 }
 ```
 
@@ -481,6 +507,7 @@ Authorization: Bearer <JWT_TOKEN>
    - `/login` - 登录页面
    - `/` - 首页（书籍列表）
    - `/books` - 书籍列表
+   - `/books/:id` - 书籍详情页
    - `/borrow-records` - 个人借阅记录
    - `/user-borrow-records/:userId` - 用户借阅记录管理（管理员）
    - `/book-management` - 书籍管理（管理员）
@@ -492,11 +519,12 @@ Authorization: Bearer <JWT_TOKEN>
 5. **书籍管理**：
    - 书籍列表展示
    - 搜索功能（支持按标题、作者、ISBN搜索）
+   - 点击书籍查看详情
    - 借阅和归还书籍
    - 删除书籍（管理员）
 6. **书籍管理专门板块**（管理员）：
-   - 添加新书籍（包含ISBN格式验证和重复检查）
-   - 编辑书籍信息
+   - 添加新书籍（包含ISBN格式验证和重复检查，支持出版社、出版日期、简介、馆藏数量、可借数量等字段）
+   - 编辑书籍信息（支持所有字段的编辑）
    - 批量管理书籍
    - 实时状态更新
 7. **用户管理**：
@@ -640,6 +668,10 @@ Authorization: Bearer <JWT_TOKEN>
    - 表单提交前会进行前端验证
    - API请求会进行后端验证
    - 数据库层面有唯一约束保护
+8. 数据库迁移：
+   - 如果使用旧的 library.db 文件（包含旧的书籍表结构），可能会出现 "no such column: available_copies" 错误
+   - 建议删除旧的 library.db 文件，让系统自动重新创建新的数据库结构
+   - 或者使用数据库工具（如 SQLite Browser）手动更新表结构
 
 ## 扩展建议
 

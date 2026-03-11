@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar/Sidebar';
 import BookList from './components/Books/BookList';
 import AddBookForm from './components/Books/AddBookForm';
 import EditBookForm from './components/Books/EditBookForm';
+import BookDetail from './components/Books/BookDetail';
 import BorrowRecords from './components/Borrow/BorrowRecords';
 import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import UserList from './components/Users/UserList';
@@ -331,12 +332,13 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
-          <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
-          <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
-          <Route path="/user-borrow-records/:userId" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserBorrowRecords /></MainLayout></ProtectedRoute>} />
-          <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserManagementPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/books/:id" element={<ProtectedRoute><MainLayout><BookDetail /></MainLayout></ProtectedRoute>} />
+        <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/user-borrow-records/:userId" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserBorrowRecords /></MainLayout></ProtectedRoute>} />
+        <Route path="/book-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><BookManagementPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute requiredRole="admin"><MainLayout><UserManagementPage /></MainLayout></ProtectedRoute>} />
           </Routes>
         </Router>
       </ToastProvider>
