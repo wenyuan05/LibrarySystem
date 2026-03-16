@@ -548,3 +548,46 @@ This file documents all bug fixes applied to the project.
   - Updated both update branches to handle empty optional fields properly
 - **Reason**: Fix 400 errors when editing books with empty optional fields from frontend forms
 
+## 2026-03-13
+
+### Fix 64: Configure cloud deployment settings
+- **Files modified**: 
+  - `backend/.env`
+  - `backend/server.js`
+  - `.env`
+- **Changes**: 
+  - Updated backend CORS configuration to support wildcard origin
+  - Modified frontend API base URL to use relative path `/api`
+  - Updated backend FRONTEND_URL to use wildcard `*`
+  - Added logic to handle credentials properly when using wildcard origin
+- **Reason**: Enable cloud deployment with domain access by using relative paths instead of hardcoded URLs
+
+### Fix 65: Update website name and add footer information
+- **Files modified**: 
+  - `index.html`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `src/styles/global.css`
+  - `src/components/Login/Login.css`
+- **Changes**: 
+  - Changed website title from "librarysystem" to "个人项目展示"
+  - Updated header title in App.jsx from "Library Management System" to "个人项目展示"
+  - Updated login page title from "Library Management System" to "个人项目展示"
+  - Added footer section to both main layout and login page
+  - Added copyright and ICP record information to footers
+  - Added corresponding CSS styles for footers
+- **Reason**: Update website branding and comply with Chinese website requirements for ICP records
+
+### Fix 66: Separate privacy information into dedicated file
+- **Files modified**: 
+  - `src/config/privacy.js`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `.gitignore`
+- **Changes**: 
+  - Created `src/config/privacy.js` to store sensitive privacy information
+  - Updated App.jsx and Login.jsx to import and use privacyConfig
+  - Added `src/config/privacy.js` to .gitignore
+  - Moved ICP record and copyright information to privacy.js
+- **Reason**: Protect sensitive privacy information by keeping it out of version control while maintaining easy access for the application
+

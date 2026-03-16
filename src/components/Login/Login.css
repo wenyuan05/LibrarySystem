@@ -53,6 +53,20 @@
   margin-bottom: var(--spacing-xs);
 }
 
+/* 登录页脚 */
+.login-footer {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.login-footer p {
+  margin-bottom: var(--spacing-xs);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .login-form {
@@ -61,5 +75,9 @@
   
   .login-container {
     padding: var(--spacing-md);
+  }
+  
+  .login-footer {
+    font-size: var(--font-size-xs);
   }
 }

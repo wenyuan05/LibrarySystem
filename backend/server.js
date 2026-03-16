@@ -21,10 +21,10 @@ if (!JWT_SECRET) {
 
 // 中间件
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL === '*' ? '*' : (process.env.FRONTEND_URL || 'http://localhost:3000'),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: process.env.FRONTEND_URL !== '*'
 };
 app.use(cors(corsOptions));
 app.use(express.json());

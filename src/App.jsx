@@ -13,6 +13,7 @@ import BorrowRecords from './components/Borrow/BorrowRecords';
 import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import UserList from './components/Users/UserList';
 import { booksAPI } from './utils/api';
+import privacyConfig from './config/privacy';
 import './styles/global.css';
 
 // 主布局组件
@@ -37,7 +38,7 @@ const MainLayout = ({ children }) => {
         {/* 顶部导航 */}
         <header className="header">
           <button className="menu-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
-          <h1>Library Management System</h1>
+          <h1>个人项目展示</h1>
           <div className="user-menu">
             <span>{user?.name || 'User'}</span>
           </div>
@@ -47,6 +48,14 @@ const MainLayout = ({ children }) => {
         <div className="content">
           {children}
         </div>
+
+        {/* 页脚 */}
+        <footer className="footer">
+          <div className="footer-content">
+            <p>{privacyConfig.copyright}</p>
+            <p>备案信息：{privacyConfig.icpRecord}</p>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
-# 图书馆管理系统开发文档
+# 个人项目展示开发文档
 
 ## 项目概述
 
-图书馆管理系统是一个基于React和Node.js的Web应用，用于管理图书馆的书籍信息，包括添加、查询、借阅和归还书籍等功能。系统支持用户认证、管理员权限管理、个人借阅记录查询等功能。
+个人项目展示是一个基于React和Node.js的Web应用，用于管理图书馆的书籍信息，包括添加、查询、借阅和归还书籍等功能。系统支持用户认证、管理员权限管理、个人借阅记录查询等功能。
 
 ## 技术栈
 
@@ -52,6 +52,8 @@ LibrarySystem/
 │   │   └── api.js      # API调用封装
 │   ├── hooks/           # 自定义钩子
 │   │   └── useApiRequest.jsx  # API请求处理钩子
+│   ├── config/          # 配置文件
+│   │   └── privacy.js  # 隐私信息配置（已添加到.gitignore）
 │   ├── App.jsx         # 主应用组件
 │   ├── App.css         # 应用样式
 │   ├── main.jsx        # 应用入口
@@ -122,8 +124,7 @@ npm install
 
 ```env
 # API Configuration
-VITE_API_BASE_URL=http://localhost:3001/api
-FRONTEND_URL=http://localhost:5173
+VITE_API_BASE_URL=/api
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
@@ -133,7 +134,7 @@ JWT_SECRET=your-secret-key-here
 
 ```env
 # API Configuration
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=*
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
@@ -672,6 +673,11 @@ Authorization: Bearer <JWT_TOKEN>
    - 如果使用旧的 library.db 文件（包含旧的书籍表结构），可能会出现 "no such column: available_copies" 错误
    - 建议删除旧的 library.db 文件，让系统自动重新创建新的数据库结构
    - 或者使用数据库工具（如 SQLite Browser）手动更新表结构
+
+9. 隐私信息配置：
+   - 隐私信息（如备案号）存储在 `src/config/privacy.js` 文件中
+   - 此文件已添加到 `.gitignore`，不会被提交到版本控制
+   - 部署时需要确保此文件存在并包含正确的信息
 
 ## 扩展建议
 

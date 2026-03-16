@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import privacyConfig from '../../config/privacy';
 import './Login.css';
 
 const Login = () => {
@@ -109,7 +110,7 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-form card fade-in">
-        <h1>Library Management System</h1>
+        <h1>个人项目展示</h1>
         <h2>{isRegisterMode ? 'Register' : 'Login'}</h2>
         
         {loginError && (
@@ -255,6 +256,12 @@ const Login = () => {
           <p>Sample accounts:</p>
           <p>Admin: admin / admin123</p>
           <p>User: user1 / user123</p>
+        </div>
+        
+        {/* 页脚 */}
+        <div className="login-footer">
+          <p>{privacyConfig.copyright}</p>
+          <p>备案信息：{privacyConfig.icpRecord}</p>
         </div>
       </div>
     </div>

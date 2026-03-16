@@ -601,3 +601,38 @@ tr:hover {
 .btn-secondary:hover {
   background-color: var(--border-color);
 }
+
+/* 页脚样式 */
+.footer {
+  background-color: var(--bg-secondary);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.footer p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .footer p {
+    font-size: var(--font-size-xs);
+  }
+}
