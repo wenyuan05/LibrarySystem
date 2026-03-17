@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { booksAPI } from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const AddBookForm = ({ onBookAdded }) => {
   const [formData, setFormData] = useState({ title: '', author: '', isbn: '' });
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -14,6 +17,34 @@ const AddBookForm = ({ onBookAdded }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // 获取分类列表
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const data = await categoryAPI.getAll();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // 处理分类选择
+  const handleCategoryChange = (categoryId) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -48,9 +79,18 @@ const AddBookForm = ({ onBookAdded }) => {
 
     try {
       const newBook = await booksAPI.add(formData);
+      
+      // 关联分类
+      if (selectedCategories.length > 0) {
+        for (const categoryId of selectedCategories) {
+          await categoryAPI.addBookCategory(newBook.id, categoryId);
+        }
+      }
+      
       setSuccess('Book added successfully!');
       // 重置表单
       setFormData({ title: '', author: '', isbn: '' });
+      setSelectedCategories([]);
       // 通知父组件刷新书籍列表
       if (onBookAdded) {
         onBookAdded(newBook);
@@ -117,6 +157,28 @@ const AddBookForm = ({ onBookAdded }) => {
             required
             disabled={isSubmitting}
           />
+        </div>
+        <div className="form-group">
+          <label>Categories:</label>
+          {categoriesLoading ? (
+            <p>Loading categories...</p>
+          ) : categories.length === 0 ? (
+            <p>No categories available</p>
+          ) : (
+            <div className="category-selector">
+              {categories.map(category => (
+                <label key={category.id} className="category-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(category.id)}
+                    onChange={() => handleCategoryChange(category.id)}
+                    disabled={isSubmitting}
+                  />
+                  {category.name}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <button 
           type="submit" 

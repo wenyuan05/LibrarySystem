@@ -22,3 +22,34 @@
     padding: var(--spacing-lg);
   }
 }
+
+/* 状态样式 */
+.status-borrowed {
+  color: var(--warning-color);
+  font-weight: 500;
+}
+
+.status-returned {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.status-returning {
+  color: var(--info-color);
+  font-weight: 500;
+}
+
+.status-active {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.status-inactive {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.status-pending {
+  color: var(--warning-color);
+  font-style: italic;
+}

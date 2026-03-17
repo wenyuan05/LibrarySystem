@@ -1,26 +1,55 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { booksAPI } from '../../utils/api';
+import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [formData, setFormData] = useState({ title: '', author: '', isbn: '' });
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const titleInputRef = useRef(null);
 
   // 初始化表单数据和焦点管理
   useEffect(() => {
+    const fetchBookCategories = async () => {
+      if (book) {
+        try {
+          // 获取所有分类
+          const allCategories = await categoryAPI.getAll();
+          setCategories(allCategories);
+          
+          // 获取书籍的分类
+          const bookCategories = await categoryAPI.getBookCategories(book.id);
+          const categoryIds = bookCategories.map(cat => cat.id);
+          setSelectedCategories(categoryIds);
+        } catch (error) {
+          console.error('Error fetching categories:', error);
+        } finally {
+          setCategoriesLoading(false);
+        }
+      }
+    };
+
     if (book) {
       setFormData({
         title: book.title || '',
         author: book.author || '',
-        isbn: book.isbn || ''
+        isbn: book.isbn || '',
+        description: book.description || '',
+        cover_image: book.cover_image || '',
+        total_copies: book.total_copies || 1,
+        status: book.status || 'available'
       });
       // 聚焦到标题输入框
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
+      
+      // 获取分类数据
+      fetchBookCategories();
     }
   }, [book]);
 
@@ -44,6 +73,17 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // 处理分类选择
+  const handleCategoryChange = (categoryId) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -79,6 +119,25 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     try {
       // 调用后端 API 更新书籍
       const updatedBook = await booksAPI.update(book.id, formData);
+      
+      // 获取当前书籍的分类
+      const currentCategories = await categoryAPI.getBookCategories(book.id);
+      const currentCategoryIds = currentCategories.map(cat => cat.id);
+      
+      // 移除旧的分类关联
+      for (const categoryId of currentCategoryIds) {
+        if (!selectedCategories.includes(categoryId)) {
+          await categoryAPI.removeBookCategory(book.id, categoryId);
+        }
+      }
+      
+      // 添加新的分类关联
+      for (const categoryId of selectedCategories) {
+        if (!currentCategoryIds.includes(categoryId)) {
+          await categoryAPI.addBookCategory(book.id, categoryId);
+        }
+      }
+      
       setSuccess('Book updated successfully!');
       // 通知父组件编辑完成
       if (onEditComplete) {
@@ -168,6 +227,78 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               required
               disabled={isSubmitting}
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="description">Description:</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows="4"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cover_image">Cover Image URL:</label>
+            <input
+              type="text"
+              id="cover_image"
+              name="cover_image"
+              value={formData.cover_image}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="total_copies">Total Copies:</label>
+            <input
+              type="number"
+              id="total_copies"
+              name="total_copies"
+              min="1"
+              value={formData.total_copies}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="status">Status:</label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            >
+              <option value="available">Available</option>
+              <option value="borrowed">Borrowed</option>
+              <option value="reserved">Reserved</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Categories:</label>
+            {categoriesLoading ? (
+              <p>Loading categories...</p>
+            ) : categories.length === 0 ? (
+              <p>No categories available</p>
+            ) : (
+              <div className="category-selector">
+                {categories.map(category => (
+                  <label key={category.id} className="category-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category.id)}
+                      onChange={() => handleCategoryChange(category.id)}
+                      disabled={isSubmitting}
+                    />
+                    {category.name}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
           <div className="form-actions">
             <button 

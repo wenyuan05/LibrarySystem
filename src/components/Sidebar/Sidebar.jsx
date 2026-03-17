@@ -18,13 +18,32 @@ const Sidebar = ({ isOpen, onClose }) => {
       
       <div className="user-info">
         <h4>{user?.name || 'User'}</h4>
-        <p>{user?.role === 'admin' ? 'Administrator' : 'User'}</p>
+        <p>
+          {user?.role === 'admin' ? 'Administrator' : 
+           user?.role === 'librarian' ? 'Librarian' : 'User'}
+        </p>
         <p>{user?.email || ''}</p>
       </div>
       
       <nav className="sidebar-nav">
         <ul>
-          {user.role !== 'admin' && (
+          {/* 个人信息链接 - 所有用户可见 */}
+          <li className={location.pathname === '/profile' ? 'active' : ''}>
+            <Link to="/profile" onClick={onClose}>
+              <span className="nav-icon">👤</span>
+              <span className="nav-text">My Profile</span>
+            </Link>
+          </li>
+          
+          {/* 公告链接 - 所有用户可见 */}
+          <li className={location.pathname === '/announcements' ? 'active' : ''}>
+            <Link to="/announcements" onClick={onClose}>
+              <span className="nav-icon">📢</span>
+              <span className="nav-text">Announcements</span>
+            </Link>
+          </li>
+          
+          {user.role !== 'admin' && user.role !== 'librarian' && (
             <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
               <Link to="/books" onClick={onClose}>
                 <span className="nav-icon">📚</span>
@@ -42,12 +61,30 @@ const Sidebar = ({ isOpen, onClose }) => {
             </li>
           )}
           
-          {user.role === 'admin' && (
+          {(user.role === 'admin' || user.role === 'librarian') && (
             <>
+              <li className={location.pathname === '/stats' ? 'active' : ''}>
+                <Link to="/stats" onClick={onClose}>
+                  <span className="nav-icon">📊</span>
+                  <span className="nav-text">Statistics</span>
+                </Link>
+              </li>
               <li className={location.pathname === '/book-management' ? 'active' : ''}>
                 <Link to="/book-management" onClick={onClose}>
                   <span className="nav-icon">📚</span>
                   <span className="nav-text">Book Management</span>
+                </Link>
+              </li>
+              <li className={location.pathname === '/return-approval' ? 'active' : ''}>
+                <Link to="/return-approval" onClick={onClose}>
+                  <span className="nav-icon">🔄</span>
+                  <span className="nav-text">Return Approval</span>
+                </Link>
+              </li>
+              <li className={location.pathname === '/category-management' ? 'active' : ''}>
+                <Link to="/category-management" onClick={onClose}>
+                  <span className="nav-icon">📁</span>
+                  <span className="nav-text">Category Management</span>
                 </Link>
               </li>
               <li className={location.pathname === '/users' ? 'active' : ''}>
@@ -56,6 +93,28 @@ const Sidebar = ({ isOpen, onClose }) => {
                   <span className="nav-text">User Management</span>
                 </Link>
               </li>
+              {user.role === 'admin' && (
+                <>
+                  <li className={location.pathname === '/announcement-management' ? 'active' : ''}>
+                    <Link to="/announcement-management" onClick={onClose}>
+                      <span className="nav-icon">📝</span>
+                      <span className="nav-text">Announcement Management</span>
+                    </Link>
+                  </li>
+                  <li className={location.pathname === '/logs' ? 'active' : ''}>
+                    <Link to="/logs" onClick={onClose}>
+                      <span className="nav-icon">📋</span>
+                      <span className="nav-text">System Logs</span>
+                    </Link>
+                  </li>
+                  <li className={location.pathname === '/system-settings' ? 'active' : ''}>
+                    <Link to="/system-settings" onClick={onClose}>
+                      <span className="nav-icon">⚙️</span>
+                      <span className="nav-text">System Settings</span>
+                    </Link>
+                  </li>
+                </>
+              )}
             </>
           )}
         </ul>

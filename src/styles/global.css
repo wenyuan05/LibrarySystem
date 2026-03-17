@@ -297,9 +297,10 @@ button {
 }
 
 button:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--primary-hover) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
 }
 
 button:active {

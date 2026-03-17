@@ -121,6 +121,21 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     }
   };
 
+  // 处理预约书籍（用户）
+  const handleReserveBook = async (bookId) => {
+    try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      const result = await borrowAPI.reserve(user.id, bookId);
+      showToast(result.message, 'success');
+    } catch (err) {
+      setError('Failed to reserve book');
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return <SkeletonLoader count={5} />;
   }
@@ -188,16 +203,20 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                   >
                     Borrow
                   </button>
+                ) : borrowRecords.some(record => record.book_id === book.id) ? (
+                  <button 
+                    className="btn-info"
+                    onClick={() => handleReturnBook(book.id)}
+                  >
+                    Return
+                  </button>
                 ) : (
-                  // 只有当用户有对应的未归还借阅记录时才显示归还按钮
-                  borrowRecords.some(record => record.book_id === book.id) && (
-                    <button 
-                      className="btn-info"
-                      onClick={() => handleReturnBook(book.id)}
-                    >
-                      Return
-                    </button>
-                  )
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => handleReserveBook(book.id)}
+                  >
+                    Reserve
+                  </button>
                 )
               ) : (
                 <>

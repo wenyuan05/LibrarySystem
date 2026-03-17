@@ -14,16 +14,22 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    // 管理员用户访问需要user角色的路径时，重定向到BookManagement
-    if (user.role === 'admin' && (location.pathname === '/' || location.pathname === '/books')) {
-      return <Navigate to="/book-management" replace />;
+  if (requiredRole) {
+    const hasRequiredRole = Array.isArray(requiredRole) 
+      ? requiredRole.includes(user.role) 
+      : user.role === requiredRole;
+    
+    if (!hasRequiredRole) {
+      // 管理员或图书管理员访问需要user角色的路径时，重定向到BookManagement
+      if ((user.role === 'admin' || user.role === 'librarian') && (location.pathname === '/' || location.pathname === '/books')) {
+        return <Navigate to="/book-management" replace />;
+      }
+      return <Navigate to="/" replace />;
     }
-    return <Navigate to="/" replace />;
   }
 
-  // 管理员用户访问根路径时，重定向到BookManagement
-  if (user.role === 'admin' && location.pathname === '/') {
+  // 管理员或图书管理员用户访问根路径时，重定向到BookManagement
+  if ((user.role === 'admin' || user.role === 'librarian') && location.pathname === '/') {
     return <Navigate to="/book-management" replace />;
   }
 

@@ -54,7 +54,7 @@ const request = async (endpoint, options = {}) => {
 export const authAPI = {
   // 用户登录
   login: async (username, password) => {
-    return request('/login', {
+    return request('/users/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -62,9 +62,25 @@ export const authAPI = {
 
   // 用户注册
   register: async ({ username, password, name, email }) => {
-    return request('/register', {
+    return request('/users/register', {
       method: 'POST',
       body: JSON.stringify({ username, password, name, email }),
+    });
+  },
+
+  // 请求密码重置
+  requestPasswordReset: async (resetData) => {
+    return request('/users/reset-password/request', {
+      method: 'POST',
+      body: JSON.stringify(resetData),
+    });
+  },
+
+  // 重置密码
+  resetPassword: async (token, newPassword) => {
+    return request('/users/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
     });
   },
 };
@@ -111,6 +127,26 @@ export const booksAPI = {
       method: 'DELETE',
     });
   },
+  
+  // 搜索书籍
+  search: async (query, category) => {
+    const params = new URLSearchParams();
+    if (query) params.append('query', query);
+    if (category) params.append('category', category);
+    return request(`/books/search?${params.toString()}`);
+  },
+  
+  // 获取热门书籍
+  getPopular: async (limit = 10) => {
+    return request(`/books/popular?limit=${limit}`);
+  },
+  
+  // 导出书籍到CSV
+  export: async () => {
+    return request('/books/export', {
+      responseType: 'blob'
+    });
+  },
 };
 
 // 用户相关API
@@ -152,13 +188,27 @@ export const usersAPI = {
   getBorrowRecords: async (userId) => {
     return request(`/users/${userId}/borrow-records`);
   },
+  
+  // 拉黑用户
+  block: async (userId) => {
+    return request(`/users/${userId}/block`, {
+      method: 'POST',
+    });
+  },
+  
+  // 解除拉黑用户
+  unblock: async (userId) => {
+    return request(`/users/${userId}/unblock`, {
+      method: 'POST',
+    });
+  },
 };
 
 // 借阅相关API
 export const borrowAPI = {
   // 借阅书籍
   borrow: async (userId, bookId) => {
-    return request('/borrow', {
+    return request('/borrow/borrow', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId, book_id: bookId }),
     });
@@ -166,9 +216,197 @@ export const borrowAPI = {
   
   // 归还书籍
   return: async (userId, bookId) => {
-    return request('/return', {
+    return request('/borrow/return', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId, book_id: bookId }),
+    });
+  },
+  
+  // 获取借阅中列表
+  getBorrowingList: async (userId) => {
+    return request(`/borrow/borrowing${userId ? `?user_id=${userId}` : ''}`);
+  },
+  
+  // 预约图书
+  reserve: async (userId, bookId) => {
+    return request('/borrow/reserve', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, book_id: bookId }),
+    });
+  },
+  
+  // 获取用户预约记录
+  getReservations: async (userId) => {
+    return request(`/borrow/reservations/${userId}`);
+  },
+  
+  // 续借图书
+  renew: async (userId, bookId) => {
+    return request('/borrow/renew', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, book_id: bookId }),
+    });
+  },
+  
+  // 审批归还请求
+  approveReturn: async (recordId) => {
+    return request('/borrow/approve-return', {
+      method: 'POST',
+      body: JSON.stringify({ record_id: recordId }),
+    });
+  },
+  
+  // 获取待审批的归还请求列表
+  getReturningList: async () => {
+    return request('/borrow/returning');
+  },
+};
+
+// 系统相关API
+export const systemAPI = {
+  // 获取系统设置
+  getSettings: async () => {
+    return request('/system/settings');
+  },
+  
+  // 更新系统设置
+  updateSettings: async (settings) => {
+    return request('/system/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  },
+};
+
+// 公告相关API
+export const announcementAPI = {
+  // 获取所有公告
+  getAll: async () => {
+    return request('/announcements');
+  },
+  
+  // 获取单个公告
+  getById: async (id) => {
+    return request(`/announcements/${id}`);
+  },
+  
+  // 创建公告
+  create: async (announcement) => {
+    return request('/announcements', {
+      method: 'POST',
+      body: JSON.stringify(announcement),
+    });
+  },
+  
+  // 更新公告
+  update: async (id, announcement) => {
+    return request(`/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(announcement),
+    });
+  },
+  
+  // 删除公告
+  delete: async (id) => {
+    return request(`/announcements/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// 分类相关API
+export const categoryAPI = {
+  // 获取所有分类
+  getAll: async () => {
+    return request('/categories');
+  },
+  
+  // 获取单个分类
+  getById: async (id) => {
+    return request(`/categories/${id}`);
+  },
+  
+  // 创建分类
+  create: async (category) => {
+    return request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(category),
+    });
+  },
+  
+  // 更新分类
+  update: async (id, category) => {
+    return request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category),
+    });
+  },
+  
+  // 删除分类
+  delete: async (id) => {
+    return request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  
+  // 获取图书的分类
+  getBookCategories: async (bookId) => {
+    return request(`/categories/book/${bookId}`);
+  },
+  
+  // 为图书添加分类
+  addBookCategory: async (bookId, categoryId) => {
+    return request(`/categories/book/${bookId}`, {
+      method: 'POST',
+      body: JSON.stringify({ categoryId }),
+    });
+  },
+  
+  // 从图书中移除分类
+  removeBookCategory: async (bookId, categoryId) => {
+    return request(`/categories/book/${bookId}/${categoryId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// 统计相关API
+export const statsAPI = {
+  // 获取借阅业务统计数据
+  getBorrowStats: async () => {
+    return request('/stats/borrow-stats');
+  },
+  
+  // 获取月度借阅统计
+  getMonthlyStats: async (year) => {
+    const params = new URLSearchParams();
+    if (year) params.append('year', year);
+    return request(`/stats/monthly-stats?${params.toString()}`);
+  },
+  
+  // 获取热门图书统计
+  getPopularBooksStats: async (limit = 10) => {
+    return request(`/stats/popular-books?limit=${limit}`);
+  },
+};
+
+// 日志相关API
+export const logAPI = {
+  // 获取系统日志
+  getLogs: async (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.limit) searchParams.append('limit', params.limit);
+    if (params.offset) searchParams.append('offset', params.offset);
+    if (params.level) searchParams.append('level', params.level);
+    if (params.module) searchParams.append('module', params.module);
+    return request(`/logs?${searchParams.toString()}`);
+  },
+  
+  // 清除系统日志
+  clearLogs: async (days) => {
+    return request('/logs/clear', {
+      method: 'DELETE',
+      body: JSON.stringify({ days }),
     });
   },
 };
@@ -178,4 +416,9 @@ export default {
   books: booksAPI,
   users: usersAPI,
   borrow: borrowAPI,
+  system: systemAPI,
+  announcement: announcementAPI,
+  category: categoryAPI,
+  stats: statsAPI,
+  log: logAPI,
 };

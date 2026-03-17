@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI } from '../../utils/api';
 import AddUserForm from './AddUserForm';
+import EditUserForm from './EditUserForm';
 import './Users.css';
 
 const UserList = () => {
@@ -12,7 +14,9 @@ const UserList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const { user } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   // 处理查看用户借阅记录
@@ -60,6 +64,60 @@ const UserList = () => {
   // 处理用户添加
   const handleUserAdded = (newUser) => {
     setUsers(prevUsers => [...prevUsers, newUser]);
+  };
+
+  // 处理开始编辑用户
+  const handleEditUser = (userItem) => {
+    setEditingUser(userItem);
+  };
+
+  // 处理用户更新完成
+  const handleUserUpdated = (updatedUser) => {
+    setUsers(prevUsers => 
+      prevUsers.map(userItem => 
+        userItem.id === updatedUser.id ? updatedUser : userItem
+      )
+    );
+    setEditingUser(null);
+  };
+
+  // 处理取消编辑
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+  };
+
+  // 处理拉黑用户
+  const handleBlockUser = async (id) => {
+    if (window.confirm('Are you sure you want to block this user?')) {
+      try {
+        await usersAPI.block(id);
+        setUsers(users.map(userItem => 
+          userItem.id === id ? { ...userItem, status: 'blocked' } : userItem
+        ));
+        showToast('User blocked successfully', 'success');
+      } catch (err) {
+        setError('Failed to block user');
+        showToast('Failed to block user', 'error');
+        console.error(err);
+      }
+    }
+  };
+
+  // 处理解除拉黑用户
+  const handleUnblockUser = async (id) => {
+    if (window.confirm('Are you sure you want to unblock this user?')) {
+      try {
+        await usersAPI.unblock(id);
+        setUsers(users.map(userItem => 
+          userItem.id === id ? { ...userItem, status: 'active' } : userItem
+        ));
+        showToast('User unblocked successfully', 'success');
+      } catch (err) {
+        setError('Failed to unblock user');
+        showToast('Failed to unblock user', 'error');
+        console.error(err);
+      }
+    }
   };
 
   // 处理搜索
@@ -126,6 +184,15 @@ const UserList = () => {
           }}
         />
       )}
+
+      {/* 编辑用户表单 */}
+      {editingUser && (
+        <EditUserForm 
+          user={editingUser}
+          onUserUpdated={handleUserUpdated}
+          onCancel={handleCancelEdit}
+        />
+      )}
       
       <table>
         <thead>
@@ -135,6 +202,7 @@ const UserList = () => {
             <th>Role</th>
             <th>Name</th>
             <th>Email</th>
+            <th>Status</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -147,12 +215,40 @@ const UserList = () => {
               <td>{userItem.name}</td>
               <td>{userItem.email}</td>
               <td>
+                <span className={`status-badge status-${userItem.status || 'active'}`}>
+                  {userItem.status || 'active'}
+                </span>
+              </td>
+              <td>
                 <button 
                   className="btn-info"
                   onClick={() => handleViewBorrowRecords(userItem.id)}
                 >
                   Borrow Records
                 </button>
+                <button 
+                  className="btn-primary"
+                  onClick={() => handleEditUser(userItem)}
+                >
+                  Edit
+                </button>
+                {(user.role === 'admin' || user.role === 'librarian') && userItem.role === 'user' && (
+                  userItem.status !== 'blocked' ? (
+                    <button 
+                      className="btn-warning"
+                      onClick={() => handleBlockUser(userItem.id)}
+                    >
+                      Block
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn-success"
+                      onClick={() => handleUnblockUser(userItem.id)}
+                    >
+                      Unblock
+                    </button>
+                  )
+                )}
                 <button 
                   className="btn-danger"
                   onClick={() => handleDeleteUser(userItem.id)}
