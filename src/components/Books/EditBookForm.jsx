@@ -41,7 +41,11 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         description: book.description || '',
         cover_image: book.cover_image || '',
         total_copies: book.total_copies || 1,
-        status: book.status || 'available'
+        status: book.status || 'available',
+        publisher: book.publisher || '',
+        publish_date: book.publish_date || '',
+        language: book.language || 'Chinese',
+        page_count: book.page_count || ''
       });
       // 聚焦到标题输入框
       setTimeout(() => {
@@ -225,6 +229,56 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               value={formData.isbn}
               onChange={handleChange}
               required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="publisher">Publisher:</label>
+            <input
+              type="text"
+              id="publisher"
+              name="publisher"
+              value={formData.publisher}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="publish_date">Publish Date:</label>
+            <input
+              type="date"
+              id="publish_date"
+              name="publish_date"
+              value={formData.publish_date}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="language">Language:</label>
+            <select
+              id="language"
+              name="language"
+              value={formData.language}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            >
+              <option value="Chinese">Chinese</option>
+              <option value="English">English</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Korean">Korean</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="page_count">Page Count:</label>
+            <input
+              type="number"
+              id="page_count"
+              name="page_count"
+              value={formData.page_count}
+              onChange={handleChange}
+              min="1"
               disabled={isSubmitting}
             />
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
@@ -12,6 +13,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
   const [reservationRecords, setReservationRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   // 获取用户借阅记录
   useEffect(() => {
@@ -217,6 +219,8 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
             key={book.id} 
             variants={itemVariants}
             className="book-card"
+            onClick={() => navigate(`/books/${book.id}`)}
+            style={{ cursor: 'pointer' }}
           >
             <div className="book-card-header">
               <span className={`status-badge status-${book.status}`}>{book.status}</span>
@@ -230,14 +234,14 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                 book.status === 'available' ? (
                   <button 
                     className="btn-warning"
-                    onClick={() => handleBorrowBook(book.id)}
+                    onClick={(e) => { e.stopPropagation(); handleBorrowBook(book.id); }}
                   >
                     Borrow
                   </button>
                 ) : borrowRecords.some(record => record.book_id === book.id) ? (
                   <button 
                     className="btn-info"
-                    onClick={() => handleReturnBook(book.id)}
+                    onClick={(e) => { e.stopPropagation(); handleReturnBook(book.id); }}
                   >
                     Return
                   </button>
@@ -248,14 +252,14 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     return userReservation ? (
                       <button 
                         className="btn-danger"
-                        onClick={() => handleCancelReservation(userReservation.id)}
+                        onClick={(e) => { e.stopPropagation(); handleCancelReservation(userReservation.id); }}
                       >
                         Cancel Reservation
                       </button>
                     ) : (
                       <button 
                         className="btn-secondary"
-                        onClick={() => handleReserveBook(book.id)}
+                        onClick={(e) => { e.stopPropagation(); handleReserveBook(book.id); }}
                       >
                         Reserve
                       </button>
@@ -267,20 +271,20 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                   {showEditButton && (
                     <button 
                       className="btn-info"
-                      onClick={() => onEditBook && onEditBook(book)}
+                      onClick={(e) => { e.stopPropagation(); onEditBook && onEditBook(book); }}
                     >
                       Edit
                     </button>
                   )}
                   <button 
                     className="btn-success"
-                    onClick={() => handleUpdateStatus(book.id, book.status)}
+                    onClick={(e) => { e.stopPropagation(); handleUpdateStatus(book.id, book.status); }}
                   >
                     {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
                   </button>
                   <button 
                     className="btn-danger"
-                    onClick={() => handleDeleteBook(book.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteBook(book.id); }}
                   >
                     Delete
                   </button>

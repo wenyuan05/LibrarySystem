@@ -19,6 +19,7 @@ import LogsPage from './pages/LogsPage';
 import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import ReturnApprovalPage from './pages/ReturnApprovalPage';
 import ReservationsPage from './pages/ReservationsPage';
+import BookDetailsPage from './pages/BookDetailsPage';
 import { privacyConfig } from './config/privacy';
 import './styles/global.css';
 
@@ -33,6 +34,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
               <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
+              <Route path="/books/:id" element={<ProtectedRoute requiredRole="user"><MainLayout><BookDetailsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/reservations" element={<ProtectedRoute><MainLayout><ReservationsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/user-borrow-records/:userId" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><UserBorrowRecords /></MainLayout></ProtectedRoute>} />

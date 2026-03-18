@@ -3,7 +3,7 @@ import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const AddBookForm = ({ onBookAdded }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,7 +107,7 @@ const AddBookForm = ({ onBookAdded }) => {
       
       setSuccess('Book added successfully!');
       // 重置表单
-      setFormData({ title: '', author: '', isbn: '' });
+      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
       setSelectedCategories([]);
       // 通知父组件刷新书籍列表
       if (onBookAdded) {
@@ -173,6 +173,56 @@ const AddBookForm = ({ onBookAdded }) => {
             value={formData.isbn}
             onChange={handleChange}
             required
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="publisher">Publisher:</label>
+          <input
+            type="text"
+            id="publisher"
+            name="publisher"
+            value={formData.publisher}
+            onChange={handleChange}
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="publish_date">Publish Date:</label>
+          <input
+            type="date"
+            id="publish_date"
+            name="publish_date"
+            value={formData.publish_date}
+            onChange={handleChange}
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="language">Language:</label>
+          <select
+            id="language"
+            name="language"
+            value={formData.language}
+            onChange={handleChange}
+            disabled={isSubmitting}
+          >
+            <option value="Chinese">Chinese</option>
+            <option value="English">English</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Korean">Korean</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label htmlFor="page_count">Page Count:</label>
+          <input
+            type="number"
+            id="page_count"
+            name="page_count"
+            value={formData.page_count}
+            onChange={handleChange}
+            min="1"
             disabled={isSubmitting}
           />
         </div>

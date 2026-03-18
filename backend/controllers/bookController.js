@@ -29,7 +29,7 @@ exports.getBookById = (req, res) => {
 
 // 添加书籍（管理员）
 exports.addBook = (req, res) => {
-  const { title, author, isbn, description, cover_image, total_copies } = req.body;
+  const { title, author, isbn, description, cover_image, total_copies, publisher, publish_date, language, page_count } = req.body;
   
   // 检查ISBN是否已存在
   db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
@@ -45,8 +45,8 @@ exports.addBook = (req, res) => {
     // 插入新书籍
     const available_copies = total_copies || 1;
     db.run(
-      'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, author, isbn, description, cover_image, total_copies || 1, available_copies],
+      'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, author, isbn, description, cover_image, total_copies || 1, available_copies, publisher, publish_date, language || 'Chinese', page_count],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -61,7 +61,11 @@ exports.addBook = (req, res) => {
           description,
           cover_image,
           total_copies: total_copies || 1,
-          available_copies
+          available_copies,
+          publisher,
+          publish_date,
+          language: language || 'Chinese',
+          page_count
         });
       }
     );
@@ -71,7 +75,7 @@ exports.addBook = (req, res) => {
 // 更新书籍信息（管理员）
 exports.updateBook = (req, res) => {
   const { id } = req.params;
-  const { title, author, isbn, status, description, cover_image, total_copies } = req.body;
+  const { title, author, isbn, status, description, cover_image, total_copies, publisher, publish_date, language, page_count } = req.body;
   
   // 构建更新语句
   const updateFields = [];
@@ -107,6 +111,22 @@ exports.updateBook = (req, res) => {
     // 自动更新可用副本数
     updateFields.push('available_copies = ?');
     updateValues.push(total_copies);
+  }
+  if (publisher !== undefined) {
+    updateFields.push('publisher = ?');
+    updateValues.push(publisher);
+  }
+  if (publish_date !== undefined) {
+    updateFields.push('publish_date = ?');
+    updateValues.push(publish_date);
+  }
+  if (language !== undefined) {
+    updateFields.push('language = ?');
+    updateValues.push(language);
+  }
+  if (page_count !== undefined) {
+    updateFields.push('page_count = ?');
+    updateValues.push(page_count);
   }
   
   if (updateFields.length === 0) {

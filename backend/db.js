@@ -67,6 +67,10 @@ db.serialize(() => {
       cover_image TEXT,
       total_copies INTEGER DEFAULT 1,
       available_copies INTEGER DEFAULT 1,
+      publisher TEXT,
+      publish_date TEXT,
+      language TEXT DEFAULT 'Chinese',
+      page_count INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -162,11 +166,25 @@ db.serialize(() => {
     }
   });
 
+  // 为现有书籍表添加新字段
+  db.run('ALTER TABLE books ADD COLUMN publisher TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+  db.run('ALTER TABLE books ADD COLUMN publish_date TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+  db.run('ALTER TABLE books ADD COLUMN language TEXT DEFAULT "Chinese"', (err) => {
+    // 字段已存在，忽略错误
+  });
+  db.run('ALTER TABLE books ADD COLUMN page_count INTEGER', (err) => {
+    // 字段已存在，忽略错误
+  });
+
   // 插入一些示例数据
-  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, status) VALUES (?, ?, ?, ?)');
-  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'available');
-  insertBook.run('1984', 'George Orwell', '9780451524935', 'available');
-  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'borrowed');
+  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, status, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'available', 'Scribner', '1925-04-10', 'English', 180);
+  insertBook.run('1984', 'George Orwell', '9780451524935', 'available', 'Secker & Warburg', '1949-06-08', 'English', 328);
+  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'borrowed', 'J.B. Lippincott & Co.', '1960-07-11', 'English', 281);
   insertBook.finalize();
 
   // 插入系统参数默认值
