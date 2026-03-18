@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
@@ -10,6 +10,7 @@ const AddBookForm = ({ onBookAdded }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const dropdownRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -34,6 +35,23 @@ const AddBookForm = ({ onBookAdded }) => {
     };
 
     fetchCategories();
+  }, []);
+
+  // 关闭下拉菜单当点击外部
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        const dropdownMenu = document.querySelector('.category-dropdown-menu');
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove('show');
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   // 处理分类选择
@@ -165,18 +183,38 @@ const AddBookForm = ({ onBookAdded }) => {
           ) : categories.length === 0 ? (
             <p>No categories available</p>
           ) : (
-            <div className="category-selector">
-              {categories.map(category => (
-                <label key={category.id} className="category-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(category.id)}
-                    onChange={() => handleCategoryChange(category.id)}
+            <div className="category-dropdown" ref={dropdownRef}>
+              <button
+                className="category-dropdown-toggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const dropdownMenu = document.querySelector('.category-dropdown-menu');
+                  if (dropdownMenu) {
+                    dropdownMenu.classList.toggle('show');
+                  }
+                }}
+                disabled={isSubmitting}
+              >
+                {selectedCategories.length > 0 ? 
+                  `${selectedCategories.length} selected` : 
+                  'Select categories'}
+                <span className="dropdown-arrow">▼</span>
+              </button>
+              <div className="category-dropdown-menu">
+                {categories.map(category => (
+                  <button
+                    key={category.id}
+                    className={`dropdown-item ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCategoryChange(category.id);
+                    }}
                     disabled={isSubmitting}
-                  />
-                  {category.name}
-                </label>
-              ))}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

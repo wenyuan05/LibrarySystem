@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI } from '../../utils/api';
+import { privacyConfig } from '../../config/privacy';
 import './Login.css';
 
 const Login = () => {
@@ -227,7 +228,7 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-form card fade-in">
-        <h1>Library Management System</h1>
+        <h1>{privacyConfig.website.name}</h1>
         <h2>{isRegisterMode ? 'Register' : 'Login'}</h2>
         
         {loginError && (
@@ -499,6 +500,7 @@ const Login = () => {
           <p>Admin: admin / admin123</p>
           <p>User: user1 / user123</p>
         </div>
+        
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import './Books.css';
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
   const [borrowRecords, setBorrowRecords] = useState([]);
+  const [reservationRecords, setReservationRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -27,7 +28,22 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       }
     };
 
+    // 获取用户预约记录
+    const fetchReservationRecords = async () => {
+      if (user?.id) {
+        try {
+          const records = await borrowAPI.getReservations(user.id);
+          // 过滤出活跃的预约记录
+          const activeReservations = records.filter(record => record.status === 'active');
+          setReservationRecords(activeReservations);
+        } catch (err) {
+          console.error('Failed to fetch reservation records:', err);
+        }
+      }
+    };
+
     fetchBorrowRecords();
+    fetchReservationRecords();
   }, [user]);
 
   // 处理书籍状态更新（管理员）
@@ -102,18 +118,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         throw new Error('User not authenticated');
       }
       await borrowAPI.return(user.id, bookId);
-      const book = books.find(book => book.id === bookId);
-      if (book) {
-        const updatedBook = { ...book, status: 'available' };
-        if (onBookUpdated) {
-          onBookUpdated(updatedBook);
-        }
-        // 更新借阅记录状态
-        setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
-        showToast('Book returned successfully', 'success');
-      } else {
-        throw new Error('Book not found');
-      }
+      // 不需要更新书籍状态，因为书籍还在等待管理员审批
+      // 只需要从用户的借阅记录中移除
+      setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
+      showToast('Return request submitted successfully. Waiting for librarian approval.', 'success');
     } catch (err) {
       setError('Failed to return book');
       showToast(err.message, 'error');
@@ -128,9 +136,32 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         throw new Error('User not authenticated');
       }
       const result = await borrowAPI.reserve(user.id, bookId);
+      // 重新获取预约记录
+      const records = await borrowAPI.getReservations(user.id);
+      const activeReservations = records.filter(record => record.status === 'active');
+      setReservationRecords(activeReservations);
       showToast(result.message, 'success');
     } catch (err) {
       setError('Failed to reserve book');
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  // 处理取消预约（用户）
+  const handleCancelReservation = async (reservationId) => {
+    try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      const result = await borrowAPI.cancelReservation(reservationId);
+      // 重新获取预约记录
+      const records = await borrowAPI.getReservations(user.id);
+      const activeReservations = records.filter(record => record.status === 'active');
+      setReservationRecords(activeReservations);
+      showToast(result.message, 'success');
+    } catch (err) {
+      setError('Failed to cancel reservation');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -211,12 +242,25 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     Return
                   </button>
                 ) : (
-                  <button 
-                    className="btn-secondary"
-                    onClick={() => handleReserveBook(book.id)}
-                  >
-                    Reserve
-                  </button>
+                  // 检查用户是否已经预约了这本书
+                  (() => {
+                    const userReservation = reservationRecords.find(record => record.book_id === book.id);
+                    return userReservation ? (
+                      <button 
+                        className="btn-danger"
+                        onClick={() => handleCancelReservation(userReservation.id)}
+                      >
+                        Cancel Reservation
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-secondary"
+                        onClick={() => handleReserveBook(book.id)}
+                      >
+                        Reserve
+                      </button>
+                    );
+                  })()
                 )
               ) : (
                 <>

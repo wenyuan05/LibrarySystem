@@ -27,21 +27,25 @@ const Sidebar = ({ isOpen, onClose }) => {
       
       <nav className="sidebar-nav">
         <ul>
-          {/* 个人信息链接 - 所有用户可见 */}
-          <li className={location.pathname === '/profile' ? 'active' : ''}>
-            <Link to="/profile" onClick={onClose}>
-              <span className="nav-icon">👤</span>
-              <span className="nav-text">My Profile</span>
-            </Link>
-          </li>
+          {/* 个人信息链接 - 非管理员可见 */}
+          {user.role !== 'admin' && (
+            <li className={location.pathname === '/profile' ? 'active' : ''}>
+              <Link to="/profile" onClick={onClose}>
+                <span className="nav-icon">👤</span>
+                <span className="nav-text">My Profile</span>
+              </Link>
+            </li>
+          )}
           
-          {/* 公告链接 - 所有用户可见 */}
-          <li className={location.pathname === '/announcements' ? 'active' : ''}>
-            <Link to="/announcements" onClick={onClose}>
-              <span className="nav-icon">📢</span>
-              <span className="nav-text">Announcements</span>
-            </Link>
-          </li>
+          {/* 公告链接 - 非管理员可见 */}
+          {user.role !== 'admin' && (
+            <li className={location.pathname === '/announcements' ? 'active' : ''}>
+              <Link to="/announcements" onClick={onClose}>
+                <span className="nav-icon">📢</span>
+                <span className="nav-text">Announcements</span>
+              </Link>
+            </li>
+          )}
           
           {user.role !== 'admin' && user.role !== 'librarian' && (
             <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
@@ -53,40 +57,56 @@ const Sidebar = ({ isOpen, onClose }) => {
           )}
           
           {user.role === 'user' && (
-            <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
-              <Link to="/borrow-records" onClick={onClose}>
-                <span className="nav-icon">📖</span>
-                <span className="nav-text">My Borrows</span>
-              </Link>
-            </li>
+            <>
+              <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
+                <Link to="/borrow-records" onClick={onClose}>
+                  <span className="nav-icon">📖</span>
+                  <span className="nav-text">My Borrows</span>
+                </Link>
+              </li>
+              <li className={location.pathname === '/reservations' ? 'active' : ''}>
+                <Link to="/reservations" onClick={onClose}>
+                  <span className="nav-icon">📅</span>
+                  <span className="nav-text">My Reservations</span>
+                </Link>
+              </li>
+            </>
           )}
           
           {(user.role === 'admin' || user.role === 'librarian') && (
             <>
-              <li className={location.pathname === '/stats' ? 'active' : ''}>
-                <Link to="/stats" onClick={onClose}>
-                  <span className="nav-icon">📊</span>
-                  <span className="nav-text">Statistics</span>
-                </Link>
-              </li>
-              <li className={location.pathname === '/book-management' ? 'active' : ''}>
-                <Link to="/book-management" onClick={onClose}>
-                  <span className="nav-icon">📚</span>
-                  <span className="nav-text">Book Management</span>
-                </Link>
-              </li>
-              <li className={location.pathname === '/return-approval' ? 'active' : ''}>
-                <Link to="/return-approval" onClick={onClose}>
-                  <span className="nav-icon">🔄</span>
-                  <span className="nav-text">Return Approval</span>
-                </Link>
-              </li>
-              <li className={location.pathname === '/category-management' ? 'active' : ''}>
-                <Link to="/category-management" onClick={onClose}>
-                  <span className="nav-icon">📁</span>
-                  <span className="nav-text">Category Management</span>
-                </Link>
-              </li>
+              {user.role !== 'admin' && (
+                <li className={location.pathname === '/stats' ? 'active' : ''}>
+                  <Link to="/stats" onClick={onClose}>
+                    <span className="nav-icon">📊</span>
+                    <span className="nav-text">Statistics</span>
+                  </Link>
+                </li>
+              )}
+              {user.role !== 'admin' && (
+                <li className={location.pathname === '/book-management' ? 'active' : ''}>
+                  <Link to="/book-management" onClick={onClose}>
+                    <span className="nav-icon">📚</span>
+                    <span className="nav-text">Book Management</span>
+                  </Link>
+                </li>
+              )}
+              {user.role !== 'admin' && (
+                <li className={location.pathname === '/return-approval' ? 'active' : ''}>
+                  <Link to="/return-approval" onClick={onClose}>
+                    <span className="nav-icon">🔄</span>
+                    <span className="nav-text">Return Approval</span>
+                  </Link>
+                </li>
+              )}
+              {user.role !== 'admin' && (
+                <li className={location.pathname === '/category-management' ? 'active' : ''}>
+                  <Link to="/category-management" onClick={onClose}>
+                    <span className="nav-icon">📁</span>
+                    <span className="nav-text">Category Management</span>
+                  </Link>
+                </li>
+              )}
               <li className={location.pathname === '/users' ? 'active' : ''}>
                 <Link to="/users" onClick={onClose}>
                   <span className="nav-icon">👥</span>

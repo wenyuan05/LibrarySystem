@@ -6,16 +6,14 @@ import './Borrow.css';
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
-  const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  // 加载借阅记录和预约记录
+  // 加载借阅记录
   useEffect(() => {
     fetchBorrowRecords();
-    fetchReservations();
   }, []);
 
   const fetchBorrowRecords = async () => {
@@ -29,15 +27,6 @@ const BorrowRecords = () => {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchReservations = async () => {
-    try {
-      const data = await borrowAPI.getReservations(user.id);
-      setReservations(data);
-    } catch (err) {
-      console.error('Failed to load reservations:', err);
     }
   };
 
@@ -119,38 +108,6 @@ const BorrowRecords = () => {
                   {record.status === 'returning' && (
                     <span className="status-pending">Pending approval</span>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h3 style={{ marginTop: '30px' }}>My Reservations</h3>
-      {reservations.length === 0 ? (
-        <div className="empty-state">
-          <p>No reservations found.</p>
-        </div>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Title</th>
-              <th>Author</th>
-              <th>Reserve Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reservations.map(reservation => (
-              <tr key={reservation.id} className="fade-in">
-                <td>{reservation.id}</td>
-                <td>{reservation.title}</td>
-                <td>{reservation.author}</td>
-                <td>{reservation.reserve_date}</td>
-                <td className={reservation.status === 'active' ? 'status-active' : 'status-inactive'}>
-                  {reservation.status === 'active' ? 'Active' : 'Inactive'}
                 </td>
               </tr>
             ))}

@@ -158,12 +158,14 @@ const UserList = () => {
     <div className="user-list">
       {/* 操作栏 */}
       <div className="action-bar">
-        <button 
-          className="btn-primary"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          {showAddForm ? 'Cancel' : 'Add User'}
-        </button>
+        {user.role === 'admin' && (
+          <button 
+            className="btn-primary"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : 'Add User'}
+          </button>
+        )}
         <div className="search-bar">
           <input
             type="text"
@@ -226,12 +228,14 @@ const UserList = () => {
                 >
                   Borrow Records
                 </button>
-                <button 
-                  className="btn-primary"
-                  onClick={() => handleEditUser(userItem)}
-                >
-                  Edit
-                </button>
+                {user.role === 'admin' && (
+                  <button 
+                    className="btn-primary"
+                    onClick={() => handleEditUser(userItem)}
+                  >
+                    Edit
+                  </button>
+                )}
                 {(user.role === 'admin' || user.role === 'librarian') && userItem.role === 'user' && (
                   userItem.status !== 'blocked' ? (
                     <button 
@@ -249,13 +253,15 @@ const UserList = () => {
                     </button>
                   )
                 )}
-                <button 
-                  className="btn-danger"
-                  onClick={() => handleDeleteUser(userItem.id)}
-                  disabled={userItem.id === user.id}
-                >
-                  Delete
-                </button>
+                {user.role === 'admin' && (
+                  <button 
+                    className="btn-danger"
+                    onClick={() => handleDeleteUser(userItem.id)}
+                    disabled={userItem.id === user.id}
+                  >
+                    Delete
+                  </button>
+                )}
               </td>
             </tr>
           ))}

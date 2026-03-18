@@ -298,6 +298,70 @@ exports.reserveBook = (req, res) => {
   });
 };
 
+// 取消预约（需要登录）
+exports.cancelReservation = (req, res) => {
+  const { reservation_id } = req.body;
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 查找预约记录并验证用户权限
+      db.get(
+        'SELECT id, user_id, status FROM reservation_records WHERE id = ?',
+        [reservation_id],
+        (err, reservation) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          if (!reservation) {
+            db.run('ROLLBACK');
+            res.status(404).json({ error: 'Reservation not found' });
+            return;
+          }
+          if (reservation.user_id !== req.user.id && req.user.role !== 'admin') {
+            db.run('ROLLBACK');
+            res.status(403).json({ error: 'Forbidden: cannot cancel other users\' reservations' });
+            return;
+          }
+          if (reservation.status !== 'active') {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Reservation is not active' });
+            return;
+          }
+          
+          // 更新预约记录状态为 cancelled
+          db.run(
+            'UPDATE reservation_records SET status = ? WHERE id = ?',
+            ['cancelled', reservation_id],
+            (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({ message: 'Reservation cancelled successfully' });
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+};
+
 // 获取用户的预约记录（需要登录）
 exports.getUserReservations = (req, res) => {
   const { user_id } = req.params;

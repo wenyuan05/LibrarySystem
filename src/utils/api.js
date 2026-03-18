@@ -248,6 +248,14 @@ export const borrowAPI = {
     });
   },
   
+  // 取消预约
+  cancelReservation: async (reservationId) => {
+    return request('/borrow/cancel-reservation', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: reservationId }),
+    });
+  },
+  
   // 审批归还请求
   approveReturn: async (recordId) => {
     return request('/borrow/approve-return', {

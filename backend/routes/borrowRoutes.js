@@ -21,6 +21,9 @@ router.get('/reservations/:user_id', authenticateToken, borrowController.getUser
 // 续借图书（需要登录）
 router.post('/renew', authenticateToken, borrowController.renewBook);
 
+// 取消预约（需要登录）
+router.post('/cancel-reservation', authenticateToken, borrowController.cancelReservation);
+
 // 审批归还请求（需要登录，且只有管理员或图书管理员可以操作）
 router.post('/approve-return', authenticateToken, borrowController.approveReturn);
 
