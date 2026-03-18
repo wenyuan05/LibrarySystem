@@ -178,6 +178,12 @@ table {
   width: 100%;
 }
 
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
 @media (max-width: 768px) {
   .action-bar {
     flex-direction: column;

@@ -231,7 +231,8 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
             <p className="book-isbn">ISBN: {book.isbn}</p>
             <div className="book-actions">
               {user.role === 'user' ? (
-                book.status === 'available' ? (
+                // 检查书籍是否真的可用：状态为available且没有未归还的借阅记录
+                (book.status === 'available' && book.available_copies > 0) ? (
                   <button 
                     className="btn-warning"
                     onClick={(e) => { e.stopPropagation(); handleBorrowBook(book.id); }}

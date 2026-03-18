@@ -277,6 +277,7 @@ exports.exportBooks = (req, res) => {
   const sql = `
     SELECT b.id, b.title, b.author, b.isbn, b.status, 
            b.description, b.total_copies, b.available_copies,
+           b.publisher, b.publish_date, b.language, b.page_count,
            GROUP_CONCAT(c.name, ', ') as categories
     FROM books b
     LEFT JOIN book_categories bc ON b.id = bc.book_id
@@ -291,7 +292,7 @@ exports.exportBooks = (req, res) => {
     }
     
     // 生成CSV内容
-    const headers = ['ID', 'Title', 'Author', 'ISBN', 'Status', 'Description', 'Total Copies', 'Available Copies', 'Categories'];
+    const headers = ['ID', 'Title', 'Author', 'ISBN', 'Status', 'Description', 'Total Copies', 'Available Copies', 'Publisher', 'Publish Date', 'Language', 'Page Count', 'Categories'];
     const csvContent = [
       headers.join(','),
       ...books.map(book => [
@@ -303,6 +304,10 @@ exports.exportBooks = (req, res) => {
         `"${book.description || ''}"`,
         book.total_copies,
         book.available_copies,
+        `"${book.publisher || ''}"`,
+        book.publish_date || '',
+        `"${book.language || ''}"`,
+        book.page_count || '',
         `"${book.categories || ''}"`
       ].join(','))
     ].join('\n');

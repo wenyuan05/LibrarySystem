@@ -36,66 +36,71 @@ exports.borrowBook = (req, res) => {
         }
 
         // 检查书籍是否可用
-        db.get('SELECT status, available_copies FROM books WHERE id = ?', [book_id], (err, book) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-          if (!book || book.status !== 'available' || book.available_copies <= 0) {
-            db.run('ROLLBACK');
-            res.status(400).json({ error: 'Book is not available' });
-            return;
-          }
-          
-          // 检查是否存在该书籍尚未归还的借阅记录
-          db.get(
-            'SELECT id FROM borrow_records WHERE book_id = ? AND status = ?',
-            [book_id, 'borrowed'],
-            (err, existingRecord) => {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              if (existingRecord) {
-                db.run('ROLLBACK');
-                res.status(400).json({ error: 'Book is already borrowed and not returned' });
-                return;
-              }
-              
-              // 更新书籍状态和可用副本数
-              db.run('UPDATE books SET status = ?, available_copies = available_copies - 1 WHERE id = ?', ['borrowed', book_id], (err) => {
+          db.get('SELECT status, available_copies FROM books WHERE id = ?', [book_id], (err, book) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            if (!book || book.available_copies <= 0) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: 'Book is not available' });
+              return;
+            }
+            
+            // 检查是否存在该书籍尚未归还的借阅记录（根据可用副本数判断，允许多副本同时被借）
+            db.get(
+              'SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status = ?',
+              [book_id, 'borrowed'],
+              (err, result) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
                 
-                // 创建借阅记录
-                db.run(
-                  'INSERT INTO borrow_records (user_id, book_id, borrow_date, due_date, status) VALUES (?, ?, ?, ?, ?)',
-                  [user_id, book_id, borrow_date, due_date_str, 'borrowed'],
-                  function(err) {
-                    if (err) {
-                      db.run('ROLLBACK');
-                      res.status(500).json({ error: err.message });
-                      return;
-                    }
-                    
-                    db.run('COMMIT', (err) => {
+                // 检查是否还有可用副本
+                const borrowedCount = result.count || 0;
+                if (book.available_copies <= 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Book is not available' });
+                  return;
+                }
+                
+                // 更新书籍状态和可用副本数
+                // 只有当所有副本都被借出去时才将状态改为borrowed
+                const newStatus = (book.available_copies - 1) <= 0 ? 'borrowed' : 'available';
+                db.run('UPDATE books SET status = ?, available_copies = available_copies - 1 WHERE id = ?', [newStatus, book_id], (err) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  
+                  // 创建借阅记录
+                  db.run(
+                    'INSERT INTO borrow_records (user_id, book_id, borrow_date, due_date, status) VALUES (?, ?, ?, ?, ?)',
+                    [user_id, book_id, borrow_date, due_date_str, 'borrowed'],
+                    function(err) {
                       if (err) {
+                        db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
                       }
-                      res.json({ id: this.lastID, user_id, book_id, borrow_date, due_date: due_date_str, status: 'borrowed' });
-                    });
-                  }
-                );
-              });
-            }
-          );
-        });
+                      
+                      db.run('COMMIT', (err) => {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.json({ id: this.lastID, user_id, book_id, borrow_date, due_date: due_date_str, status: 'borrowed' });
+                      });
+                    }
+                  );
+                });
+              }
+            );
+          });
       });
     });
   });

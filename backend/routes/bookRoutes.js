@@ -13,8 +13,8 @@ router.get('/search', bookController.searchBooks);
 // 获取热门图书（无需登录，公开访问）
 router.get('/popular', bookController.getPopularBooks);
 
-// 导出图书信息到CSV（管理员）
-router.get('/export', authenticateToken, requireRole('admin'), bookController.exportBooks);
+// 导出图书信息到CSV（管理员或图书管理员）
+router.get('/export', authenticateToken, requireRole(['admin', 'librarian']), bookController.exportBooks);
 
 // 添加书籍（管理员或图书管理员）
 router.post('/', authenticateToken, requireRole(['admin', 'librarian']), validateBookBody, bookController.addBook);

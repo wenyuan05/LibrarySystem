@@ -100,12 +100,53 @@ const BookManagementPage = () => {
       
       {/* Action Bar */}
       <div className="action-bar">
-        <button 
-          className="btn-primary"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          {showAddForm ? 'Cancel' : 'Add New Book'}
-        </button>
+        <div className="action-buttons">
+          <button 
+            className="btn-primary"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : 'Add New Book'}
+          </button>
+          {/* 暂时隐藏导出按钮，待权限问题解决后再恢复 */}
+          {/* <button 
+            className="btn-secondary"
+            onClick={async () => {
+              try {
+                // 使用booksAPI.export()方法来调用导出接口
+                const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+                const token = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).token : '';
+                
+                const response = await fetch(`${API_BASE_URL}/books/export`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'text/csv'
+                  }
+                });
+                
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || `Request failed with status ${response.status}`);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `books_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+              } catch (error) {
+                console.error('Export failed:', error);
+                showToast('Export failed. Please try again.', 'error');
+              }
+            }}
+          >
+            Export Books
+          </button> */}
+        </div>
         <div className="search-bar">
           <input
             type="text"
