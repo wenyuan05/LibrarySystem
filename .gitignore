@@ -47,3 +47,5 @@ OPTIMIZATION_STATUS.md
 src/config/privacy.js
 cloud.txt
 backend/cloud.txt
+localenv.bak
+backend/localenv.bak

@@ -15,11 +15,12 @@ if (!process.env.JWT_SECRET) {
 }
 
 // 中间件
+const frontendUrl = process.env.FRONTEND_URL || '*';
 const corsOptions = {
-  origin: '*',
+  origin: frontendUrl === '*' ? '*' : frontendUrl,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: frontendUrl !== '*'
 };
 app.use(cors(corsOptions));
 app.use(express.json());
