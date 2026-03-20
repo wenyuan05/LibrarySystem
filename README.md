@@ -172,8 +172,8 @@ npm install
 
 ```env
 # API Configuration
-VITE_API_BASE_URL=http://localhost:3001/api
-FRONTEND_URL=http://localhost:5173
+VITE_API_BASE_URL=/api
+FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
@@ -183,7 +183,7 @@ JWT_SECRET=your-secret-key-here
 
 ```env
 # API Configuration
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
@@ -219,6 +219,125 @@ npm run dev
 ```
 
 前端应用将在 http://localhost:5173 上运行
+
+## 部署指南
+
+### 云服务器部署
+
+#### 1. 环境准备
+
+1. **安装 Node.js**：确保服务器上安装了 Node.js 20.0.0 或更高版本
+2. **安装 Nginx**：用于反向代理和静态文件服务
+3. **安装 PM2**：用于管理后端服务
+
+#### 2. 部署步骤
+
+1. **克隆项目**：
+   ```bash
+   git clone <项目地址>
+   cd LibrarySystem
+   ```
+
+2. **安装依赖**：
+   ```bash
+   # 前端依赖
+   npm install
+   
+   # 后端依赖
+   cd backend
+   npm install
+   cd ..
+   ```
+
+3. **配置环境变量**：
+   - 复制环境变量示例文件并配置：
+     ```bash
+     cp .env.example .env
+     cp backend/.env.example backend/.env
+     ```
+   - 编辑 `.env` 文件，设置 `JWT_SECRET` 为强随机字符串
+   - 编辑 `backend/.env` 文件，确保与根目录的 `.env` 文件中的 `JWT_SECRET` 一致
+
+4. **构建前端**：
+   ```bash
+   npm run build
+   ```
+   构建产物将生成在 `dist` 目录中
+
+5. **部署前端静态文件**：
+   - 将 `dist` 目录下的文件复制到 Nginx 根目录（如 `/var/www/html`）
+
+6. **启动后端服务**：
+   ```bash
+   # 安装 PM2（如果未安装）
+   npm install -g pm2
+   
+   # 启动后端服务
+   cd backend
+   pm2 start server.js --name library-backend
+   pm2 save
+   ```
+
+7. **配置 Nginx**：
+   - 创建或编辑 Nginx 配置文件（如 `/etc/nginx/sites-available/library`）
+   - 配置示例：
+     ```nginx
+     server {
+         listen 80;
+         server_name your-domain.com;
+         
+         # 单页应用路由处理
+         location / {
+             root /var/www/html;
+             try_files $uri $uri/ /index.html;
+         }
+         
+         # 后端API代理
+         location /api/ {
+             proxy_pass http://localhost:3001;
+             proxy_set_header Host $host;
+             proxy_set_header X-Real-IP $remote_addr;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_set_header X-Forwarded-Proto $scheme;
+         }
+         
+         # 静态文件缓存设置
+         location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+             root /var/www/html;
+             expires 30d;
+             add_header Cache-Control "public, no-transform";
+         }
+     }
+     ```
+   - 启用配置：
+     ```bash
+     ln -s /etc/nginx/sites-available/library /etc/nginx/sites-enabled/
+     nginx -t
+     systemctl reload nginx
+     ```
+
+#### 3. 环境变量配置说明
+
+- **VITE_API_BASE_URL**：前端 API 基础路径，生产环境应设置为 `/api`
+- **FRONTEND_URL**：前端应用 URL，用于 CORS 配置，生产环境应设置为域名（如 `https://your-domain.com`）
+- **JWT_SECRET**：JWT 令牌密钥，生产环境必须设置为强随机字符串
+
+#### 4. 服务管理
+
+- **查看后端服务状态**：
+  ```bash
+  pm2 status
+  ```
+
+- **重启后端服务**：
+  ```bash
+  pm2 restart library-backend
+  ```
+
+- **停止后端服务**：
+  ```bash
+  pm2 stop library-backend
+  ```
 
 ## API文档
 
