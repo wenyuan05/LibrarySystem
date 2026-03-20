@@ -65,11 +65,17 @@ const BookDetailsPage = () => {
   };
 
   // 处理借阅书籍
+  const [isBorrowing, setIsBorrowing] = useState(false);
+  
   const handleBorrow = async () => {
     try {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
+      if (isBorrowing) {
+        return; // 防止重复点击
+      }
+      setIsBorrowing(true);
       const result = await borrowAPI.borrow(user.id, book.id);
       setBorrowRecord(result);
       setSelectedCopyId(result.copy_id);
@@ -80,6 +86,8 @@ const BookDetailsPage = () => {
     } catch (err) {
       showToast(err.message, 'error');
       console.error(err);
+    } finally {
+      setIsBorrowing(false);
     }
   };
 
@@ -232,8 +240,9 @@ const BookDetailsPage = () => {
                 <button 
                   className="btn-primary borrow-button"
                   onClick={handleBorrow}
+                  disabled={isBorrowing}
                 >
-                  Borrow Now
+                  {isBorrowing ? 'Processing...' : 'Borrow Now'}
                 </button>
               )}
               {borrowRecord && countdown > 0 && (

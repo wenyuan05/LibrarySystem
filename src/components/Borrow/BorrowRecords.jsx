@@ -93,8 +93,8 @@ const BorrowRecords = () => {
                 <td>{record.author}</td>
                 <td>{record.borrow_date}</td>
                 <td>{record.return_date || 'Not returned'}</td>
-                <td className={record.status === 'returned' ? 'status-returned' : record.status === 'returning' ? 'status-returning' : 'status-borrowed'}>
-                  {record.status === 'returned' ? 'Returned' : record.status === 'returning' ? 'Returning' : 'Borrowed'}
+                <td className={record.status === 'returned' ? 'status-returned' : record.status === 'returning' ? 'status-returning' : record.status === 'borrowing' ? 'status-borrowing' : 'status-borrowed'}>
+                  {record.status === 'returned' ? 'Returned' : record.status === 'returning' ? 'Returning' : record.status === 'borrowing' ? 'Borrowing' : 'Borrowed'}
                 </td>
                 <td>
                   {record.status === 'borrowed' && (
@@ -104,6 +104,9 @@ const BorrowRecords = () => {
                     >
                       Return
                     </button>
+                  )}
+                  {record.status === 'borrowing' && (
+                    <span className="status-pending">Pending confirmation</span>
                   )}
                   {record.status === 'returning' && (
                     <span className="status-pending">Pending approval</span>

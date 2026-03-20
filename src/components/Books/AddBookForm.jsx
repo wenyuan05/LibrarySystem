@@ -72,32 +72,71 @@ const AddBookForm = ({ onBookAdded }) => {
     setSuccess('');
 
     // 前端验证
-    if (!formData.title.trim()) {
+    if (!formData.title || typeof formData.title !== 'string' || !formData.title.trim()) {
       setError('Title is required');
       setIsSubmitting(false);
       return;
     }
-    if (!formData.author.trim()) {
+    if (formData.title.length > 100) {
+      setError('Title must be less than 100 characters');
+      setIsSubmitting(false);
+      return;
+    }
+    if (!formData.author || typeof formData.author !== 'string' || !formData.author.trim()) {
       setError('Author is required');
       setIsSubmitting(false);
       return;
     }
-    if (!formData.isbn.trim()) {
+    if (formData.author.length > 50) {
+      setError('Author must be less than 50 characters');
+      setIsSubmitting(false);
+      return;
+    }
+    if (!formData.isbn || typeof formData.isbn !== 'string' || !formData.isbn.trim()) {
       setError('ISBN is required');
       setIsSubmitting(false);
       return;
     }
-    // 简单的ISBN格式检查
+    // 严格的ISBN格式检查
     const isbnPattern = /^\d{10}(?:\d{3})?$/;
     if (!isbnPattern.test(formData.isbn)) {
       setError('ISBN must be 10 or 13 digits');
       setIsSubmitting(false);
       return;
     }
-    if (!formData.total_copies || parseInt(formData.total_copies) < 1) {
-      setError('Total copies must be at least 1');
+    if (!formData.total_copies || typeof formData.total_copies !== 'string' && typeof formData.total_copies !== 'number') {
+      setError('Total copies is required');
       setIsSubmitting(false);
       return;
+    }
+    const totalCopies = parseInt(formData.total_copies);
+    if (isNaN(totalCopies) || totalCopies < 1 || totalCopies > 100) {
+      setError('Total copies must be between 1 and 100');
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.publisher && typeof formData.publisher !== 'string') {
+      setError('Publisher must be a string');
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.publisher && formData.publisher.length > 50) {
+      setError('Publisher must be less than 50 characters');
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.page_count && (typeof formData.page_count !== 'string' && typeof formData.page_count !== 'number')) {
+      setError('Page count must be a number');
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.page_count) {
+      const pageCount = parseInt(formData.page_count);
+      if (isNaN(pageCount) || pageCount < 1 || pageCount > 10000) {
+        setError('Page count must be between 1 and 10000');
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     try {

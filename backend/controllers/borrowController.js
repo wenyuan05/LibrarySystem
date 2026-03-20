@@ -48,58 +48,82 @@ exports.borrowBook = (req, res) => {
             return;
           }
 
-          // 查找可用的副本
-          db.get('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT 1', [book_id, 'available'], (err, copy) => {
+          // 检查用户是否已经有该书籍的未完成借阅记录
+          db.get('SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)', 
+            [user_id, book_id, 'borrowing', 'borrowed'], (err, existingRecord) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (!copy) {
+            if (existingRecord) {
               db.run('ROLLBACK');
-              res.status(400).json({ error: 'No available copies' });
+              res.status(400).json({ error: 'You already have an active borrow request for this book' });
               return;
             }
-            
-            const copy_id = copy.id;
-            
-            // 更新副本状态为borrowing
-            db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['borrowing', copy_id], (err) => {
+
+            // 查找可用的副本
+            db.get('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT 1', [book_id, 'available'], (err, copy) => {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
                 return;
               }
+              if (!copy) {
+                db.run('ROLLBACK');
+                res.status(400).json({ error: 'No available copies' });
+                return;
+              }
               
-              // 创建借阅记录，状态为borrowing
-              db.run(
-                'INSERT INTO borrow_records (user_id, book_id, copy_id, borrow_date, due_date, confirm_deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [user_id, book_id, copy_id, borrow_date, due_date_str, confirm_deadline_str, 'borrowing'],
-                function(err) {
-                  if (err) {
+              const copy_id = copy.id;
+              
+              // 更新副本状态为borrowing
+                db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['borrowing', copy_id], (err) => {
+                if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
-                  }
-                  
-                  db.run('COMMIT', (err) => {
-                    if (err) {
-                      res.status(500).json({ error: err.message });
-                      return;
-                    }
-                    res.json({ 
-                      id: this.lastID, 
-                      user_id, 
-                      book_id, 
-                      copy_id, 
-                      borrow_date, 
-                      due_date: due_date_str, 
-                      confirm_deadline: confirm_deadline_str,
-                      status: 'borrowing'
-                    });
-                  });
                 }
-              );
+                
+                // 更新书籍表中的可用副本数
+                db.run('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id], (err) => {
+                    if (err) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    // 创建借阅记录，状态为borrowing
+                    db.run(
+                        'INSERT INTO borrow_records (user_id, book_id, copy_id, borrow_date, due_date, confirm_deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [user_id, book_id, copy_id, borrow_date, due_date_str, confirm_deadline_str, 'borrowing'],
+                        function(err) {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        db.run('COMMIT', (err) => {
+                            if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                            }
+                            res.json({ 
+                            id: this.lastID, 
+                            user_id, 
+                            book_id, 
+                            copy_id, 
+                            borrow_date, 
+                            due_date: due_date_str, 
+                            confirm_deadline: confirm_deadline_str,
+                            status: 'borrowing'
+                            });
+                        });
+                        }
+                    );
+                });
+                });
             });
           });
         });
@@ -529,38 +553,39 @@ exports.confirmBorrow = (req, res) => {
                 
                 // 更新副本状态为borrowed
                 db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['borrowed', targetCopyId], (err) => {
-                  if (err) {
+                if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
-                  }
-                  
-                  // 如果之前的副本不是当前副本，将其状态改回available
-                  if (record.copy_id !== targetCopyId) {
+                }
+                
+                // 如果之前的副本不是当前副本，将其状态改回available
+                if (record.copy_id !== targetCopyId) {
                     db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['available', record.copy_id], (err) => {
-                      if (err) {
+                    if (err) {
                         db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
-                      }
-                      
-                      db.run('COMMIT', (err) => {
-                        if (err) {
-                          res.status(500).json({ error: err.message });
-                          return;
-                        }
-                        res.json({ message: 'Borrow confirmed successfully' });
-                      });
-                    });
-                  } else {
+                    }
+                    
+                    // 更新书籍表中的可用副本数（因为换了副本，所以不需要改变总数）
                     db.run('COMMIT', (err) => {
-                      if (err) {
+                        if (err) {
                         res.status(500).json({ error: err.message });
                         return;
-                      }
-                      res.json({ message: 'Borrow confirmed successfully' });
+                        }
+                        res.json({ message: 'Borrow confirmed successfully' });
                     });
-                  }
+                    });
+                } else {
+                    db.run('COMMIT', (err) => {
+                    if (err) {
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    res.json({ message: 'Borrow confirmed successfully' });
+                    });
+                }
                 });
               }
             );
@@ -611,42 +636,49 @@ exports.handleTimeoutBorrows = (req, res) => {
           records.forEach(record => {
             // 更新借阅记录状态为timeout
             db.run('UPDATE borrow_records SET status = ? WHERE id = ?', ['timeout', record.id], (err) => {
-              if (err) {
+                if (err) {
                 console.error('更新借阅记录失败:', err.message);
-              }
-              
-              // 更新副本状态为available
-              if (record.copy_id) {
+                }
+                
+                // 更新副本状态为available
+                if (record.copy_id) {
                 db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['available', record.copy_id], (err) => {
-                  if (err) {
+                    if (err) {
                     console.error('更新副本状态失败:', err.message);
-                  }
-                  
-                  processedCount++;
-                  if (processedCount === totalCount) {
-                    db.run('COMMIT', (err) => {
-                      if (err) {
-                        res.status(500).json({ error: err.message });
-                        return;
-                      }
-                      res.json({ message: 'Timeout borrows processed', processed: processedCount });
+                    }
+                    
+                    // 更新书籍表中的可用副本数
+                    db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = (SELECT book_id FROM borrow_records WHERE id = ?)', [record.id], (err) => {
+                    if (err) {
+                        console.error('更新书籍可用副本数失败:', err.message);
+                    }
+                    
+                    processedCount++;
+                    if (processedCount === totalCount) {
+                        db.run('COMMIT', (err) => {
+                        if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        res.json({ message: 'Timeout borrows processed', processed: processedCount });
+                        });
+                    }
                     });
-                  }
                 });
-              } else {
+                } else {
                 processedCount++;
                 if (processedCount === totalCount) {
-                  db.run('COMMIT', (err) => {
+                    db.run('COMMIT', (err) => {
                     if (err) {
-                      res.status(500).json({ error: err.message });
-                      return;
+                        res.status(500).json({ error: err.message });
+                        return;
                     }
                     res.json({ message: 'Timeout borrows processed', processed: processedCount });
-                  });
+                    });
                 }
-              }
+                }
             });
-          });
+            });
         }
       );
     });
@@ -707,12 +739,21 @@ exports.approveReturn = (req, res) => {
                     return;
                   }
                   
-                  db.run('COMMIT', (err) => {
+                  // 更新书籍表中的可用副本数
+                  db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [record.book_id], (err) => {
                     if (err) {
+                      db.run('ROLLBACK');
                       res.status(500).json({ error: err.message });
                       return;
                     }
-                    res.json({ message: 'Return approved successfully' });
+                    
+                    db.run('COMMIT', (err) => {
+                      if (err) {
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+                      res.json({ message: 'Return approved successfully' });
+                    });
                   });
                 });
               } else {

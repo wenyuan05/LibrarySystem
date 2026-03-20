@@ -20,7 +20,7 @@ import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import ReturnApprovalPage from './pages/ReturnApprovalPage';
 import ReservationsPage from './pages/ReservationsPage';
 import BookDetailsPage from './pages/BookDetailsPage';
-import { privacyConfig } from './config/privacy';
+import privacyConfig from './config/privacy';
 import './styles/global.css';
 
 // 主应用组件

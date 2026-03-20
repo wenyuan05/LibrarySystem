@@ -3,14 +3,16 @@ import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const EditBookForm = ({ book, onEditComplete, onCancel }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: 1, status: 'available', description: '', cover_image: '' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const titleInputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // 初始化表单数据和焦点管理
   useEffect(() => {
@@ -68,6 +70,20 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // 关闭下拉菜单当点击外部
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -346,18 +362,37 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
             ) : categories.length === 0 ? (
               <p>No categories available</p>
             ) : (
-              <div className="category-selector">
-                {categories.map(category => (
-                  <label key={category.id} className="category-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category.id)}
-                      onChange={() => handleCategoryChange(category.id)}
+              <div className="category-dropdown" ref={dropdownRef}>
+                <button
+                  type="button"
+                  className="category-dropdown-toggle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  {selectedCategories.length > 0 ? 
+                    `${selectedCategories.length} selected` : 
+                    'Select categories'}
+                  <span className="dropdown-arrow">▼</span>
+                </button>
+                <div className={`category-dropdown-menu ${isDropdownOpen ? 'show' : ''}`} onClick={(e) => e.stopPropagation()}>
+                  {categories.map(category => (
+                    <button
+                      type="button"
+                      key={category.id}
+                      className={`dropdown-item ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCategoryChange(category.id);
+                      }}
                       disabled={isSubmitting}
-                    />
-                    {category.name}
-                  </label>
-                ))}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

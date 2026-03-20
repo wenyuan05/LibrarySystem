@@ -129,26 +129,144 @@ exports.validateAdminAddUserBody = (req, res, next) => {
     res.status(400).json({ error: 'Username, password, role, name and email are required' });
     return;
   }
-  if (username.length < 3 || username.length > 20) {
+  if (typeof username !== 'string' || username.length < 3 || username.length > 20) {
     res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
     return;
   }
-  if (password.length < 6) {
+  if (typeof password !== 'string' || password.length < 6) {
     res.status(400).json({ error: 'Password must be at least 6 characters' });
     return;
   }
-  if (name.length < 2 || name.length > 50) {
+  if (typeof name !== 'string' || name.length < 2 || name.length > 50) {
     res.status(400).json({ error: 'Name must be between 2 and 50 characters' });
     return;
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (typeof email !== 'string' || !emailRegex.test(email)) {
     res.status(400).json({ error: 'Invalid email format' });
     return;
   }
   // 严格验证role字段，只允许'user'或'admin'
-  if (!['user', 'admin', 'librarian'].includes(role)) {
+  if (typeof role !== 'string' || !['user', 'admin', 'librarian'].includes(role)) {
     res.status(400).json({ error: 'Role must be either "user", "admin", or "librarian"' });
+    return;
+  }
+  next();
+};
+
+// 借阅书籍请求体验证中间件
+exports.validateBorrowBody = (req, res, next) => {
+  const { user_id, book_id } = req.body;
+  if (!user_id || !book_id) {
+    res.status(400).json({ error: 'User ID and book ID are required' });
+    return;
+  }
+  if (typeof user_id !== 'number' || user_id <= 0) {
+    res.status(400).json({ error: 'User ID must be a positive number' });
+    return;
+  }
+  if (typeof book_id !== 'number' || book_id <= 0) {
+    res.status(400).json({ error: 'Book ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 归还书籍请求体验证中间件
+exports.validateReturnBody = (req, res, next) => {
+  const { user_id, book_id } = req.body;
+  if (!user_id || !book_id) {
+    res.status(400).json({ error: 'User ID and book ID are required' });
+    return;
+  }
+  if (typeof user_id !== 'number' || user_id <= 0) {
+    res.status(400).json({ error: 'User ID must be a positive number' });
+    return;
+  }
+  if (typeof book_id !== 'number' || book_id <= 0) {
+    res.status(400).json({ error: 'Book ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 确认借阅请求体验证中间件
+exports.validateConfirmBorrowBody = (req, res, next) => {
+  const { record_id, copy_id } = req.body;
+  if (!record_id) {
+    res.status(400).json({ error: 'Record ID is required' });
+    return;
+  }
+  if (typeof record_id !== 'number' || record_id <= 0) {
+    res.status(400).json({ error: 'Record ID must be a positive number' });
+    return;
+  }
+  if (copy_id && (typeof copy_id !== 'number' || copy_id <= 0)) {
+    res.status(400).json({ error: 'Copy ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 审批归还请求体验证中间件
+exports.validateApproveReturnBody = (req, res, next) => {
+  const { record_id } = req.body;
+  if (!record_id) {
+    res.status(400).json({ error: 'Record ID is required' });
+    return;
+  }
+  if (typeof record_id !== 'number' || record_id <= 0) {
+    res.status(400).json({ error: 'Record ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 预约书籍请求体验证中间件
+exports.validateReserveBody = (req, res, next) => {
+  const { user_id, book_id } = req.body;
+  if (!user_id || !book_id) {
+    res.status(400).json({ error: 'User ID and book ID are required' });
+    return;
+  }
+  if (typeof user_id !== 'number' || user_id <= 0) {
+    res.status(400).json({ error: 'User ID must be a positive number' });
+    return;
+  }
+  if (typeof book_id !== 'number' || book_id <= 0) {
+    res.status(400).json({ error: 'Book ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 取消预约请求体验证中间件
+exports.validateCancelReservationBody = (req, res, next) => {
+  const { reservation_id } = req.body;
+  if (!reservation_id) {
+    res.status(400).json({ error: 'Reservation ID is required' });
+    return;
+  }
+  if (typeof reservation_id !== 'number' || reservation_id <= 0) {
+    res.status(400).json({ error: 'Reservation ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 续借书籍请求体验证中间件
+exports.validateRenewBody = (req, res, next) => {
+  const { user_id, book_id } = req.body;
+  if (!user_id || !book_id) {
+    res.status(400).json({ error: 'User ID and book ID are required' });
+    return;
+  }
+  if (typeof user_id !== 'number' || user_id <= 0) {
+    res.status(400).json({ error: 'User ID must be a positive number' });
+    return;
+  }
+  if (typeof book_id !== 'number' || book_id <= 0) {
+    res.status(400).json({ error: 'Book ID must be a positive number' });
     return;
   }
   next();
