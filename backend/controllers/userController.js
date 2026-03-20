@@ -174,23 +174,80 @@ exports.addUser = (req, res) => {
 // 更新用户信息（需要登录，允许本人或管理员）
 exports.updateUser = (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, address } = req.body;
+  const body = req.body;
 
-  db.run(
-    'UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?',
-    [name, email, phone, address, id],
-    function(err) {
+  console.log('Update user request body:', body);
+
+  // 构建更新语句
+  let updateFields = [];
+  let params = [];
+  
+  if (body.hasOwnProperty('name') && body.name) {
+    updateFields.push('name = ?');
+    params.push(body.name);
+  }
+  if (body.hasOwnProperty('email') && body.email) {
+    updateFields.push('email = ?');
+    params.push(body.email);
+  }
+  if (body.hasOwnProperty('phone')) {
+    updateFields.push('phone = ?');
+    params.push(body.phone);
+  }
+  if (body.hasOwnProperty('address')) {
+    updateFields.push('address = ?');
+    params.push(body.address);
+  }
+  if (body.hasOwnProperty('role') && body.role) {
+    // 只有admin可以修改角色，且不能将其他用户修改为admin
+    if (req.user.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden: only admin can modify user role' });
+      return;
+    }
+    if (body.role === 'admin') {
+      res.status(403).json({ error: 'Cannot set user role to admin' });
+      return;
+    }
+    updateFields.push('role = ?');
+    params.push(body.role);
+  }
+
+  if (updateFields.length === 0) {
+    res.status(400).json({ error: 'No fields to update' });
+    return;
+  }
+
+  params.push(id);
+  const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    // 获取更新后的用户信息
+    db.get('SELECT id, username, role, name, email, phone, address FROM users WHERE id = ?', [id], (err, user) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      if (this.changes === 0) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-      res.json({ id, name, email, phone, address });
-    }
-  );
+      // 确保返回完整的用户信息，包括role字段
+      res.json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address
+      });
+    });
+  });
 };
 
 // 删除用户（管理员）
