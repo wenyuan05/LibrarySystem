@@ -13,10 +13,10 @@ const AddBookForm = ({ onBookAdded }) => {
   const dropdownRef = useRef(null);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'number' ? parseInt(value, 10) || 0 : value
     }));
   };
 

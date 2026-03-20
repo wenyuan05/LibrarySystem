@@ -76,7 +76,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       const result = await borrowAPI.borrow(user.id, bookId);
       const book = books.find(book => book.id === bookId);
       if (book) {
-        const updatedBook = { ...book, status: 'borrowed' };
+        const updatedBook = { ...book, available_copies: book.available_copies - 1 };
         if (onBookUpdated) {
           onBookUpdated(updatedBook);
         }
@@ -203,12 +203,17 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
             style={{ cursor: 'pointer' }}
           >
             <div className="book-card-header">
-              <span className={`status-badge status-${book.status}`}>{book.status}</span>
+              <span className={`status-badge ${book.available_copies > 0 ? 'status-available' : 'status-borrowed'}`}>
+                {book.available_copies > 0 ? 'Available' : 'Not Available'}
+              </span>
               <span className="book-id">ID: {book.id}</span>
             </div>
             <h4 className="book-title">{book.title}</h4>
             <p className="book-author">by {book.author}</p>
             <p className="book-isbn">ISBN: {book.isbn}</p>
+            {book.publisher && <p className="book-publisher">Publisher: {book.publisher}</p>}
+            {book.publication_date && <p className="book-date">Published: {book.publication_date}</p>}
+            <p className="book-copies">Available: {book.available_copies}/{book.total_copies}</p>
             <div className="book-actions">
               {user.role === 'user' ? (
                 // 检查书籍是否真的可用：状态为available且没有未归还的借阅记录

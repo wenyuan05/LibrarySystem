@@ -105,4 +105,8 @@
   .login-container {
     padding: var(--spacing-md);
   }
+  
+  .login-footer {
+    font-size: var(--font-size-xs);
+  }
 }

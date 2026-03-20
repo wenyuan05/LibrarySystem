@@ -406,3 +406,188 @@ This file documents all bug fixes applied to the project.
   - Kept only `showToast(err.message, 'error')` for action-level failures
 - **Reason**: Prevent the entire page from switching to error UI when a single return action fails, keeping the records list visible and only showing error via toast
 
+## 2026-03-10
+
+### Fix 48: Implement book detail page and database refactoring
+- **Files modified**: 
+  - `backend/db.js`
+  - `backend/server.js`
+  - `src/App.jsx`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/BookDetail.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added new fields to books table: publisher, publication_date, description, total_copies, available_copies
+  - Updated database initialization with sample data
+  - Modified borrow and return functionality to use available_copies field
+  - Created BookDetail component for book detail page
+  - Updated BookList component to support click-to-detail functionality
+  - Modified AddBookForm and EditBookForm to support new fields
+  - Added corresponding styles for new components and fields
+- **Reason**: Enhance book information display and improve borrowing functionality
+
+### Fix 49: Fix import error in BookList.jsx
+- **Files modified**: `src/components/Books/BookList.jsx`
+- **Changes**: 
+  - Changed import statement to import motion from framer-motion instead of react-router-dom
+- **Reason**: Fix SyntaxError caused by incorrect import path
+
+### Fix 51: Allow admins to access book detail page
+- **Files modified**: 
+  - `src/App.jsx`
+  - `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated /books/:id route in App.jsx to remove user-only restriction
+  - Reverted BookList changes to allow all roles to click on cards
+  - Ensured cursor style always shows pointer for all roles
+- **Reason**: Allow admins to access book detail page for better management capabilities
+
+### Fix 52: Add cross-field validation for book copies
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody middleware to ensure available_copies <= total_copies when adding new books
+  - Updated validateBookUpdateBody middleware to ensure available_copies <= total_copies when both are provided
+  - Enhanced book update handler to load current values from DB and validate when only one of total_copies or available_copies is updated
+  - Added validation to prevent reducing total_copies below the number of borrowed books
+- **Reason**: Ensure book inventory consistency and prevent invalid states
+
+### Fix 53: Fix number input handling in book forms
+- **Files modified**: 
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated handleChange functions to convert number input values to integers
+  - Added validation for available_copies <= total_copies in both forms
+  - Ensured proper type handling when submitting form data to the API
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields
+
+### Fix 54: Fix CSS styling conflicts for book actions
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Scoped book card actions to .book-card .book-actions
+  - Scoped book detail actions to .book-detail-section .book-actions
+  - Updated responsive styles to maintain proper scoping
+- **Reason**: Prevent styling conflicts between book list and detail page actions
+
+### Fix 55: Fix book list button logic for multiple copies
+- **Files modified**: `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated render logic to show Return button whenever user has an active borrow record
+  - Updated render logic to show Borrow button when available_copies > 0
+  - Now both buttons can be displayed simultaneously for books with multiple copies
+- **Reason**: Allow users to return borrowed books even when copies are still available
+
+### Fix 56: Fix numeric field validation in backend
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use !== undefined checks for numeric fields
+  - Added string-to-number coercion for numeric fields
+  - Updated validateBookUpdateBody with the same fixes
+  - Added numeric conversion in book update handler
+  - Ensured proper validation of 0 values
+- **Reason**: Fix validation issues with numeric fields, especially when values are 0 or come as strings from HTML inputs
+
+### Fix 57: Fix concurrent borrow issue
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated borrow flow to add conditional update for available_copies
+  - Added WHERE clause to ensure only available books are borrowed
+  - Added check for affected rows to handle concurrent borrows
+  - Updated return flow to check for affected rows
+  - Ensured proper rollback when no rows are affected
+- **Reason**: Prevent available_copies from going negative during concurrent borrow operations
+
+### Fix 58: Fix EditBookForm numeric field initialization
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated useEffect initialization to parse total_copies and available_copies as integers
+  - Ensured numeric fields are properly converted from strings to numbers when initializing form data
+  - Maintained consistency with AddBookForm's number handling
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields when editing books
+
+### Fix 59: Fix const variable reassignment in backend validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use separate local variables for numeric coercion
+  - Updated validateBookUpdateBody to use separate local variables for numeric coercion
+  - Updated book update handler to use separate local variables for numeric coercion
+  - Renamed request body variables to avoid const reassignment
+- **Reason**: Fix runtime errors caused by trying to reassign const variables during numeric coercion
+
+### Fix 60: Add crypto.randomUUID fallback mechanism
+- **Files modified**: `src/context/ToastContext.jsx`
+- **Changes**: 
+  - Added feature detection for crypto.randomUUID availability
+  - Implemented fallback using Date.now().toString(36) + Math.random().toString(36).substr(2)
+  - Ensured toast ID generation works in all environments
+- **Reason**: Fix "crypto.randomUUID is not a function" error when deploying to servers that don't support this API
+
+### Fix 61: Fix publication_date empty string validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publication_date
+  - Modified book update handler to skip updating publication_date when value is empty string
+  - Updated both update branches to handle empty publication_date properly
+- **Reason**: Fix 400 errors when updating books with empty publication_date from frontend date inputs
+
+### Fix 62: Fix EditBookForm parseInt handling for 0 values
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated parseInt logic to use isNaN check instead of logical OR
+  - Ensured legitimate 0 values are preserved instead of being converted to 1
+  - Improved number parsing reliability
+- **Reason**: Fix incorrect conversion of 0 values to 1 when initializing form data
+
+### Fix 63: Fix optional fields validation for empty strings
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publisher and description fields
+  - Modified book update handler to skip updating publisher and description when values are empty strings
+  - Updated both update branches to handle empty optional fields properly
+- **Reason**: Fix 400 errors when editing books with empty optional fields from frontend forms
+
+## 2026-03-13
+
+### Fix 64: Configure cloud deployment settings
+- **Files modified**: 
+  - `backend/.env`
+  - `backend/server.js`
+  - `.env`
+- **Changes**: 
+  - Updated backend CORS configuration to support wildcard origin
+  - Modified frontend API base URL to use relative path `/api`
+  - Updated backend FRONTEND_URL to use wildcard `*`
+  - Added logic to handle credentials properly when using wildcard origin
+- **Reason**: Enable cloud deployment with domain access by using relative paths instead of hardcoded URLs
+
+### Fix 65: Update website name and add footer information
+- **Files modified**: 
+  - `index.html`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `src/styles/global.css`
+  - `src/components/Login/Login.css`
+- **Changes**: 
+  - Changed website title from "librarysystem" to "个人项目展示"
+  - Updated header title in App.jsx from "Library Management System" to "个人项目展示"
+  - Updated login page title from "Library Management System" to "个人项目展示"
+  - Added footer section to both main layout and login page
+  - Added copyright and ICP record information to footers
+  - Added corresponding CSS styles for footers
+- **Reason**: Update website branding and comply with Chinese website requirements for ICP records
+
+### Fix 66: Separate privacy information into dedicated file
+- **Files modified**: 
+  - `src/config/privacy.js`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `.gitignore`
+- **Changes**: 
+  - Created `src/config/privacy.js` to store sensitive privacy information
+  - Updated App.jsx and Login.jsx to import and use privacyConfig
+  - Added `src/config/privacy.js` to .gitignore
+  - Moved ICP record and copyright information to privacy.js
+- **Reason**: Protect sensitive privacy information by keeping it out of version control while maintaining easy access for the application
+
