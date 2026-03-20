@@ -2,14 +2,17 @@
 
 ## 项目概述
 
-图书馆管理系统是一个基于React和Node.js的Web应用，用于管理图书馆的书籍信息，包括添加、查询、借阅和归还书籍等功能。系统支持用户认证、管理员权限管理、个人借阅记录查询等功能。
+图书馆管理系统是一个基于React和Node.js的Web应用，用于管理图书馆的书籍信息，包括添加、查询、借阅和归还书籍等功能。系统支持用户认证、多角色权限管理、个人借阅记录查询等功能。
 
 ## 技术栈
 
-- **前端**：React (via Vite)
-- **后端**：Node.js + Express
+- **前端**：React 19 (via Vite)
+- **后端**：Node.js + Express 5
 - **数据库**：SQLite
 - **通信**：REST API
+- **状态管理**：React Context API
+- **路由**：React Router 7
+- **动画**：Framer Motion
 - **开发模式**：Agile-style development (Vibe-Coding)
 
 ## 项目结构
@@ -26,6 +29,7 @@ LibrarySystem/
 │   │   │   └── Books.css          # 书籍组件样式
 │   │   ├── Borrow/     # 借阅记录组件
 │   │   │   ├── BorrowRecords.jsx  # 借阅记录
+│   │   │   ├── UserBorrowRecords.jsx  # 用户借阅记录
 │   │   │   └── Borrow.css         # 借阅组件样式
 │   │   ├── Login/      # 登录组件
 │   │   │   ├── Login.jsx          # 登录表单
@@ -39,18 +43,38 @@ LibrarySystem/
 │   │   ├── Users/      # 用户管理组件
 │   │   │   ├── UserList.jsx       # 用户列表
 │   │   │   ├── AddUserForm.jsx    # 添加用户表单
+│   │   │   ├── EditUserForm.jsx   # 编辑用户表单
 │   │   │   └── Users.css          # 用户组件样式
+│   │   ├── layout/     # 布局组件
+│   │   │   └── MainLayout.jsx     # 主布局
 │   │   └── ProtectedRoute.jsx     # 受保护路由
 │   ├── context/        # 上下文管理
 │   │   ├── AuthContext.jsx        # 认证上下文
 │   │   └── ToastContext.jsx       # 消息通知上下文
+│   ├── hooks/          # 自定义钩子
+│   │   └── useApiRequest.jsx  # API请求处理钩子
+│   ├── pages/          # 页面组件
+│   │   ├── AnnouncementManagementPage.jsx  # 公告管理页面
+│   │   ├── AnnouncementsPage.jsx           # 公告页面
+│   │   ├── BookDetailsPage.jsx             # 书籍详情页面
+│   │   ├── BookManagementPage.jsx          # 书籍管理页面
+│   │   ├── BooksPage.jsx                   # 书籍列表页面
+│   │   ├── BorrowRecordsPage.jsx           # 借阅记录页面
+│   │   ├── CategoryManagementPage.jsx      # 分类管理页面
+│   │   ├── LogsPage.jsx                    # 日志页面
+│   │   ├── ProfilePage.jsx                 # 个人资料页面
+│   │   ├── ReservationsPage.jsx            # 预约页面
+│   │   ├── ReturnApprovalPage.jsx          # 归还审批页面
+│   │   ├── StatsPage.jsx                   # 统计页面
+│   │   ├── SystemSettingsPage.jsx          # 系统设置页面
+│   │   └── UserManagementPage.jsx          # 用户管理页面
 │   ├── styles/         # 样式文件
 │   │   ├── global.css  # 全局样式
 │   │   └── variables.css  # CSS变量
 │   ├── utils/          # 工具函数
 │   │   └── api.js      # API调用封装
-│   ├── hooks/           # 自定义钩子
-│   │   └── useApiRequest.jsx  # API请求处理钩子
+│   ├── config/         # 配置文件
+│   │   └── privacy.js  # 隐私配置
 │   ├── App.jsx         # 主应用组件
 │   ├── App.css         # 应用样式
 │   ├── main.jsx        # 应用入口
@@ -58,26 +82,53 @@ LibrarySystem/
 │   └── assets/         # 静态资源
 │       └── react.svg   # React图标
 ├── backend/            # 后端代码
+│   ├── controllers/    # 控制器
+│   │   ├── announcementController.js  # 公告控制器
+│   │   ├── bookController.js          # 书籍控制器
+│   │   ├── borrowController.js        # 借阅控制器
+│   │   ├── categoryController.js      # 分类控制器
+│   │   ├── logController.js           # 日志控制器
+│   │   ├── statsController.js         # 统计控制器
+│   │   ├── systemController.js        # 系统控制器
+│   │   └── userController.js          # 用户控制器
+│   ├── middleware/     # 中间件
+│   │   ├── auth.js     # 认证中间件
+│   │   ├── error.js    # 错误处理中间件
+│   │   └── validation.js  # 验证中间件
+│   ├── routes/         # 路由
+│   │   ├── announcementRoutes.js  # 公告路由
+│   │   ├── bookRoutes.js          # 书籍路由
+│   │   ├── borrowRoutes.js        # 借阅路由
+│   │   ├── categoryRoutes.js      # 分类路由
+│   │   ├── logRoutes.js           # 日志路由
+│   │   ├── statsRoutes.js         # 统计路由
+│   │   ├── systemRoutes.js        # 系统路由
+│   │   └── userRoutes.js          # 用户路由
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
+│   ├── check_borrow_records.js  # 借阅记录检查工具
 │   ├── check_db.js     # 数据库检查工具
 │   ├── check_indexes.js # 索引检查工具
 │   ├── cleanup.js      # 数据清理工具
+│   ├── clear_borrowed_records.js # 清理借阅记录工具
+│   ├── fix_all_borrow_records.js # 修复所有借阅记录工具
 │   ├── fix_book_status.js # 书籍状态修复工具
+│   ├── fix_borrow_records.js # 修复借阅记录工具
+│   ├── fix_borrow_records_direct.js # 直接修复借阅记录工具
 │   ├── test_constraints.js # 约束测试工具
+│   ├── update_book_data.js # 书籍数据更新工具
 │   ├── package.json    # 后端依赖
 │   ├── package-lock.json # 后端依赖锁文件
-│   ├── .env            # 后端环境变量配置
+│   ├── .env.example    # 后端环境变量示例
 │   └── library.db      # SQLite数据库文件
 ├── public/             # 公共静态资源
 │   └── vite.svg        # Vite图标
 ├── package.json        # 前端依赖
 ├── package-lock.json   # 前端依赖锁文件
 ├── vite.config.js      # Vite配置
-├── .env                # 前端环境变量配置
+├── .env.example        # 前端环境变量示例
 ├── .gitignore          # Git忽略文件
-├── BUGFIX_LOG.md       #  bug修复日志
-├── OPTIMIZATION_PLAN.md # 优化计划
+├── BUGFIX_LOG.md       # bug修复日志
 ├── TEST_CASES.md       # 测试用例
 ├── eslint.config.js    # ESLint配置
 ├── git-github-guide.md # Git和GitHub使用指南
@@ -205,10 +256,10 @@ npm run dev
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-- `/api/users` - 获取所有用户列表（需要管理员权限）
+- `/api/users` - 获取所有用户列表（需要管理员或图书管理员权限）
 - `/api/users/:id` - 获取、更新用户信息
-- `/api/books` - 添加新书籍（需要管理员权限）
-- `/api/books/:id` - 更新、删除书籍（需要管理员权限）
+- `/api/books` - 添加新书籍（需要管理员或图书管理员权限）
+- `/api/books/:id` - 更新、删除书籍（需要管理员或图书管理员权限）
 - `/api/borrow` - 借阅书籍
 - `/api/return` - 归还书籍
 - `/api/users/:id/borrow-records` - 获取用户借阅记录
@@ -220,12 +271,13 @@ Authorization: Bearer <JWT_TOKEN>
 - `/api/books/:id` - 获取单本书籍详情
 
 管理员专用接口需要用户角色为 `admin`。
+图书管理员专用接口需要用户角色为 `admin` 或 `librarian`。
 
 #### GET /api/users
 
-获取所有用户列表（管理员）
+获取所有用户列表（管理员/图书管理员）
 
-需要管理员权限。
+需要管理员或图书管理员权限。
 
 **响应**：
 ```json
@@ -369,7 +421,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 #### PUT /api/books/:id
 
-更新书籍信息（需要管理员权限）
+更新书籍信息（需要管理员或图书管理员权限）
 
 **请求体**：
 ```json
@@ -407,11 +459,11 @@ Authorization: Bearer <JWT_TOKEN>
 
 #### GET /api/users/:id/borrow-records
 
-获取用户借阅记录（本人或管理员）
+获取用户借阅记录（本人或管理员/图书管理员）
 
 **说明**：
 - 普通用户只能查看自己的借阅记录；
-- 管理员可以查看任意用户的借阅记录。
+- 管理员和图书管理员可以查看任意用户的借阅记录。
 
 **响应**：
 ```json
@@ -472,19 +524,30 @@ Authorization: Bearer <JWT_TOKEN>
 
 ### 前端功能
 
-1. **用户认证**：登录界面，支持管理员和普通用户登录
+1. **用户认证**：登录界面，支持管理员、图书管理员和普通用户登录
 2. **侧边栏**：折叠式侧边栏，显示用户个人信息和导航菜单
    - 根据用户角色显示不同的导航选项
-   - 普通用户：Books、My Borrows
-   - 管理员：Book Management、User Management
+   - 普通用户：Books、My Borrows、Profile
+   - 图书管理员：Book Management、User Management、Borrow Records、Return Approval
+   - 管理员：所有功能
 3. **前端路由**：使用 React Router 实现多页面路由，包括：
    - `/login` - 登录页面
    - `/` - 首页（书籍列表）
    - `/books` - 书籍列表
+   - `/books/:id` - 书籍详情
    - `/borrow-records` - 个人借阅记录
-   - `/user-borrow-records/:userId` - 用户借阅记录管理（管理员）
-   - `/book-management` - 书籍管理（管理员）
-   - `/users` - 用户管理（管理员）
+   - `/user-borrow-records/:userId` - 用户借阅记录管理（管理员/图书管理员）
+   - `/book-management` - 书籍管理（管理员/图书管理员）
+   - `/users` - 用户管理（管理员/图书管理员）
+   - `/profile` - 个人资料
+   - `/announcements` - 公告
+   - `/announcement-management` - 公告管理（管理员）
+   - `/category-management` - 分类管理（管理员/图书管理员）
+   - `/stats` - 统计分析
+   - `/return-approval` - 归还审批（管理员/图书管理员）
+   - `/logs` - 系统日志（管理员）
+   - `/system-settings` - 系统设置（管理员）
+   - `/reservations` - 预约管理
 4. **主布局**：包含侧边栏和顶部导航的响应式布局
    - 侧边栏：显示用户信息和导航菜单
    - 顶部导航：包含应用标题和用户菜单
@@ -493,48 +556,61 @@ Authorization: Bearer <JWT_TOKEN>
    - 书籍列表展示
    - 搜索功能（支持按标题、作者、ISBN搜索）
    - 借阅和归还书籍
-   - 删除书籍（管理员）
-6. **书籍管理专门板块**（管理员）：
+   - 删除书籍（管理员/图书管理员）
+6. **书籍管理专门板块**（管理员/图书管理员）：
    - 添加新书籍（包含ISBN格式验证和重复检查）
    - 编辑书籍信息
    - 批量管理书籍
    - 实时状态更新
-7. **用户管理**：
-   - 用户列表展示（管理员）
+   - 管理书籍副本数量
+7. **书籍详情页**：
+   - 显示书籍详细信息
+   - 显示所有副本信息（ID和状态）
+   - 新的借阅流程：
+     - 点击借阅按钮后书籍状态变为borrowing
+     - 显示一小时倒计时
+     - 按钮变为confirm borrowing
+     - 点击确认后弹出确认界面
+     - 显示用户账户和书籍具体副本ID
+     - 提供下拉菜单选择副本（默认填充可用副本）
+     - 用户点击确认后书籍正式借出
+8. **用户管理**：
+   - 用户列表展示（管理员/图书管理员）
    - 添加新用户（包含用户名重复检查和表单验证）
+   - 编辑用户信息
    - 搜索功能（支持按用户名、姓名、邮箱搜索）
    - 删除用户（管理员，不能删除自己）
-   - 查看用户借阅记录（管理员）
-8. **借阅记录**：
+   - 查看用户借阅记录（管理员/图书管理员）
+9. **借阅记录**：
    - 个人借阅记录查询
    - 借阅历史查看
-   - 管理员查看和管理用户借阅记录
-   - 管理员手动归还书籍
-9. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
-   - 支持多种消息类型：info、success、error
-   - 消息自动消失（默认3秒）
-   - 可手动关闭消息
-   - 全局可访问的消息通知系统
-   - 支持多个消息堆叠显示
-   - 平滑的消息出现和消失动画
-   - 每个toast独立倒计时，按照创建顺序消失
-   - 当一个toast消失时，其他toast会平滑上移
-   - 手动关闭toast时也会有平滑的消失动画
-10. **加载状态**：使用 SkeletonLoader 组件显示加载状态
+   - 管理员/图书管理员查看和管理用户借阅记录
+   - 管理员/图书管理员手动归还书籍
+10. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
+    - 支持多种消息类型：info、success、error
+    - 消息自动消失（默认3秒）
+    - 可手动关闭消息
+    - 全局可访问的消息通知系统
+    - 支持多个消息堆叠显示
+    - 平滑的消息出现和消失动画
+    - 每个toast独立倒计时，按照创建顺序消失
+    - 当一个toast消失时，其他toast会平滑上移
+    - 手动关闭toast时也会有平滑的消失动画
+11. **加载状态**：使用 SkeletonLoader 组件显示加载状态
     - 书籍列表加载时显示骨架屏
     - 提升用户体验，减少加载等待感
     - 响应式设计，适配不同屏幕尺寸
-11. **数据验证**：
+12. **数据验证**：
     - 表单字段验证
     - 数据格式检查
     - 重复数据提示
-12. **安全性**：
+13. **安全性**：
     - 前端输入验证
     - 密码强度检查
     - 实时错误提示
     - 权限控制展示
     - 受保护路由，未登录用户自动跳转到登录页
-    - 管理员用户访问普通用户路径时自动重定向到管理员页面
+    - 管理员/图书管理员用户访问普通用户路径时自动重定向到管理员页面
 
 ### 后端功能
 
@@ -542,35 +618,44 @@ Authorization: Bearer <JWT_TOKEN>
 2. **API接口**：提供完整的CRUD操作接口，用于前端与数据库交互
 3. **用户认证**：验证用户登录信息，使用JWT进行身份验证
 4. **借阅管理**：处理书籍借阅和归还逻辑，更新书籍状态和借阅记录
-5. **用户管理**：处理用户信息的增删改查
-6. **数据去重**：
+   - 新的借阅流程：支持借阅请求、确认借阅、超时处理
+   - 图书管理员审批归还
+5. **书籍副本管理**：
+   - 为每本书创建多个副本
+   - 管理副本状态（available/borrowing/borrowed/reserved）
+   - 支持副本级别的借阅操作
+6. **用户管理**：处理用户信息的增删改查
+7. **数据去重**：
    - 书籍ISBN唯一检查
    - 用户名唯一检查
    - 数据库唯一索引约束
-7. **数据验证**：
+8. **数据验证**：
    - API请求参数验证
    - 数据完整性检查
    - 错误处理和提示
-8. **安全性**：
+9. **安全性**：
    - 密码加密存储（使用bcrypt）
    - JWT token认证
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
-   - 严格的角色验证（只允许'user'或'admin'）
-9. **数据库工具**：
-   - `check_db.js` - 检查数据库中的书籍和借阅记录
-   - `check_indexes.js` - 检查数据库索引状态和数据
-   - `cleanup.js` - 清理数据库重复数据并添加唯一约束
-   - `fix_book_status.js` - 修复书籍状态
-   - `test_constraints.js` - 测试数据库唯一约束
+   - 严格的角色验证（支持'user'、'librarian'和'admin'）
+10. **数据库工具**：
+    - `check_db.js` - 检查数据库中的书籍和借阅记录
+    - `check_indexes.js` - 检查数据库索引状态和数据
+    - `cleanup.js` - 清理数据库重复数据并添加唯一约束
+    - `fix_book_status.js` - 修复书籍状态
+    - `test_constraints.js` - 测试数据库唯一约束
+    - `migrate_database.js` - 数据库结构迁移
+    - `migrate_data.js` - 数据迁移
+    - 其他数据修复和管理工具
 
 ## 开发指南
 
 ### 前端开发
 
 1. **组件结构**：使用React函数组件和Hooks管理状态
-2. **状态管理**：使用React Context API管理全局认证状态
+2. **状态管理**：使用React Context API管理全局认证状态和消息通知
 3. **API调用**：
    - 使用封装的API工具函数与后端通信
    - 使用 `useApiRequest` 自定义 hook 处理API请求，统一管理加载状态和错误处理
@@ -594,6 +679,7 @@ Authorization: Bearer <JWT_TOKEN>
 3. **中间件**：
    - 使用CORS中间件处理跨域请求
    - 使用统一错误处理中间件捕获和格式化所有错误
+   - 使用认证中间件验证用户身份和权限
 4. **事务处理**：在借阅和归还操作中使用事务确保数据一致性
 5. **数据去重**：
    - 数据库唯一索引约束
@@ -609,7 +695,7 @@ Authorization: Bearer <JWT_TOKEN>
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
-   - 严格的角色验证（只允许'user'或'admin'）
+   - 严格的角色验证（支持'user'、'librarian'和'admin'）
 8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
 
 ## 示例数据
@@ -623,7 +709,8 @@ Authorization: Bearer <JWT_TOKEN>
 
 ### 用户
 1. **管理员**：用户名 admin，密码 admin123
-2. **普通用户**：用户名 user1，密码 user123
+2. **图书管理员**：用户名 librarian，密码 librarian123
+3. **普通用户**：用户名 user1，密码 user123
 
 ## 注意事项
 
@@ -650,6 +737,9 @@ Authorization: Bearer <JWT_TOKEN>
 5. 添加借阅期限和逾期提醒功能
 6. 实现数据导出功能
 7. 添加多语言支持
+8. 实现深色模式
+9. 添加数据可视化图表
+10. 优化移动端适配
 
 ## 许可证
 

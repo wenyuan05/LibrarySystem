@@ -3,7 +3,7 @@ import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const AddBookForm = ({ onBookAdded }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +94,11 @@ const AddBookForm = ({ onBookAdded }) => {
       setIsSubmitting(false);
       return;
     }
+    if (!formData.total_copies || parseInt(formData.total_copies) < 1) {
+      setError('Total copies must be at least 1');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const newBook = await booksAPI.add(formData);
@@ -107,7 +112,7 @@ const AddBookForm = ({ onBookAdded }) => {
       
       setSuccess('Book added successfully!');
       // 重置表单
-      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
+      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1' });
       setSelectedCategories([]);
       // 通知父组件刷新书籍列表
       if (onBookAdded) {
@@ -223,6 +228,20 @@ const AddBookForm = ({ onBookAdded }) => {
             value={formData.page_count}
             onChange={handleChange}
             min="1"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="total_copies">Total Copies:</label>
+          <input
+            type="number"
+            id="total_copies"
+            name="total_copies"
+            value={formData.total_copies}
+            onChange={handleChange}
+            min="1"
+            max="100"
+            required
             disabled={isSubmitting}
           />
         </div>

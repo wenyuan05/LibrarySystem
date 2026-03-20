@@ -105,13 +105,7 @@ export const booksAPI = {
     });
   },
   
-  // 更新书籍状态
-  updateStatus: async (id, status) => {
-    return request(`/books/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  },
+
   
   // 更新书籍信息
   update: async (id, bookData) => {
@@ -146,6 +140,16 @@ export const booksAPI = {
     return request('/books/export', {
       responseType: 'blob'
     });
+  },
+  
+  // 获取书籍的所有副本
+  getCopies: async (bookId) => {
+    return request(`/books/${bookId}/copies`);
+  },
+  
+  // 获取单个副本信息
+  getCopyById: async (copyId) => {
+    return request(`/books/copies/${copyId}`);
   },
 };
 
@@ -267,6 +271,21 @@ export const borrowAPI = {
   // 获取待审批的归还请求列表
   getReturningList: async () => {
     return request('/borrow/returning');
+  },
+  
+  // 确认借阅
+  confirmBorrow: async (recordId, copyId) => {
+    return request('/borrow/confirm-borrow', {
+      method: 'POST',
+      body: JSON.stringify({ record_id: recordId, copy_id: copyId }),
+    });
+  },
+  
+  // 处理超时借阅
+  handleTimeout: async () => {
+    return request('/borrow/handle-timeout', {
+      method: 'POST',
+    });
   },
 };
 

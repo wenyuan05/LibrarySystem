@@ -30,4 +30,10 @@ router.post('/approve-return', authenticateToken, borrowController.approveReturn
 // 获取待审批的归还请求列表（需要登录，且只有管理员或图书管理员可以操作）
 router.get('/returning', authenticateToken, borrowController.getReturningList);
 
+// 确认借阅（需要登录）
+router.post('/confirm-borrow', authenticateToken, borrowController.confirmBorrow);
+
+// 处理超时借阅（需要登录，且只有管理员或图书管理员可以操作）
+router.post('/handle-timeout', authenticateToken, borrowController.handleTimeoutBorrows);
+
 module.exports = router;

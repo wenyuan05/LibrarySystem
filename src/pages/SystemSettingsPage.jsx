@@ -7,6 +7,7 @@ const SystemSettingsPage = () => {
     borrow_days: '14',
     fine_per_day: '0.5',
     max_books: '5',
+    borrow_confirm_minutes: '60',
     system_name: 'Library Management System',
     system_version: '1.0.0'
   });
@@ -143,6 +144,21 @@ const SystemSettingsPage = () => {
             min="1"
             max="50"
             value={settings.max_books}
+            onChange={handleChange}
+            required
+            className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="borrow_confirm_minutes">Borrow Confirmation Time (minutes, default: 60)</label>
+          <input
+            type="number"
+            id="borrow_confirm_minutes"
+            name="borrow_confirm_minutes"
+            min="1"
+            max="1440"
+            value={settings.borrow_confirm_minutes}
             onChange={handleChange}
             required
             className="form-input"

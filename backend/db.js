@@ -62,7 +62,6 @@ db.serialize(() => {
       title TEXT NOT NULL,
       author TEXT NOT NULL,
       isbn TEXT NOT NULL UNIQUE,
-      status TEXT DEFAULT 'available',
       description TEXT,
       cover_image TEXT,
       total_copies INTEGER DEFAULT 1,
@@ -73,6 +72,18 @@ db.serialize(() => {
       page_count INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 创建书籍副本表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS book_copies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'available',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (book_id) REFERENCES books(id)
     )
   `);
 
@@ -98,13 +109,16 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       book_id INTEGER NOT NULL,
+      copy_id INTEGER,
       borrow_date TEXT NOT NULL,
       due_date TEXT NOT NULL,
       return_date TEXT,
+      confirm_deadline TEXT,
       status TEXT DEFAULT 'borrowed',
       fine REAL DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (book_id) REFERENCES books(id)
+      FOREIGN KEY (book_id) REFERENCES books(id),
+      FOREIGN KEY (copy_id) REFERENCES book_copies(id)
     )
   `);
 
@@ -181,10 +195,10 @@ db.serialize(() => {
   });
 
   // 插入一些示例数据
-  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, status, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'available', 'Scribner', '1925-04-10', 'English', 180);
-  insertBook.run('1984', 'George Orwell', '9780451524935', 'available', 'Secker & Warburg', '1949-06-08', 'English', 328);
-  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'borrowed', 'J.B. Lippincott & Co.', '1960-07-11', 'English', 281);
+  const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'Scribner', '1925-04-10', 'English', 180);
+  insertBook.run('1984', 'George Orwell', '9780451524935', 'Secker & Warburg', '1949-06-08', 'English', 328);
+  insertBook.run('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 'J.B. Lippincott & Co.', '1960-07-11', 'English', 281);
   insertBook.finalize();
 
   // 插入系统参数默认值
@@ -194,6 +208,7 @@ db.serialize(() => {
   insertSetting.run('max_borrows', '5', '最大借阅数量');
   insertSetting.run('max_reservations', '3', '最大预约数量');
   insertSetting.run('blacklist_days', '30', '拉黑天数');
+  insertSetting.run('borrow_confirm_minutes', '60', '借阅确认时长（分钟）');
   insertSetting.finalize();
 
   // 插入图书分类示例数据
@@ -210,6 +225,18 @@ db.serialize(() => {
   db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 2 AND c.name = "历史"');
   db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 3 AND c.name = "科技"');
 
+  // 为示例书籍创建副本
+  const insertCopy = db.prepare('INSERT OR IGNORE INTO book_copies (book_id, status) VALUES (?, ?)');
+  // 为每本书创建3个副本
+  for (let bookId = 1; bookId <= 3; bookId++) {
+    for (let i = 0; i < 3; i++) {
+      // 第一本书的第一个副本设为borrowed，其他为available
+      const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
+      insertCopy.run(bookId, status);
+    }
+  }
+  insertCopy.finalize();
+
   // 插入示例用户数据（使用密码哈希）
   const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
   const adminPasswordHash = bcrypt.hashSync('admin123', 10);
@@ -219,7 +246,7 @@ db.serialize(() => {
   insertUser.finalize();
 
   // 插入示例借阅记录数据
-  const insertBorrowRecord = db.prepare('INSERT OR IGNORE INTO borrow_records (user_id, book_id, borrow_date, due_date, return_date, status) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertBorrowRecord = db.prepare('INSERT OR IGNORE INTO borrow_records (user_id, book_id, copy_id, borrow_date, due_date, return_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
   
   // 生成2024年的样本借阅数据
   const currentYear = 2024;
@@ -236,9 +263,14 @@ db.serialize(() => {
       const returnDate = isReturned ? `${currentYear}-${month.toString().padStart(2, '0')}-${Math.min(day + Math.floor(Math.random() * 10) + 1, 28).toString().padStart(2, '0')}` : null;
       const status = isReturned ? 'returned' : 'borrowed';
       
+      // 为每本书分配一个副本ID（1-3）
+      const bookId = Math.floor(Math.random() * 3) + 1;
+      const copyId = (bookId - 1) * 3 + (Math.floor(Math.random() * 3) + 1);
+      
       insertBorrowRecord.run(
         2, // user1
-        Math.floor(Math.random() * 3) + 1, // 随机书籍1-3
+        bookId, // 随机书籍1-3
+        copyId, // 对应的副本ID
         borrowDate,
         dueDate,
         returnDate,

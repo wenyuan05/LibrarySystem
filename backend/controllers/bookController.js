@@ -42,33 +42,71 @@ exports.addBook = (req, res) => {
       return;
     }
     
-    // 插入新书籍
-    const available_copies = total_copies || 1;
-    db.run(
-      'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, author, isbn, description, cover_image, total_copies || 1, available_copies, publisher, publish_date, language || 'Chinese', page_count],
-      function(err) {
+    // 开始事务
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (err) => {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        res.json({ 
-          id: this.lastID, 
-          title, 
-          author, 
-          isbn, 
-          status: 'available',
-          description,
-          cover_image,
-          total_copies: total_copies || 1,
-          available_copies,
-          publisher,
-          publish_date,
-          language: language || 'Chinese',
-          page_count
-        });
-      }
-    );
+
+        // 插入新书籍
+        const copies = total_copies || 1;
+        db.run(
+          'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, language || 'Chinese', page_count],
+          function(err) {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            
+            const bookId = this.lastID;
+            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+            let copyCount = 0;
+            const totalCopies = copies;
+            
+            // 创建副本记录
+            for (let i = 0; i < totalCopies; i++) {
+              insertCopy.run(bookId, 'available', (err) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                
+                copyCount++;
+                if (copyCount === totalCopies) {
+                  insertCopy.finalize(() => {
+                    db.run('COMMIT', (err) => {
+                      if (err) {
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+                      res.json({ 
+                        id: bookId, 
+                        title, 
+                        author, 
+                        isbn, 
+                        description,
+                        cover_image,
+                        total_copies: copies,
+                        available_copies: copies,
+                        publisher,
+                        publish_date,
+                        language: language || 'Chinese',
+                        page_count
+                      });
+                    });
+                  });
+                }
+              });
+            }
+          }
+        );
+      });
+    });
   });
 };
 
@@ -93,10 +131,7 @@ exports.updateBook = (req, res) => {
     updateFields.push('isbn = ?');
     updateValues.push(isbn);
   }
-  if (status !== undefined) {
-    updateFields.push('status = ?');
-    updateValues.push(status);
-  }
+
   if (description !== undefined) {
     updateFields.push('description = ?');
     updateValues.push(description);
@@ -134,28 +169,164 @@ exports.updateBook = (req, res) => {
     return;
   }
   
-  // 添加 id 到参数列表
-  updateValues.push(id);
-  
-  // 执行更新
-  const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
-  db.run(sql, updateValues, function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
-    
-    // 返回更新后的书籍信息
-    db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json(book);
+
+      // 执行更新
+      const sql = `UPDATE books SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.run(sql, [...updateValues, id], function(err) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Book not found' });
+          return;
+        }
+        
+        // 如果更新了副本数量，处理副本记录
+        if (total_copies !== undefined) {
+          // 获取当前副本数量
+          db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [id], (err, result) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            
+            const currentCount = result.count || 0;
+            const targetCount = parseInt(total_copies);
+            
+            if (currentCount < targetCount) {
+              // 需要添加副本
+              const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+              let addedCount = 0;
+              const addCount = targetCount - currentCount;
+              
+              for (let i = 0; i < addCount; i++) {
+                insertCopy.run(id, 'available', (err) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  
+                  addedCount++;
+                  if (addedCount === addCount) {
+                    insertCopy.finalize(() => {
+                      // 返回更新后的书籍信息
+                      db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        db.run('COMMIT', (err) => {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.json(book);
+                        });
+                      });
+                    });
+                  }
+                });
+              }
+            } else if (currentCount > targetCount) {
+              // 需要删除副本（只删除可用状态的副本）
+              db.all('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT ?', [id, 'available', currentCount - targetCount], (err, copies) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                
+                if (copies.length === 0) {
+                  // 没有可用副本可以删除
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot reduce copies: no available copies to remove' });
+                  return;
+                }
+                
+                const deleteCopy = db.prepare('DELETE FROM book_copies WHERE id = ?');
+                let deletedCount = 0;
+                const deleteCount = copies.length;
+                
+                copies.forEach(copy => {
+                  deleteCopy.run(copy.id, (err) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+                    
+                    deletedCount++;
+                    if (deletedCount === deleteCount) {
+                      deleteCopy.finalize(() => {
+                        // 返回更新后的书籍信息
+                        db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+                          if (err) {
+                            db.run('ROLLBACK');
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          db.run('COMMIT', (err) => {
+                            if (err) {
+                              res.status(500).json({ error: err.message });
+                              return;
+                            }
+                            res.json(book);
+                          });
+                        });
+                      });
+                    }
+                  });
+                });
+              });
+            } else {
+              // 副本数量不变，直接返回
+              db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json(book);
+                });
+              });
+            }
+          });
+        } else {
+          // 没有更新副本数量，直接返回
+          db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            db.run('COMMIT', (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json(book);
+            });
+          });
+        }
+      });
     });
   });
 };
@@ -180,25 +351,34 @@ exports.deleteBook = (req, res) => {
           return;
         }
 
-        // 删除书籍
-        db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
+        // 删除书籍副本
+        db.run('DELETE FROM book_copies WHERE book_id = ?', [id], (err) => {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
             return;
           }
-          if (this.changes === 0) {
-            db.run('ROLLBACK');
-            res.status(404).json({ error: 'Book not found' });
-            return;
-          }
 
-          db.run('COMMIT', (err) => {
+          // 删除书籍
+          db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
             if (err) {
+              db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            res.json({ message: 'Book deleted' });
+            if (this.changes === 0) {
+              db.run('ROLLBACK');
+              res.status(404).json({ error: 'Book not found' });
+              return;
+            }
+
+            db.run('COMMIT', (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json({ message: 'Book deleted' });
+            });
           });
         });
       });
@@ -318,5 +498,35 @@ exports.exportBooks = (req, res) => {
     
     // 发送CSV内容
     res.send(csvContent);
+  });
+};
+
+// 获取书籍的所有副本（公开访问）
+exports.getBookCopies = (req, res) => {
+  const { book_id } = req.params;
+  
+  db.all('SELECT * FROM book_copies WHERE book_id = ? ORDER BY id', [book_id], (err, copies) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(copies);
+  });
+};
+
+// 获取单个副本信息（公开访问）
+exports.getCopyById = (req, res) => {
+  const { id } = req.params;
+  
+  db.get('SELECT * FROM book_copies WHERE id = ?', [id], (err, copy) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!copy) {
+      res.status(404).json({ error: 'Copy not found' });
+      return;
+    }
+    res.json(copy);
   });
 };

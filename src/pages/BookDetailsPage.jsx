@@ -11,20 +11,50 @@ const BookDetailsPage = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [book, setBook] = useState(null);
+  const [copies, setCopies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [borrowRecord, setBorrowRecord] = useState(null);
+  const [countdown, setCountdown] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedCopyId, setSelectedCopyId] = useState(null);
 
-  // 加载书籍详情
+  // 加载书籍详情和副本信息
   useEffect(() => {
     fetchBookDetails();
   }, [id]);
+
+  // 倒计时效果
+  useEffect(() => {
+    let interval;
+    if (countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            // 倒计时结束，重新加载书籍信息
+            fetchBookDetails();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [countdown]);
 
   const fetchBookDetails = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await booksAPI.getById(id);
-      setBook(data);
+      const [bookData, copiesData] = await Promise.all([
+        booksAPI.getById(id),
+        booksAPI.getCopies(id)
+      ]);
+      setBook(bookData);
+      setCopies(copiesData);
+      setBorrowRecord(null);
+      setCountdown(0);
     } catch (err) {
       setError('Failed to load book details');
       showToast('Failed to load book details', 'error');
@@ -41,8 +71,27 @@ const BookDetailsPage = () => {
         throw new Error('User not authenticated');
       }
       const result = await borrowAPI.borrow(user.id, book.id);
-      showToast(result.message, 'success');
-      // 重新加载书籍详情
+      setBorrowRecord(result);
+      setSelectedCopyId(result.copy_id);
+      // 计算倒计时（分钟转换为秒）
+      const confirmMinutes = 60; // 默认60分钟
+      setCountdown(confirmMinutes * 60);
+      showToast('Borrow request initiated. Please confirm within the time limit.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  // 处理确认借阅
+  const handleConfirmBorrow = async () => {
+    try {
+      if (!borrowRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+      await borrowAPI.confirmBorrow(borrowRecord.id, selectedCopyId);
+      showToast('Borrow confirmed successfully', 'success');
+      setShowConfirmModal(false);
       fetchBookDetails();
     } catch (err) {
       showToast(err.message, 'error');
@@ -67,6 +116,13 @@ const BookDetailsPage = () => {
   // 处理返回列表
   const handleBack = () => {
     navigate('/books');
+  };
+
+  // 格式化倒计时
+  const formatCountdown = () => {
+    const minutes = Math.floor(countdown / 60);
+    const seconds = countdown % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -106,8 +162,8 @@ const BookDetailsPage = () => {
                book.status === 'reserved' ? 'Reserved' : book.status}
             </span>
             <div className="copies-info">
-              <span>Total: {book.total_copies}</span>
-              <span>Available: {book.available_copies}</span>
+              <span>Total: {copies.length}</span>
+              <span>Available: {copies.filter(c => c.status === 'available').length}</span>
             </div>
           </div>
         </div>
@@ -152,9 +208,27 @@ const BookDetailsPage = () => {
             <p>{book.description || 'No description available.'}</p>
           </div>
 
+          {/* 副本信息 */}
+          <div className="book-copies-section">
+            <h3>Copies</h3>
+            <div className="copies-list">
+              {copies.map(copy => (
+                <div key={copy.id} className={`copy-item status-${copy.status}`}>
+                  <span className="copy-id">Copy ID: {copy.id}</span>
+                  <span className={`copy-status status-badge status-${copy.status}`}>
+                    {copy.status === 'available' ? 'Available' : 
+                     copy.status === 'borrowed' ? 'Borrowed' : 
+                     copy.status === 'borrowing' ? 'Borrowing' : 
+                     copy.status === 'reserved' ? 'Reserved' : copy.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {user && user.role === 'user' && (
             <div className="book-actions">
-              {book.status === 'available' && (
+              {!borrowRecord && book.status === 'available' && (
                 <button 
                   className="btn-primary borrow-button"
                   onClick={handleBorrow}
@@ -162,7 +236,21 @@ const BookDetailsPage = () => {
                   Borrow Now
                 </button>
               )}
-              {book.status !== 'available' && (
+              {borrowRecord && countdown > 0 && (
+                <div className="borrow-pending">
+                  <div className="countdown">
+                    <span>Time left to confirm:</span>
+                    <span className="countdown-timer">{formatCountdown()}</span>
+                  </div>
+                  <button 
+                    className="btn-primary confirm-button"
+                    onClick={() => setShowConfirmModal(true)}
+                  >
+                    Confirm Borrowing
+                  </button>
+                </div>
+              )}
+              {!borrowRecord && book.status !== 'available' && (
                 <button 
                   className="btn-secondary reserve-button"
                   onClick={handleReserve}
@@ -174,6 +262,46 @@ const BookDetailsPage = () => {
           )}
         </div>
       </div>
+
+      {/* 确认借阅模态框 */}
+      {showConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Confirm Borrowing</h3>
+            <div className="modal-body">
+              <p><strong>User:</strong> {user?.name}</p>
+              <p><strong>Book:</strong> {book.title}</p>
+              <div className="copy-selection">
+                <label>Select Copy:</label>
+                <select 
+                  value={selectedCopyId} 
+                  onChange={(e) => setSelectedCopyId(parseInt(e.target.value))}
+                >
+                  {copies.filter(c => c.status === 'borrowing' || c.status === 'available').map(copy => (
+                    <option key={copy.id} value={copy.id}>
+                      Copy ID: {copy.id} ({copy.status === 'borrowing' ? 'Selected' : 'Available'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="btn-secondary"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={handleConfirmBorrow}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

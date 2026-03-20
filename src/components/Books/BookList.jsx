@@ -48,27 +48,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     fetchReservationRecords();
   }, [user]);
 
-  // 处理书籍状态更新（管理员）
-  const handleUpdateStatus = async (id, currentStatus) => {
-    try {
-      const newStatus = currentStatus === 'available' ? 'borrowed' : 'available';
-      await booksAPI.updateStatus(id, newStatus);
-      const book = books.find(book => book.id === id);
-      if (book) {
-        const updatedBook = { ...book, status: newStatus };
-        if (onBookUpdated) {
-          onBookUpdated(updatedBook);
-        }
-        showToast(`Book status updated to ${newStatus}`, 'success');
-      } else {
-        throw new Error('Book not found');
-      }
-    } catch (err) {
-      setError('Failed to update book status');
-      showToast('Failed to update book status', 'error');
-      console.error(err);
-    }
-  };
+
 
   // 处理书籍删除（管理员）
   const handleDeleteBook = async (id) => {
@@ -277,12 +257,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                       Edit
                     </button>
                   )}
-                  <button 
-                    className="btn-success"
-                    onClick={(e) => { e.stopPropagation(); handleUpdateStatus(book.id, book.status); }}
-                  >
-                    {book.status === 'available' ? 'Mark Borrowed' : 'Mark Available'}
-                  </button>
                   <button 
                     className="btn-danger"
                     onClick={(e) => { e.stopPropagation(); handleDeleteBook(book.id); }}

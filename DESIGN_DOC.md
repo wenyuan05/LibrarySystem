@@ -1,0 +1,459 @@
+# 图书馆管理系统前后端设计文档
+
+## 1. 系统架构概览
+
+### 1.1 整体架构
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  前端应用       │─────│  后端API        │─────│  数据库         │
+│  (React 19)     │     │  (Express 5)    │     │  (SQLite)       │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### 1.2 技术栈
+
+| 类别 | 技术/框架 | 版本 | 用途 |
+|------|-----------|------|------|
+| 前端 | React | 19.2.0 | UI构建 |
+| 前端 | React Router | 7.13.1 | 路由管理 |
+| 前端 | Framer Motion | 12.35.1 | 动画效果 |
+| 后端 | Node.js | >=20.0.0 | 运行环境 |
+| 后端 | Express | 5.2.1 | API服务器 |
+| 后端 | SQLite3 | 5.1.7 | 数据库 |
+| 后端 | bcrypt | 6.0.0 | 密码加密 |
+| 后端 | jsonwebtoken | 9.0.3 | JWT认证 |
+| 后端 | cors | 2.8.6 | 跨域支持 |
+| 构建工具 | Vite | 7.3.1 | 前端构建 |
+
+## 2. 前端设计
+
+### 2.1 目录结构
+
+```
+src/
+├── components/       # 可复用组件
+│   ├── Books/        # 书籍相关组件
+│   ├── Borrow/       # 借阅相关组件
+│   ├── Login/        # 登录组件
+│   ├── Sidebar/      # 侧边栏组件
+│   ├── Toast/        # 消息通知组件
+│   ├── Users/        # 用户相关组件
+│   ├── layout/       # 布局组件
+│   └── ProtectedRoute.jsx  # 路由保护
+├── context/          # 上下文管理
+│   ├── AuthContext.jsx     # 认证上下文
+│   └── ToastContext.jsx    # 消息通知上下文
+├── hooks/            # 自定义钩子
+│   └── useApiRequest.jsx   # API请求处理
+├── pages/            # 页面组件
+│   ├── AnnouncementManagementPage.jsx  # 公告管理
+│   ├── AnnouncementsPage.jsx           # 公告列表
+│   ├── BookDetailsPage.jsx             # 书籍详情
+│   ├── BookManagementPage.jsx          # 书籍管理
+│   ├── BooksPage.jsx                   # 书籍列表
+│   ├── BorrowRecordsPage.jsx           # 借阅记录
+│   ├── CategoryManagementPage.jsx      # 分类管理
+│   ├── LogsPage.jsx                    # 系统日志
+│   ├── ProfilePage.jsx                 # 个人资料
+│   ├── ReservationsPage.jsx            # 预约管理
+│   ├── ReturnApprovalPage.jsx          # 归还审批
+│   ├── StatsPage.jsx                   # 统计分析
+│   ├── SystemSettingsPage.jsx          # 系统设置
+│   └── UserManagementPage.jsx          # 用户管理
+├── styles/           # 样式文件
+│   ├── global.css    # 全局样式
+│   └── variables.css # CSS变量
+├── utils/            # 工具函数
+│   └── api.js        # API调用封装
+├── config/           # 配置文件
+│   └── privacy.js    # 隐私配置
+├── App.jsx           # 主应用组件
+├── App.css           # 应用样式
+├── main.jsx          # 应用入口
+├── index.css         # 全局基础样式
+└── assets/           # 静态资源
+    └── react.svg     # React图标
+```
+
+### 2.2 核心组件设计
+
+#### 2.2.1 布局组件
+
+**MainLayout.jsx**
+- **功能**：应用主布局，包含侧边栏和内容区域
+- **结构**：
+  - 侧边栏（Sidebar）
+  - 顶部导航栏
+  - 内容区域（动态路由内容）
+- **特点**：响应式设计，支持移动端适配
+
+#### 2.2.2 路由保护
+
+**ProtectedRoute.jsx**
+- **功能**：保护需要认证的路由
+- **逻辑**：
+  - 检查用户是否登录
+  - 检查用户角色权限
+  - 未登录用户重定向到登录页
+  - 权限不足用户重定向到对应页面
+
+#### 2.2.3 认证管理
+
+**AuthContext.jsx**
+- **功能**：全局认证状态管理
+- **状态**：
+  - isAuthenticated：是否认证
+  - user：用户信息
+  - loading：加载状态
+- **方法**：
+  - login：登录
+  - logout：登出
+  - updateUser：更新用户信息
+
+#### 2.2.4 消息通知
+
+**ToastContext.jsx**
+- **功能**：全局消息通知管理
+- **状态**：
+  - toasts：消息列表
+- **方法**：
+  - addToast：添加消息
+  - removeToast：移除消息
+
+### 2.3 页面设计
+
+| 页面名称 | 路径 | 权限 | 主要功能 |
+|----------|------|------|----------|
+| 登录页 | /login | 无 | 用户登录 |
+| 书籍列表 | /books | user | 浏览书籍、搜索 |
+| 书籍详情 | /books/:id | user | 查看书籍详情 |
+| 个人借阅记录 | /borrow-records | user | 查看个人借阅记录 |
+| 个人资料 | /profile | user | 查看和更新个人信息 |
+| 公告列表 | /announcements | user | 查看系统公告 |
+| 书籍管理 | /book-management | admin/librarian | 管理书籍（增删改查） |
+| 用户管理 | /users | admin/librarian | 管理用户（增删改查） |
+| 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录 |
+| 归还审批 | /return-approval | admin/librarian | 审批书籍归还 |
+| 分类管理 | /category-management | admin/librarian | 管理图书分类 |
+| 预约管理 | /reservations | user | 管理书籍预约 |
+| 公告管理 | /announcement-management | admin | 管理系统公告 |
+| 系统设置 | /system-settings | admin | 管理系统参数 |
+| 系统日志 | /logs | admin | 查看系统操作日志 |
+| 统计分析 | /stats | user | 查看借阅统计数据 |
+
+### 2.4 状态管理
+
+**Context API + Hooks**
+- **AuthContext**：管理认证状态
+- **ToastContext**：管理消息通知
+- **组件级状态**：使用useState管理组件内部状态
+- **API请求状态**：使用useApiRequest自定义hook管理API请求状态
+
+### 2.5 样式设计
+
+**CSS变量 + 模块化样式**
+- **variables.css**：定义全局CSS变量
+- **global.css**：全局样式和重置
+- **组件样式**：每个组件独立的CSS文件
+- **响应式设计**：使用媒体查询适配不同屏幕尺寸
+
+### 2.6 用户体验设计
+
+- **加载状态**：使用SkeletonLoader显示加载骨架屏
+- **消息通知**：使用Toast组件显示操作结果
+- **动画效果**：使用Framer Motion添加平滑过渡动画
+- **表单验证**：实时表单验证和错误提示
+- **权限控制**：基于角色的权限控制和界面展示
+
+## 3. 后端设计
+
+### 3.1 目录结构
+
+```
+backend/
+├── controllers/      # 控制器
+│   ├── announcementController.js  # 公告控制器
+│   ├── bookController.js          # 书籍控制器
+│   ├── borrowController.js        # 借阅控制器
+│   ├── categoryController.js      # 分类控制器
+│   ├── logController.js           # 日志控制器
+│   ├── statsController.js         # 统计控制器
+│   ├── systemController.js        # 系统控制器
+│   └── userController.js          # 用户控制器
+├── middleware/       # 中间件
+│   ├── auth.js       # 认证中间件
+│   ├── error.js      # 错误处理中间件
+│   └── validation.js # 验证中间件
+├── routes/           # 路由
+│   ├── announcementRoutes.js  # 公告路由
+│   ├── bookRoutes.js          # 书籍路由
+│   ├── borrowRoutes.js        # 借阅路由
+│   ├── categoryRoutes.js      # 分类路由
+│   ├── logRoutes.js           # 日志路由
+│   ├── statsRoutes.js         # 统计路由
+│   ├── systemRoutes.js        # 系统路由
+│   └── userRoutes.js          # 用户路由
+├── server.js         # 服务器入口
+├── db.js             # 数据库初始化
+├── check_borrow_records.js  # 借阅记录检查工具
+├── check_db.js       # 数据库检查工具
+├── check_indexes.js  # 索引检查工具
+├── cleanup.js        # 数据清理工具
+├── fix_book_status.js # 书籍状态修复工具
+├── test_constraints.js # 约束测试工具
+├── package.json      # 依赖配置
+└── .env.example      # 环境变量示例
+```
+
+### 3.2 核心模块设计
+
+#### 3.2.1 认证模块
+
+**auth.js** 中间件
+- **功能**：验证JWT token，检查用户权限
+- **逻辑**：
+  - 从请求头获取token
+  - 验证token有效性
+  - 解析用户信息
+  - 检查用户权限
+  - 将用户信息添加到请求对象
+
+**userController.js**
+- **功能**：处理用户相关操作
+- **方法**：
+  - login：用户登录
+  - register：用户注册
+  - getUserById：获取用户信息
+  - getAllUsers：获取所有用户
+  - addUser：添加用户
+  - updateUser：更新用户信息
+  - deleteUser：删除用户
+  - getUserBorrowRecords：获取用户借阅记录
+  - blockUser：拉黑用户
+  - unblockUser：解除拉黑
+
+#### 3.2.2 书籍模块
+
+**bookController.js**
+- **功能**：处理书籍相关操作
+- **方法**：
+  - getBooks：获取书籍列表
+  - getBookById：获取书籍详情
+  - addBook：添加书籍
+  - updateBook：更新书籍信息
+  - deleteBook：删除书籍
+  - searchBooks：搜索书籍
+  - getBookCopies：获取书籍的所有副本
+  - getCopyById：获取单个副本信息
+
+**categoryController.js**
+- **功能**：处理分类相关操作
+- **方法**：
+  - getCategories：获取分类列表
+  - addCategory：添加分类
+  - updateCategory：更新分类
+  - deleteCategory：删除分类
+
+#### 3.2.3 借阅模块
+
+**borrowController.js**
+- **功能**：处理借阅相关操作
+- **方法**：
+  - borrowBook：借阅书籍（开始借阅流程）
+  - returnBook：归还书籍
+  - confirmBorrow：确认借阅
+  - handleTimeoutBorrows：处理超时借阅
+  - approveReturn：审批归还请求
+  - getBorrowingList：获取借阅中列表
+  - getReturningList：获取待审批的归还请求列表
+  - getOverdueRecords：获取逾期记录
+  - calculateFine：计算罚款
+
+#### 3.2.4 系统模块
+
+**systemController.js**
+- **功能**：处理系统相关操作
+- **方法**：
+  - getSettings：获取系统设置
+  - updateSetting：更新系统设置
+
+**logController.js**
+- **功能**：处理系统日志
+- **方法**：
+  - getLogs：获取系统日志
+  - addLog：添加系统日志
+
+**announcementController.js**
+- **功能**：处理公告相关操作
+- **方法**：
+  - getAnnouncements：获取公告列表
+  - addAnnouncement：添加公告
+  - updateAnnouncement：更新公告
+  - deleteAnnouncement：删除公告
+
+#### 3.2.5 统计模块
+
+**statsController.js**
+- **功能**：处理统计相关操作
+- **方法**：
+  - getBorrowStats：获取借阅统计
+  - getUserStats：获取用户统计
+  - getBookStats：获取书籍统计
+  - getCategoryStats：获取分类统计
+
+### 3.3 数据库设计
+
+**详细数据库设计请参考 `DATABASE_DOC.md`**
+
+### 3.4 路由设计
+
+| 模块 | 路由前缀 | 主要接口 |
+|------|----------|----------|
+| 用户管理 | /api/users | 登录、注册、用户CRUD |
+| 书籍管理 | /api/books | 书籍CRUD、分类管理 |
+| 借阅管理 | /api/borrow | 借阅、归还、预约 |
+| 系统管理 | /api/settings | 系统设置、公告、日志 |
+| 统计分析 | /api/stats | 各种统计数据 |
+
+### 3.5 安全设计
+
+- **密码加密**：使用bcrypt对密码进行哈希处理
+- **JWT认证**：使用jsonwebtoken进行身份验证
+- **输入验证**：对所有用户输入进行验证
+- **SQL注入防护**：使用参数化查询
+- **CORS配置**：正确配置CORS策略
+- **权限控制**：基于角色的权限控制
+
+### 3.6 错误处理
+
+**error.js** 中间件
+- **功能**：统一处理系统错误
+- **逻辑**：
+  - 捕获所有错误
+  - 格式化错误响应
+  - 记录错误日志
+  - 返回适当的错误状态码
+
+## 4. 系统流程
+
+### 4.1 用户认证流程
+
+1. 用户访问登录页面
+2. 输入用户名和密码
+3. 前端发送登录请求到 `/api/login`
+4. 后端验证用户凭据
+5. 生成JWT token并返回
+6. 前端存储token到本地存储
+7. 重定向到首页
+
+### 4.2 书籍借阅流程
+
+1. 用户浏览书籍列表
+2. 选择要借阅的书籍
+3. 点击借阅按钮
+4. 前端发送借阅请求到 `/api/borrow/borrow`
+5. 后端检查书籍状态和用户状态
+6. 查找可用的书籍副本
+7. 更新副本状态为 "borrowing"
+8. 创建借阅记录，状态为 "borrowing"，设置确认截止时间
+9. 返回借阅请求启动成功响应
+10. 前端显示倒计时和确认借阅按钮
+11. 用户点击确认借阅按钮
+12. 前端发送确认请求到 `/api/borrow/confirm-borrow`
+13. 后端检查是否超时
+14. 更新借阅记录状态为 "borrowed"
+15. 更新副本状态为 "borrowed"
+16. 返回确认成功响应
+17. 前端显示成功消息
+
+**超时处理**：
+- 如果用户在确认截止时间内未确认，系统会自动处理超时
+- 借阅记录状态变为 "timeout"
+- 副本状态变回 "available"
+
+**图书管理员审批归还**：
+1. 用户提交归还请求
+2. 借阅记录状态变为 "returning"
+3. 图书管理员在归还审批页面查看请求
+4. 图书管理员批准归还
+5. 借阅记录状态变为 "returned"
+6. 副本状态变为 "available"
+
+### 4.3 书籍归还流程
+
+1. 用户访问个人借阅记录页面
+2. 选择要归还的书籍
+3. 点击归还按钮
+4. 前端发送归还请求到 `/api/return`
+5. 后端检查借阅记录
+6. 更新借阅记录和书籍状态
+7. 计算罚款（如果有）
+8. 返回归还成功响应
+9. 前端显示成功消息和罚款信息
+
+## 5. 性能优化
+
+### 5.1 前端优化
+
+1. **代码分割**：使用React.lazy和Suspense实现代码分割
+2. **组件缓存**：使用React.memo缓存组件
+3. **状态管理优化**：合理使用Context和useState
+4. **API请求优化**：使用useApiRequest统一管理请求状态
+5. **图片优化**：使用适当的图片格式和大小
+6. **样式优化**：使用CSS变量和CSS-in-JS
+
+### 5.2 后端优化
+
+1. **数据库索引**：为常用查询字段创建索引
+2. **查询优化**：使用JOIN操作减少查询次数
+3. **缓存策略**：对频繁访问的数据使用缓存
+4. **批量操作**：支持批量添加、删除等操作
+5. **连接池**：使用数据库连接池
+6. **中间件优化**：合理使用中间件，避免过多的中间件嵌套
+
+## 6. 部署与运维
+
+### 6.1 前端部署
+
+1. **构建**：`npm run build`
+2. **部署**：将dist目录部署到静态文件服务器
+3. **环境变量**：配置生产环境的API地址
+
+### 6.2 后端部署
+
+1. **依赖安装**：`npm install`
+2. **环境配置**：设置生产环境的环境变量
+3. **启动**：使用PM2或其他进程管理工具启动
+4. **监控**：设置日志监控和错误告警
+
+### 6.3 数据库维护
+
+1. **备份**：定期备份数据库文件
+2. **清理**：定期清理过期数据和日志
+3. **优化**：定期运行数据库优化工具
+
+## 7. 扩展性设计
+
+### 7.1 功能扩展
+
+- **书籍推荐系统**：基于用户借阅历史推荐书籍
+- **多语言支持**：添加国际化支持
+- **移动端应用**：开发React Native或Flutter应用
+- **扫码功能**：添加扫码借书还书功能
+- **支付系统**：集成在线支付罚款功能
+
+### 7.2 技术扩展
+
+- **数据库迁移**：支持从SQLite迁移到PostgreSQL或MySQL
+- **微服务架构**：将系统拆分为多个微服务
+- **容器化部署**：使用Docker和Kubernetes部署
+- **CI/CD**：配置持续集成和持续部署
+
+## 8. 总结
+
+图书馆管理系统采用了现代化的前后端分离架构，使用React 19和Express 5构建，具有完整的功能和良好的用户体验。系统支持多角色权限管理，实现了书籍管理、借阅管理、用户管理等核心功能，并提供了统计分析、系统设置等高级功能。
+
+系统设计考虑了可扩展性和可维护性，采用了模块化的代码结构和清晰的数据流管理。通过合理的数据库设计和API设计，确保了系统的性能和可靠性。
+
+未来可以通过添加更多功能和优化现有功能，进一步提升系统的用户体验和管理效率。

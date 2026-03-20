@@ -28,4 +28,10 @@ router.delete('/:id', authenticateToken, requireRole(['admin', 'librarian']), bo
 // 获取单本书籍（无需登录，公开访问）- 需要放在最后
 router.get('/:id', bookController.getBookById);
 
+// 获取书籍的所有副本（无需登录，公开访问）
+router.get('/:book_id/copies', bookController.getBookCopies);
+
+// 获取单个副本信息（无需登录，公开访问）
+router.get('/copies/:id', bookController.getCopyById);
+
 module.exports = router;
