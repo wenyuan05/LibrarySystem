@@ -302,46 +302,56 @@ exports.getUserBorrowRecords = (req, res) => {
   
   // 开始事务
   db.serialize(() => {
-    // 先检查和更新逾期记录
-    const today = new Date().toISOString().split('T')[0];
-    db.run('UPDATE borrow_records SET status = ? WHERE user_id = ? AND status = ? AND due_date < ?', 
-      ['overdue', id, 'borrowed', today], (err) => {
+    // 先检查和更新超时记录
+    const now = new Date().toISOString();
+    db.run('UPDATE borrow_records SET status = ? WHERE user_id = ? AND status = ? AND confirm_deadline < ?', 
+      ['timeout', id, 'borrowing', now], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
       
-      // 计算用户的逾期次数
-      db.get('SELECT COUNT(*) as overdue_count FROM borrow_records WHERE user_id = ? AND status = ?', 
-        [id, 'overdue'], (err, overdueResult) => {
+      // 然后检查和更新逾期记录
+      const today = new Date().toISOString().split('T')[0];
+      db.run('UPDATE borrow_records SET status = ? WHERE user_id = ? AND status = ? AND due_date < ?', 
+        ['overdue', id, 'borrowed', today], (err) => {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
         
-        const overdueCount = overdueResult.overdue_count || 0;
-        
-        // 获取用户借阅记录
-        db.all(
-          `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
-           FROM borrow_records br 
-           JOIN books b ON br.book_id = b.id 
-           WHERE br.user_id = ? 
-           ORDER BY br.borrow_date DESC`,
-          [id],
-          (err, records) => {
-            if (err) {
-              res.status(500).json({ error: err.message });
-              return;
-            }
-            
-            // 返回记录和逾期次数
-            res.json({
-              records,
-              overdue_count: overdueCount
-            });
+        // 计算用户的逾期次数
+        db.get('SELECT COUNT(*) as overdue_count FROM borrow_records WHERE user_id = ? AND status = ?', 
+          [id, 'overdue'], (err, overdueResult) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
           }
-        );
+          
+          const overdueCount = overdueResult.overdue_count || 0;
+          
+          // 获取用户借阅记录
+          db.all(
+            `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
+             FROM borrow_records br 
+             JOIN books b ON br.book_id = b.id 
+             WHERE br.user_id = ? 
+             ORDER BY br.borrow_date DESC`,
+            [id],
+            (err, records) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              
+              // 返回记录和逾期次数
+              res.json({
+                records,
+                overdue_count: overdueCount
+              });
+            }
+          );
+        });
       });
     });
   });

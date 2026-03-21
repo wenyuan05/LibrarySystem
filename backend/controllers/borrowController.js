@@ -211,34 +211,82 @@ exports.getBorrowingList = (req, res) => {
     return;
   }
 
-  let sql = `
-    SELECT br.id, br.user_id, u.username, u.name as user_name, 
-           br.book_id, b.title, b.author, 
-           br.borrow_date, br.due_date, br.status, br.fine 
-    FROM borrow_records br 
-    JOIN users u ON br.user_id = u.id 
-    JOIN books b ON br.book_id = b.id 
-    WHERE br.status = 'borrowed'
-  `;
-  const params = [];
-
-  // 如果指定了用户ID，只查询该用户的记录
-  if (user_id) {
-    sql += ' AND br.user_id = ?';
-    params.push(user_id);
-  } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
-    // 非管理员和非图书管理员默认只查询自己的记录
-    sql += ' AND br.user_id = ?';
-    params.push(req.user.id);
-  }
-
-  // 执行查询
-  db.all(sql, params, (err, records) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+  // 开始事务
+  db.serialize(() => {
+    // 先检查和更新超时记录
+    const now = new Date().toISOString();
+    let timeoutSql = 'UPDATE borrow_records SET status = ? WHERE status = ? AND confirm_deadline < ?';
+    const timeoutParams = ['timeout', 'borrowing', now];
+    
+    // 如果指定了用户ID，只更新该用户的记录
+    if (user_id) {
+      timeoutSql += ' AND user_id = ?';
+      timeoutParams.push(user_id);
+    } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+      // 非管理员和非图书管理员默认只更新自己的记录
+      timeoutSql += ' AND user_id = ?';
+      timeoutParams.push(req.user.id);
     }
-    res.json(records);
+    
+    db.run(timeoutSql, timeoutParams, (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      // 然后检查和更新逾期记录
+      const today = new Date().toISOString().split('T')[0];
+      let overdueSql = 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ?';
+      const overdueParams = ['overdue', 'borrowed', today];
+      
+      // 如果指定了用户ID，只更新该用户的记录
+      if (user_id) {
+        overdueSql += ' AND user_id = ?';
+        overdueParams.push(user_id);
+      } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+        // 非管理员和非图书管理员默认只更新自己的记录
+        overdueSql += ' AND user_id = ?';
+        overdueParams.push(req.user.id);
+      }
+      
+      db.run(overdueSql, overdueParams, (err) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        
+        // 构建查询语句
+        let sql = `
+          SELECT br.id, br.user_id, u.username, u.name as user_name, 
+                 br.book_id, b.title, b.author, 
+                 br.borrow_date, br.due_date, br.status, br.fine 
+          FROM borrow_records br 
+          JOIN users u ON br.user_id = u.id 
+          JOIN books b ON br.book_id = b.id 
+          WHERE br.status = 'borrowed'
+        `;
+        const params = [];
+
+        // 如果指定了用户ID，只查询该用户的记录
+        if (user_id) {
+          sql += ' AND br.user_id = ?';
+          params.push(user_id);
+        } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+          // 非管理员和非图书管理员默认只查询自己的记录
+          sql += ' AND br.user_id = ?';
+          params.push(req.user.id);
+        }
+
+        // 执行查询
+        db.all(sql, params, (err, records) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json(records);
+        });
+      });
+    });
   });
 };
 
