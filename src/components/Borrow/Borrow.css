@@ -53,3 +53,37 @@
   color: var(--warning-color);
   font-style: italic;
 }
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.action-buttons button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s ease;
+}
+
+.action-buttons .btn-info {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.action-buttons .btn-info:hover {
+  background-color: var(--info-hover);
+}
+
+.action-buttons .btn-secondary {
+  background-color: var(--secondary-color);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.action-buttons .btn-secondary:hover {
+  background-color: var(--secondary-hover);
+}

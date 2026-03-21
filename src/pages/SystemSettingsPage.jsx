@@ -8,6 +8,8 @@ const SystemSettingsPage = () => {
     fine_per_day: '0.5',
     max_books: '5',
     borrow_confirm_minutes: '60',
+    max_renew_times: '3',
+    renew_days: '7',
     system_name: 'Library Management System',
     system_version: '1.0.0'
   });
@@ -159,6 +161,36 @@ const SystemSettingsPage = () => {
             min="1"
             max="1440"
             value={settings.borrow_confirm_minutes}
+            onChange={handleChange}
+            required
+            className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="max_renew_times">Maximum Renewal Times (default: 3)</label>
+          <input
+            type="number"
+            id="max_renew_times"
+            name="max_renew_times"
+            min="0"
+            max="10"
+            value={settings.max_renew_times}
+            onChange={handleChange}
+            required
+            className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="renew_days">Renewal Days (default: 7)</label>
+          <input
+            type="number"
+            id="renew_days"
+            name="renew_days"
+            min="1"
+            max="30"
+            value={settings.renew_days}
             onChange={handleChange}
             required
             className="form-input"

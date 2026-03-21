@@ -52,6 +52,28 @@ const BorrowRecords = () => {
     }
   };
 
+  // 处理续借书籍
+  const handleRenewBook = async (record) => {
+    try {
+      if (!record.book_id) {
+        throw new Error('Book ID not found in record');
+      }
+      
+      const result = await borrowAPI.renew(user.id, record.book_id);
+      
+      // 更新借阅记录
+      setRecords(records.map(r => 
+        r.id === record.id ? { ...r, due_date: result.new_due_date, renew_count: result.renew_count } : r
+      ));
+      
+      showToast(result.message, 'success');
+    } catch (err) {
+      setError('Failed to renew book');
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -98,12 +120,20 @@ const BorrowRecords = () => {
                 </td>
                 <td>
                   {record.status === 'borrowed' && (
-                    <button 
-                      className="btn-info"
-                      onClick={() => handleReturnBook(record)}
-                    >
-                      Return
-                    </button>
+                    <div className="action-buttons">
+                      <button 
+                        className="btn-info"
+                        onClick={() => handleReturnBook(record)}
+                      >
+                        Return
+                      </button>
+                      <button 
+                        className="btn-secondary"
+                        onClick={() => handleRenewBook(record)}
+                      >
+                        Renew
+                      </button>
+                    </div>
                   )}
                   {record.status === 'borrowing' && (
                     <span className="status-pending">Pending confirmation</span>

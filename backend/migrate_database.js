@@ -36,6 +36,33 @@ db.serialize(() => {
     }
   );
 
+  // 3. 在 system_settings 表中添加续借相关配置项
+  console.log('添加续借相关系统设置...');
+  // 续借次数上限
+  db.run(
+    'INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)',
+    ['max_renew_times', '3', '最大续借次数'],
+    (err) => {
+      if (err) {
+        console.error('添加续借次数设置失败:', err.message);
+      } else {
+        console.log('max_renew_times 系统设置添加成功');
+      }
+    }
+  );
+  // 每次续借时间（天）
+  db.run(
+    'INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)',
+    ['renew_days', '7', '每次续借时长（天）'],
+    (err) => {
+      if (err) {
+        console.error('添加续借时长设置失败:', err.message);
+      } else {
+        console.log('renew_days 系统设置添加成功');
+      }
+    }
+  );
+
   // 3. 修改 borrow_records 表，添加 copy_id 字段
   console.log('修改 borrow_records 表，添加 copy_id 字段...');
   db.run('ALTER TABLE borrow_records ADD COLUMN copy_id INTEGER', (err) => {
@@ -56,6 +83,16 @@ db.serialize(() => {
       console.error('添加 confirm_deadline 字段失败:', err.message);
     } else {
       console.log('confirm_deadline 字段添加成功');
+    }
+  });
+
+  // 5. 修改 borrow_records 表，添加 renew_count 字段
+  console.log('修改 borrow_records 表，添加 renew_count 字段...');
+  db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
+    if (err) {
+      console.error('添加 renew_count 字段失败:', err.message);
+    } else {
+      console.log('renew_count 字段添加成功');
     }
   });
 

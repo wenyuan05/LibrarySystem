@@ -441,7 +441,7 @@ exports.renewBook = (req, res) => {
 
       // 查找未归还的借阅记录
       db.get(
-        'SELECT id, due_date FROM borrow_records WHERE user_id = ? AND book_id = ? AND status = ?',
+        'SELECT id, due_date, renew_count FROM borrow_records WHERE user_id = ? AND book_id = ? AND status = ?',
         [user_id, book_id, 'borrowed'],
         (err, record) => {
           if (err) {
@@ -455,34 +455,65 @@ exports.renewBook = (req, res) => {
             return;
           }
           
-          // 计算新的到期日期（延长14天）
-          const new_due_date = new Date(record.due_date);
-          new_due_date.setDate(new_due_date.getDate() + 14);
-          const new_due_date_str = new_due_date.toISOString().split('T')[0];
-          
-          // 更新借阅记录
-          db.run(
-            'UPDATE borrow_records SET due_date = ? WHERE id = ?',
-            [new_due_date_str, record.id],
-            (err) => {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
+          // 获取系统设置
+          db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['max_renew_times', 'renew_days'], (err, settings) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            
+            // 解析系统设置
+            let maxRenewTimes = 3; // 默认值
+            let renewDays = 7; // 默认值
+            
+            settings.forEach(setting => {
+              if (setting.key === 'max_renew_times') {
+                maxRenewTimes = parseInt(setting.value) || 3;
+              } else if (setting.key === 'renew_days') {
+                renewDays = parseInt(setting.value) || 7;
               }
-              
-              db.run('COMMIT', (err) => {
+            });
+            
+            // 检查续借次数是否已达到上限
+            const currentRenewCount = record.renew_count || 0;
+            if (currentRenewCount >= maxRenewTimes) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: `Maximum renewal limit (${maxRenewTimes}) reached` });
+              return;
+            }
+            
+            // 计算新的到期日期
+            const new_due_date = new Date(record.due_date);
+            new_due_date.setDate(new_due_date.getDate() + renewDays);
+            const new_due_date_str = new_due_date.toISOString().split('T')[0];
+            
+            // 更新借阅记录
+            db.run(
+              'UPDATE borrow_records SET due_date = ?, renew_count = ? WHERE id = ?',
+              [new_due_date_str, currentRenewCount + 1, record.id],
+              (err) => {
                 if (err) {
+                  db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                res.json({ 
-                  message: 'Book renewed successfully', 
-                  new_due_date: new_due_date_str 
+                
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({ 
+                    message: 'Book renewed successfully', 
+                    new_due_date: new_due_date_str,
+                    renew_count: currentRenewCount + 1,
+                    max_renew_times: maxRenewTimes
+                  });
                 });
-              });
-            }
-          );
+              }
+            );
+          });
         }
       );
     });

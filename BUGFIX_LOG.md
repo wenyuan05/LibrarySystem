@@ -692,3 +692,20 @@ This file documents all bug fixes applied to the project.
   - Added `box-sizing: border-box;` to ensure proper box model calculation
 - **Reason**: Fix user edit modal appearing too high on the screen, ensuring it's properly centered vertically
 
+### Feature: Implement book renewal functionality
+- **Files modified**: 
+  - `backend/migrate_database.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**: 
+  - Added `max_renew_times` and `renew_days` system settings
+  - Added `renew_count` field to borrow_records table
+  - Updated renewBook controller to check renewal limit and use system settings
+  - Added renewal settings to SystemSettingsPage
+  - Added Renew button to BorrowRecords component
+  - Added handleRenewBook function to process renewal requests
+  - Added CSS styles for action buttons
+- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits
+
