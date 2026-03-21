@@ -79,9 +79,16 @@ const BookDetailsPage = () => {
       const result = await borrowAPI.borrow(user.id, book.id);
       setBorrowRecord(result);
       setSelectedCopyId(result.copy_id);
-      // 计算倒计时（分钟转换为秒）
-      const confirmMinutes = 60; // 默认60分钟
-      setCountdown(confirmMinutes * 60);
+      // 计算倒计时（从 confirm_deadline 计算）
+      if (result.confirm_deadline) {
+        const deadline = new Date(result.confirm_deadline);
+        const now = new Date();
+        const diffInSeconds = Math.max(0, Math.floor((deadline - now) / 1000));
+        setCountdown(diffInSeconds);
+      } else {
+        // 回退到默认60分钟
+        setCountdown(60 * 60);
+      }
       showToast('Borrow request initiated. Please confirm within the time limit.', 'success');
     } catch (err) {
       showToast(err.message, 'error');

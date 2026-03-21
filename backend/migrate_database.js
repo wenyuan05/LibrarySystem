@@ -42,16 +42,11 @@ db.serialize(() => {
     if (err) {
       console.error('添加 copy_id 字段失败:', err.message);
     } else {
-      console.log('copy_id 字段添加成功');
-      // 添加外键约束
-      db.run('ALTER TABLE borrow_records ADD FOREIGN KEY (copy_id) REFERENCES book_copies(id)', (err) => {
-        if (err) {
-          console.error('添加外键约束失败:', err.message);
-        } else {
-          console.log('外键约束添加成功');
-        }
-      });
-    }
+        console.log('copy_id 字段添加成功');
+        // 注意：SQLite 不支持通过 ALTER TABLE 添加外键约束
+        // 外键约束需要在表创建时声明
+        console.log('外键约束将在应用程序层面处理');
+      }
   });
 
   // 4. 修改 borrow_records 表，添加 confirm_deadline 字段

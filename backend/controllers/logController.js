@@ -2,21 +2,10 @@ const db = require('../db');
 
 // 获取系统日志（管理员）
 exports.getSystemLogs = (req, res) => {
-  const { limit = 100, offset = 0, level, module } = req.query;
+  const { limit = 100, offset = 0 } = req.query;
   
-  let sql = 'SELECT * FROM system_logs WHERE 1=1';
+  let sql = 'SELECT * FROM system_logs';
   const params = [];
-  
-  // 添加过滤条件
-  if (level) {
-    sql += ' AND level = ?';
-    params.push(level);
-  }
-  
-  if (module) {
-    sql += ' AND module = ?';
-    params.push(module);
-  }
   
   // 添加排序和分页
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -30,20 +19,9 @@ exports.getSystemLogs = (req, res) => {
     }
     
     // 获取总记录数
-    let countSql = 'SELECT COUNT(*) as total FROM system_logs WHERE 1=1';
-    const countParams = [];
+    let countSql = 'SELECT COUNT(*) as total FROM system_logs';
     
-    if (level) {
-      countSql += ' AND level = ?';
-      countParams.push(level);
-    }
-    
-    if (module) {
-      countSql += ' AND module = ?';
-      countParams.push(module);
-    }
-    
-    db.get(countSql, countParams, (err, countResult) => {
+    db.get(countSql, (err, countResult) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;

@@ -23,7 +23,7 @@ const Login = () => {
   const [searchParams] = useSearchParams();
   
   // 检查URL中是否有重置令牌
-  React.useEffect(() => {
+  useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
       setIsForgotPasswordMode(false);

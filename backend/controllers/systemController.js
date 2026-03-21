@@ -33,6 +33,7 @@ exports.updateSystemSettings = (req, res) => {
       // 遍历所有设置并更新
       let updatedCount = 0;
       const totalSettings = Object.keys(settings).length;
+      let hasFailed = false;
       
       if (totalSettings === 0) {
         db.run('COMMIT', (err) => {
@@ -50,7 +51,10 @@ exports.updateSystemSettings = (req, res) => {
           'UPDATE system_settings SET value = ? WHERE key = ?',
           [value, key],
           function(err) {
+            if (hasFailed) return;
+            
             if (err) {
+              hasFailed = true;
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
@@ -59,18 +63,22 @@ exports.updateSystemSettings = (req, res) => {
             updatedCount++;
             
             // 当所有设置都更新完成后，提交事务
-            if (updatedCount === totalSettings) {
+            if (updatedCount === totalSettings && !hasFailed) {
               // 记录系统日志
               db.run('INSERT INTO system_logs (action, user_id, description) VALUES (?, ?, ?)', 
                 ['update_settings', req.user.id, 'System settings updated by admin'], (err) => {
+                  if (hasFailed) return;
                   if (err) {
+                    hasFailed = true;
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
                   }
 
                   db.run('COMMIT', (err) => {
+                    if (hasFailed) return;
                     if (err) {
+                      hasFailed = true;
                       res.status(500).json({ error: err.message });
                       return;
                     }

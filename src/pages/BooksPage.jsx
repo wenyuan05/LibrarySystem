@@ -80,12 +80,17 @@ const BooksPage = () => {
     fetchPopularBooks();
   }, []);
 
-  // Handle search
-  const handleSearch = (e) => {
+  // Handle search input change
+  const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
     // When search term changes, reload books data
     fetchBooks(selectedCategory, term);
+  };
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    fetchBooks(selectedCategory, searchTerm);
   };
 
   // Handle category selection
@@ -130,11 +135,11 @@ const BooksPage = () => {
               type="text"
               placeholder="Search books by title, author, or ISBN..."
               value={searchTerm}
-              onChange={handleSearch}
+              onChange={handleSearchChange}
               className="search-input"
             />
           </div>
-          <button className="search-button" onClick={handleSearch}>
+          <button className="search-button" onClick={handleSearchClick}>
             🔍
           </button>
         </div>

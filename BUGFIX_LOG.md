@@ -591,3 +591,97 @@ This file documents all bug fixes applied to the project.
   - Moved ICP record and copyright information to privacy.js
 - **Reason**: Protect sensitive privacy information by keeping it out of version control while maintaining easy access for the application
 
+## 2026-03-21
+
+### Fix 67: Prevent multiple responses in getBorrowStats
+- **Files modified**: `backend/controllers/statsController.js`
+- **Changes**: 
+  - Added `done` variable to track if a response has already been sent
+  - Added guard clauses in each `db.get` callback to check if `done` is true
+  - Set `done = true` before sending any response (error or success)
+  - Added guard clause in `checkCompletion` function to prevent duplicate responses
+- **Reason**: Fix "Cannot set headers after they are sent" error by ensuring only one response is sent per request, even when multiple async queries are in flight
+
+### Fix 68: Fix unused useEffect import in Login.jsx
+- **Files modified**: `src/components/login/Login.jsx`
+- **Changes**: 
+  - Changed `React.useEffect` to `useEffect` to use the imported version
+  - Ensured consistent use of imported hooks throughout the component
+- **Reason**: Fix unused import warning and maintain consistent coding style
+
+### Fix 69: Add type="button" to dropdown buttons in AddBookForm
+- **Files modified**: `src/components/Books/AddBookForm.jsx`
+- **Changes**: 
+  - Added `type="button"` to the category dropdown toggle button
+  - Added `type="button"` to all category option buttons in the dropdown
+- **Reason**: Prevent unintended form submission when clicking category options, as buttons inside forms default to type="submit"
+
+### Fix 70: Remove non-existent column filters from getSystemLogs
+- **Files modified**: `backend/controllers/logController.js`
+- **Changes**: 
+  - Removed `level` and `module` parameters from query destructuring
+  - Removed SQL filters for non-existent `level` and `module` columns
+  - Simplified SQL queries to only use existing columns in system_logs table
+- **Reason**: Fix SQL errors caused by referencing non-existent columns, ensuring the API endpoint works correctly
+
+### Fix 71: Remove unused 'status' field from book update
+- **Files modified**: 
+  - `backend/controllers/bookController.js`
+  - `backend/middleware/validation.js`
+- **Changes**: 
+  - Removed `status` parameter from destructuring in updateBook function
+  - Removed `status` validation from validateBookUpdateBody middleware
+- **Reason**: Fix misleading API behavior where status field was accepted but not applied, since books table doesn't have a status column (status is managed at the copy level)
+
+### Fix 72: Fix available_copies calculation in book update
+- **Files modified**: `backend/controllers/bookController.js`
+- **Changes**: 
+  - Removed unconditional setting of available_copies = total_copies
+  - Added logic to recompute available_copies by counting actual available copies in book_copies table
+  - Updated available_copies after adding or removing book copies
+- **Reason**: Fix incorrect available_copies value when updating total_copies, ensuring it reflects the actual number of available copies
+
+### Fix 73: Add validation for password reset endpoints
+- **Files modified**: 
+  - `backend/middleware/validation.js`
+  - `backend/routes/userRoutes.js`
+- **Changes**: 
+  - Added `validatePasswordResetRequest` middleware for /reset-password/request endpoint
+  - Added `validatePasswordReset` middleware for /reset-password endpoint
+  - Added validation for required fields, email format, and password strength
+  - Updated userRoutes to use the new validation middleware
+- **Reason**: Enhance security and user experience by validating password reset requests, ensuring the backend enforces the same constraints as the frontend
+
+### Fix 74: Fix search button handler in BooksPage
+- **Files modified**: `src/pages/BooksPage.jsx`
+- **Changes**: 
+  - Renamed `handleSearch` to `handleSearchChange` for input onChange event
+  - Created new `handleSearchClick` function for search button onClick event
+  - Updated JSX to use the correct handlers
+- **Reason**: Fix error when clicking search button, where e.target.value was undefined because the event target was the button itself
+
+### Fix 75: Prevent multiple responses in updateSystemSettings
+- **Files modified**: `backend/controllers/systemController.js`
+- **Changes**: 
+  - Added `hasFailed` flag to track if an error has occurred
+  - Added guard clauses in all callback functions to check if `hasFailed` is true
+  - Set `hasFailed = true` before sending any error response
+  - Ensured only one response is sent per request
+- **Reason**: Fix "Cannot set headers after they are sent" error by ensuring only one response is sent per request, even when multiple async updates are in flight
+
+### Fix 76: Fix countdown calculation in BookDetailsPage
+- **Files modified**: `src/pages/BookDetailsPage.jsx`
+- **Changes**: 
+  - Changed countdown calculation from hard-coded 60 minutes to using `confirm_deadline` from API response
+  - Added logic to calculate time difference between current time and deadline
+  - Added fallback to 60 minutes if `confirm_deadline` is not provided
+- **Reason**: Ensure UI countdown matches backend's borrow confirmation time limit, which uses the `borrow_confirm_minutes` system setting
+
+### Fix 77: Fix SQLite migration script for foreign key constraint
+- **Files modified**: `backend/migrate_database.js`
+- **Changes**: 
+  - Removed unsupported `ALTER TABLE ... ADD FOREIGN KEY` statement
+  - Added comment explaining that SQLite doesn't support adding foreign keys via ALTER TABLE
+  - Added note that foreign key constraints will be handled at the application level
+- **Reason**: Fix migration failure caused by SQLite's lack of support for adding foreign key constraints through ALTER TABLE statements
+

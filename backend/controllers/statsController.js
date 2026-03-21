@@ -7,10 +7,13 @@ exports.getBorrowStats = (req, res) => {
     const stats = {};
     let completedQueries = 0;
     const totalQueries = 4;
+    let done = false;
 
     // 1. 总借阅次数
     db.get('SELECT COUNT(*) as total_borrows FROM borrow_records', (err, result) => {
+      if (done) return;
       if (err) {
+        done = true;
         res.status(500).json({ error: err.message });
         return;
       }
@@ -20,7 +23,9 @@ exports.getBorrowStats = (req, res) => {
 
     // 2. 总归还次数
     db.get('SELECT COUNT(*) as total_returns FROM borrow_records WHERE status = ?', ['returned'], (err, result) => {
+      if (done) return;
       if (err) {
+        done = true;
         res.status(500).json({ error: err.message });
         return;
       }
@@ -30,7 +35,9 @@ exports.getBorrowStats = (req, res) => {
 
     // 3. 当前借阅中数量
     db.get('SELECT COUNT(*) as current_borrows FROM borrow_records WHERE status = ?', ['borrowed'], (err, result) => {
+      if (done) return;
       if (err) {
+        done = true;
         res.status(500).json({ error: err.message });
         return;
       }
@@ -45,7 +52,9 @@ exports.getBorrowStats = (req, res) => {
        WHERE status = ? AND return_date IS NOT NULL`,
       ['returned'],
       (err, result) => {
+        if (done) return;
         if (err) {
+          done = true;
           res.status(500).json({ error: err.message });
           return;
         }
@@ -56,8 +65,10 @@ exports.getBorrowStats = (req, res) => {
 
     // 检查所有查询是否完成
     function checkCompletion() {
+      if (done) return;
       completedQueries++;
       if (completedQueries === totalQueries) {
+        done = true;
         res.json(stats);
       }
     }

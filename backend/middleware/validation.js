@@ -68,7 +68,7 @@ exports.validateBookBody = (req, res, next) => {
 
 // 书籍部分更新验证中间件
 exports.validateBookUpdateBody = (req, res, next) => {
-  const { title, author, isbn, status } = req.body;
+  const { title, author, isbn } = req.body;
   
   // 验证title字段
   if (title !== undefined) {
@@ -103,18 +103,6 @@ exports.validateBookUpdateBody = (req, res, next) => {
     const isbnRegex = /^\d{10}(?:\d{3})?$/;
     if (!isbnRegex.test(isbn)) {
       res.status(400).json({ error: 'ISBN must be 10 or 13 digits' });
-      return;
-    }
-  }
-  
-  // 验证status字段（白名单）
-  if (status !== undefined) {
-    if (typeof status !== 'string') {
-      res.status(400).json({ error: 'Status must be a string' });
-      return;
-    }
-    if (!['available', 'borrowed'].includes(status)) {
-      res.status(400).json({ error: 'Status must be either "available" or "borrowed"' });
       return;
     }
   }
@@ -267,6 +255,41 @@ exports.validateRenewBody = (req, res, next) => {
   }
   if (typeof book_id !== 'number' || book_id <= 0) {
     res.status(400).json({ error: 'Book ID must be a positive number' });
+    return;
+  }
+  next();
+};
+
+// 密码重置请求体验证中间件
+exports.validatePasswordResetRequest = (req, res, next) => {
+  const { email, phone } = req.body;
+  if (!email && !phone) {
+    res.status(400).json({ error: 'Email or phone is required' });
+    return;
+  }
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({ error: 'Invalid email format' });
+      return;
+    }
+  }
+  next();
+};
+
+// 密码重置体验证中间件
+exports.validatePasswordReset = (req, res, next) => {
+  const { token, newPassword } = req.body;
+  if (!token) {
+    res.status(400).json({ error: 'Token is required' });
+    return;
+  }
+  if (!newPassword) {
+    res.status(400).json({ error: 'New password is required' });
+    return;
+  }
+  if (newPassword.length < 6) {
+    res.status(400).json({ error: 'New password must be at least 6 characters' });
     return;
   }
   next();

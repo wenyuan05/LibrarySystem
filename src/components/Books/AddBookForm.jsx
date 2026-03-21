@@ -293,6 +293,7 @@ const AddBookForm = ({ onBookAdded }) => {
           ) : (
             <div className="category-dropdown" ref={dropdownRef}>
               <button
+                type="button"
                 className="category-dropdown-toggle"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -311,6 +312,7 @@ const AddBookForm = ({ onBookAdded }) => {
               <div className="category-dropdown-menu">
                 {categories.map(category => (
                   <button
+                    type="button"
                     key={category.id}
                     className={`dropdown-item ${selectedCategories.includes(category.id) ? 'active' : ''}`}
                     onClick={(e) => {

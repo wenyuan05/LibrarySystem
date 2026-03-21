@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticateToken, requireRole, requireOwnershipOrAdmin } = require('../middleware/auth');
-const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody } = require('../middleware/validation');
+const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody, validatePasswordResetRequest, validatePasswordReset } = require('../middleware/validation');
 
 // 用户登录
 router.post('/login', validateLoginBody, userController.login);
@@ -78,9 +78,9 @@ router.post('/:id/unblock', authenticateToken, (req, res, next) => {
 }, userController.unblockUser);
 
 // 请求密码重置（不需要认证）
-router.post('/reset-password/request', userController.requestPasswordReset);
+router.post('/reset-password/request', validatePasswordResetRequest, userController.requestPasswordReset);
 
 // 重置密码（不需要认证）
-router.post('/reset-password', userController.resetPassword);
+router.post('/reset-password', validatePasswordReset, userController.resetPassword);
 
 module.exports = router;
