@@ -6,6 +6,7 @@ import './Borrow.css';
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
+  const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
@@ -21,7 +22,13 @@ const BorrowRecords = () => {
       setLoading(true);
       setError(null);
       const data = await usersAPI.getBorrowRecords(user.id);
-      setRecords(data);
+      setRecords(data.records);
+      setOverdueCount(data.overdue_count || 0);
+      
+      // 如果有逾期记录，显示提醒
+      if (data.overdue_count > 0) {
+        showToast(`您有 ${data.overdue_count} 本图书已逾期，请及时归还！`, 'warning');
+      }
     } catch (err) {
       setError('Failed to load borrow records');
       console.error(err);
@@ -89,7 +96,15 @@ const BorrowRecords = () => {
 
   return (
     <div className="borrow-records">
-      <h3>My Borrow Records</h3>
+      <div className="borrow-records-header">
+        <h3>My Borrow Records</h3>
+        {overdueCount > 0 && (
+          <div className="overdue-count">
+            <span className="overdue-badge">{overdueCount}</span>
+            <span>Overdue Books</span>
+          </div>
+        )}
+      </div>
       {records.length === 0 ? (
         <div className="empty-state">
           <p>No borrow records found.</p>
@@ -115,11 +130,19 @@ const BorrowRecords = () => {
                 <td>{record.borrow_date}</td>
                 <td>{record.due_date}</td>
                 <td>{record.return_date || 'Not returned'}</td>
-                <td className={record.status === 'returned' ? 'status-returned' : record.status === 'returning' ? 'status-returning' : record.status === 'borrowing' ? 'status-borrowing' : 'status-borrowed'}>
-                  {record.status === 'returned' ? 'Returned' : record.status === 'returning' ? 'Returning' : record.status === 'borrowing' ? 'Borrowing' : 'Borrowed'}
+                <td className={
+                  record.status === 'returned' ? 'status-returned' : 
+                  record.status === 'returning' ? 'status-returning' : 
+                  record.status === 'borrowing' ? 'status-borrowing' : 
+                  record.status === 'overdue' ? 'status-overdue' : 'status-borrowed'
+                }>
+                  {record.status === 'returned' ? 'Returned' : 
+                   record.status === 'returning' ? 'Returning' : 
+                   record.status === 'borrowing' ? 'Borrowing' : 
+                   record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                 </td>
                 <td>
-                  {record.status === 'borrowed' && (
+                  {(record.status === 'borrowed' || record.status === 'overdue') && (
                     <div className="action-buttons">
                       <button 
                         className="btn-info"
@@ -127,12 +150,14 @@ const BorrowRecords = () => {
                       >
                         Return
                       </button>
-                      <button 
-                        className="btn-secondary"
-                        onClick={() => handleRenewBook(record)}
-                      >
-                        Renew
-                      </button>
+                      {record.status === 'borrowed' && (
+                        <button 
+                          className="btn-secondary"
+                          onClick={() => handleRenewBook(record)}
+                        >
+                          Renew
+                        </button>
+                      )}
                     </div>
                   )}
                   {record.status === 'borrowing' && (

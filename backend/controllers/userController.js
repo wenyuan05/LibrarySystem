@@ -299,20 +299,52 @@ exports.deleteUser = (req, res) => {
 // 获取用户借阅记录（需要登录，只能查看自己的记录或管理员）
 exports.getUserBorrowRecords = (req, res) => {
   const { id } = req.params;
-  db.all(
-    `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
-     FROM borrow_records br 
-     JOIN books b ON br.book_id = b.id 
-     WHERE br.user_id = ?`,
-    [id],
-    (err, records) => {
+  
+  // 开始事务
+  db.serialize(() => {
+    // 先检查和更新逾期记录
+    const today = new Date().toISOString().split('T')[0];
+    db.run('UPDATE borrow_records SET status = ? WHERE user_id = ? AND status = ? AND due_date < ?', 
+      ['overdue', id, 'borrowed', today], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json(records);
-    }
-  );
+      
+      // 计算用户的逾期次数
+      db.get('SELECT COUNT(*) as overdue_count FROM borrow_records WHERE user_id = ? AND status = ?', 
+        [id, 'overdue'], (err, overdueResult) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        
+        const overdueCount = overdueResult.overdue_count || 0;
+        
+        // 获取用户借阅记录
+        db.all(
+          `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
+           FROM borrow_records br 
+           JOIN books b ON br.book_id = b.id 
+           WHERE br.user_id = ? 
+           ORDER BY br.borrow_date DESC`,
+          [id],
+          (err, records) => {
+            if (err) {
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            
+            // 返回记录和逾期次数
+            res.json({
+              records,
+              overdue_count: overdueCount
+            });
+          }
+        );
+      });
+    });
+  });
 };
 
 // 拉黑用户（图书管理员或系统管理员）
@@ -387,24 +419,33 @@ exports.unblockUser = (req, res) => {
           return;
         }
 
-        // 记录系统日志
-        db.run('INSERT INTO system_logs (action, user_id, description) VALUES (?, ?, ?)', 
-          ['unblock_user', req.user.id, `User unblocked by librarian: ${id}`], (err) => {
-            if (err) {
-              db.run('ROLLBACK');
-              res.status(500).json({ error: err.message });
-              return;
-            }
+        // 清空用户的逾期记录状态（将overdue状态改为borrowed）
+        db.run('UPDATE borrow_records SET status = ? WHERE user_id = ? AND status = ?', ['borrowed', id, 'overdue'], (err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
 
-            db.run('COMMIT', (err) => {
+          // 记录系统日志
+          db.run('INSERT INTO system_logs (action, user_id, description) VALUES (?, ?, ?)', 
+            ['unblock_user', req.user.id, `User unblocked by librarian: ${id}`], (err) => {
               if (err) {
+                db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
                 return;
               }
-              res.json({ message: 'User unblocked successfully' });
-            });
-          }
-        );
+
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({ message: 'User unblocked successfully' });
+              });
+            }
+          );
+        });
       });
     });
   });

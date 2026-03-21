@@ -832,3 +832,65 @@ exports.getReturningList = (req, res) => {
     res.json(records);
   });
 };
+
+// 检查和更新逾期记录
+exports.checkOverdueRecords = (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 查找所有逾期的借阅记录
+      db.all(
+        'SELECT id FROM borrow_records WHERE status = ? AND due_date < ?',
+        ['borrowed', today],
+        (err, records) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          
+          let updatedCount = 0;
+          const totalCount = records.length;
+          
+          if (totalCount === 0) {
+            db.run('COMMIT', (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json({ message: 'No overdue records found', updated: 0 });
+            });
+            return;
+          }
+          
+          records.forEach(record => {
+            // 更新借阅记录状态为overdue
+            db.run('UPDATE borrow_records SET status = ? WHERE id = ?', ['overdue', record.id], (err) => {
+              if (err) {
+                console.error('更新逾期记录失败:', err.message);
+              }
+              
+              updatedCount++;
+              if (updatedCount === totalCount) {
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({ message: 'Overdue records updated', updated: updatedCount });
+                });
+              }
+            });
+          });
+        }
+      );
+    });
+  });
+};

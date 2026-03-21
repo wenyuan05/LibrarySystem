@@ -6,6 +6,47 @@
   margin-top: var(--spacing-lg);
 }
 
+/* 借阅记录头部 */
+.borrow-records-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 用户信息头部 */
+.user-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 逾期计数 */
+.overdue-count {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.overdue-badge {
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.overdue-count span {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
 /* 空状态 */
 .empty-state {
   text-align: center;
@@ -52,6 +93,11 @@
 .status-pending {
   color: var(--warning-color);
   font-style: italic;
+}
+
+.status-overdue {
+  color: var(--danger-color);
+  font-weight: 500;
 }
 
 /* 操作按钮样式 */

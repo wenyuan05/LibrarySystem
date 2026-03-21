@@ -713,3 +713,21 @@ This file documents all bug fixes applied to the project.
   - Modified UserBorrowRecords table to replace Author column with Due Date column
 - **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits, and improve user experience by showing due dates instead of author information in both user and admin views
 
+### Feature: Implement overdue book tracking and notification
+- **Files modified**: 
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**: 
+  - Added `checkOverdueRecords` function in borrowController to identify and update overdue records
+  - Modified `getUserBorrowRecords` function to automatically check and update overdue status
+  - Added overdue count calculation in user borrow records API
+  - Updated BorrowRecords component to display overdue status and count
+  - Added overdue notification when entering borrow records page
+  - Updated UserBorrowRecords component to display user overdue count
+  - Modified unblockUser function to clear overdue status when unblocking users
+  - Added CSS styles for overdue status and count display
+- **Reason**: Implement comprehensive overdue book tracking, including automatic status updates, user notifications, and admin visibility, ensuring timely book returns and proper management of overdue items
+
