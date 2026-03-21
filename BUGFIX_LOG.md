@@ -698,6 +698,7 @@ This file documents all bug fixes applied to the project.
   - `backend/controllers/borrowController.js`
   - `src/pages/SystemSettingsPage.jsx`
   - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
   - `src/components/Borrow/Borrow.css`
 - **Changes**: 
   - Added `max_renew_times` and `renew_days` system settings
@@ -709,5 +710,6 @@ This file documents all bug fixes applied to the project.
   - Added CSS styles for action buttons
   - Changed Renew button color from black to primary color for better visibility
   - Modified BorrowRecords table to replace Author column with Due Date column
-- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits, and improve user experience by showing due dates instead of author information
+  - Modified UserBorrowRecords table to replace Author column with Due Date column
+- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits, and improve user experience by showing due dates instead of author information in both user and admin views
 
