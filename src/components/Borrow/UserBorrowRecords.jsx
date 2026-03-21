@@ -52,7 +52,7 @@ const UserBorrowRecords = () => {
         throw new Error('Book ID not found in record');
       }
       
-      await borrowAPI.return(userId, record.book_id);
+      await borrowAPI.return(Number(userId), record.book_id);
       
       // 更新借阅记录
       setRecords(prevRecords => prevRecords.map(r => 
