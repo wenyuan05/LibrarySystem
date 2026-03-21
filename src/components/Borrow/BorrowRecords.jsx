@@ -101,7 +101,7 @@ const BorrowRecords = () => {
         {overdueCount > 0 && (
           <div className="overdue-count">
             <span className="overdue-badge">{overdueCount}</span>
-            <span>Overdue Books</span>
+            <span className="overdue-text">Overdue Books</span>
           </div>
         )}
       </div>

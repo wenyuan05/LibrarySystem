@@ -42,7 +42,7 @@
   font-weight: 600;
 }
 
-.overdue-count span {
+.overdue-count .overdue-text {
   color: var(--danger-color);
   font-weight: 500;
 }

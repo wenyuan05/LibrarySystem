@@ -96,9 +96,9 @@ const UserBorrowRecords = () => {
             <h3>{user.name} ({user.username})</h3>
             {overdueCount > 0 && (
               <div className="overdue-count">
-                <span className="overdue-badge">{overdueCount}</span>
-                <span>Overdue Books</span>
-              </div>
+                  <span className="overdue-badge">{overdueCount}</span>
+                  <span className="overdue-text">Overdue Books</span>
+                </div>
             )}
           </div>
           <p>Email: {user.email}</p>
