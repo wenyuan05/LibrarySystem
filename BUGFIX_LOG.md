@@ -685,3 +685,10 @@ This file documents all bug fixes applied to the project.
   - Added note that foreign key constraints will be handled at the application level
 - **Reason**: Fix migration failure caused by SQLite's lack of support for adding foreign key constraints through ALTER TABLE statements
 
+### Fix 78: Fix user edit modal position
+- **Files modified**: `src/components/Users/Users.css`
+- **Changes**: 
+  - Added `min-height: 100vh;` to `.modal-overlay` to ensure full viewport height
+  - Added `box-sizing: border-box;` to ensure proper box model calculation
+- **Reason**: Fix user edit modal appearing too high on the screen, ensuring it's properly centered vertically
+
