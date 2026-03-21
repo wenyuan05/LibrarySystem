@@ -66,6 +66,27 @@ const UserBorrowRecords = () => {
     }
   };
 
+  // 处理确认借阅
+  const handleConfirmBorrow = async (record) => {
+    try {
+      if (!record.id || !record.copy_id) {
+        throw new Error('Record ID or Copy ID not found');
+      }
+      
+      const result = await borrowAPI.confirmBorrow(record.id, record.copy_id);
+      
+      // 更新借阅记录
+      setRecords(prevRecords => prevRecords.map(r => 
+        r.id === record.id ? { ...r, status: 'borrowed' } : r
+      ));
+      
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -149,6 +170,14 @@ const UserBorrowRecords = () => {
                         onClick={() => handleReturnBook(record)}
                       >
                         Return
+                      </button>
+                    )}
+                    {record.status === 'borrowing' && (
+                      <button 
+                        className="btn-info"
+                        onClick={() => handleConfirmBorrow(record)}
+                      >
+                        Confirm
                       </button>
                     )}
                   </td>
