@@ -707,5 +707,6 @@ This file documents all bug fixes applied to the project.
   - Added Renew button to BorrowRecords component
   - Added handleRenewBook function to process renewal requests
   - Added CSS styles for action buttons
+  - Changed Renew button color from black to primary color for better visibility
 - **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits
 

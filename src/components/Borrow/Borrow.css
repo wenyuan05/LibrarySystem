@@ -79,11 +79,12 @@
 }
 
 .action-buttons .btn-secondary {
-  background-color: var(--secondary-color);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--primary-color);
+  color: white;
+  border: 1px solid var(--primary-color);
 }
 
 .action-buttons .btn-secondary:hover {
-  background-color: var(--secondary-hover);
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
