@@ -708,5 +708,6 @@ This file documents all bug fixes applied to the project.
   - Added handleRenewBook function to process renewal requests
   - Added CSS styles for action buttons
   - Changed Renew button color from black to primary color for better visibility
-- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits
+  - Modified BorrowRecords table to replace Author column with Due Date column
+- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits, and improve user experience by showing due dates instead of author information
 

@@ -100,8 +100,8 @@ const BorrowRecords = () => {
             <tr>
               <th>ID</th>
               <th>Title</th>
-              <th>Author</th>
               <th>Borrow Date</th>
+              <th>Due Date</th>
               <th>Return Date</th>
               <th>Status</th>
               <th>Action</th>
@@ -112,8 +112,8 @@ const BorrowRecords = () => {
               <tr key={record.id} className="fade-in">
                 <td>{record.id}</td>
                 <td>{record.title}</td>
-                <td>{record.author}</td>
                 <td>{record.borrow_date}</td>
+                <td>{record.due_date}</td>
                 <td>{record.return_date || 'Not returned'}</td>
                 <td className={record.status === 'returned' ? 'status-returned' : record.status === 'returning' ? 'status-returning' : record.status === 'borrowing' ? 'status-borrowing' : 'status-borrowed'}>
                   {record.status === 'returned' ? 'Returned' : record.status === 'returning' ? 'Returning' : record.status === 'borrowing' ? 'Borrowing' : 'Borrowed'}
