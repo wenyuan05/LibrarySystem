@@ -34,12 +34,32 @@
 src/
 ├── components/       # 可复用组件
 │   ├── Books/        # 书籍相关组件
+│   │   ├── BookList.jsx      # 书籍列表
+│   │   ├── AddBookForm.jsx    # 添加书籍表单
+│   │   ├── EditBookForm.jsx   # 编辑书籍表单
+│   │   ├── BookDetail.jsx     # 书籍详情页
+│   │   ├── SkeletonLoader.jsx # 加载骨架屏
+│   │   └── Books.css          # 书籍组件样式
 │   ├── Borrow/       # 借阅相关组件
+│   │   ├── BorrowRecords.jsx  # 借阅记录
+│   │   ├── UserBorrowRecords.jsx  # 用户借阅记录
+│   │   └── Borrow.css         # 借阅组件样式
 │   ├── Login/        # 登录组件
+│   │   ├── Login.jsx          # 登录表单
+│   │   └── Login.css          # 登录组件样式
 │   ├── Sidebar/      # 侧边栏组件
+│   │   ├── Sidebar.jsx        # 侧边栏
+│   │   └── Sidebar.css        # 侧边栏样式
 │   ├── Toast/        # 消息通知组件
+│   │   ├── Toast.jsx          # 消息通知
+│   │   └── Toast.css          # 消息通知样式
 │   ├── Users/        # 用户相关组件
+│   │   ├── UserList.jsx       # 用户列表
+│   │   ├── AddUserForm.jsx    # 添加用户表单
+│   │   ├── EditUserForm.jsx   # 编辑用户表单
+│   │   └── Users.css          # 用户组件样式
 │   ├── layout/       # 布局组件
+│   │   └── MainLayout.jsx     # 主布局
 │   └── ProtectedRoute.jsx  # 路由保护
 ├── context/          # 上下文管理
 │   ├── AuthContext.jsx     # 认证上下文
@@ -232,28 +252,37 @@ backend/
   - getUserBorrowRecords：获取用户借阅记录
   - blockUser：拉黑用户
   - unblockUser：解除拉黑
+  - requestPasswordReset：请求密码重置
+  - resetPassword：重置密码
 
 #### 3.2.2 书籍模块
 
 **bookController.js**
 - **功能**：处理书籍相关操作
 - **方法**：
-  - getBooks：获取书籍列表
+  - getAllBooks：获取书籍列表
   - getBookById：获取书籍详情
   - addBook：添加书籍
   - updateBook：更新书籍信息
   - deleteBook：删除书籍
   - searchBooks：搜索书籍
+  - getPopularBooks：获取热门书籍
+  - exportBooks：导出书籍信息
   - getBookCopies：获取书籍的所有副本
   - getCopyById：获取单个副本信息
+  - updateCopyStatus：更新副本状态
 
 **categoryController.js**
 - **功能**：处理分类相关操作
 - **方法**：
-  - getCategories：获取分类列表
-  - addCategory：添加分类
+  - getAllCategories：获取分类列表
+  - getCategoryById：获取单个分类
+  - createCategory：创建分类
   - updateCategory：更新分类
   - deleteCategory：删除分类
+  - getBookCategories：获取图书的分类
+  - addBookCategory：为图书添加分类
+  - removeBookCategory：从图书中移除分类
 
 #### 3.2.3 借阅模块
 
@@ -267,28 +296,32 @@ backend/
   - approveReturn：审批归还请求
   - getBorrowingList：获取借阅中列表
   - getReturningList：获取待审批的归还请求列表
-  - getOverdueRecords：获取逾期记录
-  - calculateFine：计算罚款
+  - reserveBook：预约图书
+  - getUserReservations：获取用户的预约记录
+  - renewBook：续借图书
+  - cancelReservation：取消预约
 
 #### 3.2.4 系统模块
 
 **systemController.js**
 - **功能**：处理系统相关操作
 - **方法**：
-  - getSettings：获取系统设置
-  - updateSetting：更新系统设置
+  - getSystemSettings：获取系统设置
+  - updateSystemSettings：更新系统设置
 
 **logController.js**
 - **功能**：处理系统日志
 - **方法**：
-  - getLogs：获取系统日志
+  - getSystemLogs：获取系统日志
+  - clearSystemLogs：清除系统日志
   - addLog：添加系统日志
 
 **announcementController.js**
 - **功能**：处理公告相关操作
 - **方法**：
-  - getAnnouncements：获取公告列表
-  - addAnnouncement：添加公告
+  - getAllAnnouncements：获取公告列表
+  - getAnnouncementById：获取单个公告
+  - createAnnouncement：创建公告
   - updateAnnouncement：更新公告
   - deleteAnnouncement：删除公告
 
@@ -298,9 +331,8 @@ backend/
 - **功能**：处理统计相关操作
 - **方法**：
   - getBorrowStats：获取借阅统计
-  - getUserStats：获取用户统计
-  - getBookStats：获取书籍统计
-  - getCategoryStats：获取分类统计
+  - getMonthlyStats：获取月度借阅统计
+  - getPopularBooksStats：获取热门图书统计
 
 ### 3.3 数据库设计
 
@@ -313,7 +345,10 @@ backend/
 | 用户管理 | /api/users | 登录、注册、用户CRUD |
 | 书籍管理 | /api/books | 书籍CRUD、分类管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约 |
-| 系统管理 | /api/settings | 系统设置、公告、日志 |
+| 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
+| 系统管理 | /api/system | 系统设置 |
+| 公告管理 | /api/announcements | 公告CRUD |
+| 日志管理 | /api/logs | 系统日志 |
 | 统计分析 | /api/stats | 各种统计数据 |
 
 ### 3.5 安全设计
@@ -341,7 +376,7 @@ backend/
 
 1. 用户访问登录页面
 2. 输入用户名和密码
-3. 前端发送登录请求到 `/api/login`
+3. 前端发送登录请求到 `/api/users/login`
 4. 后端验证用户凭据
 5. 生成JWT token并返回
 6. 前端存储token到本地存储
@@ -385,7 +420,7 @@ backend/
 1. 用户访问个人借阅记录页面
 2. 选择要归还的书籍
 3. 点击归还按钮
-4. 前端发送归还请求到 `/api/return`
+4. 前端发送归还请求到 `/api/borrow/return`
 5. 后端检查借阅记录
 6. 更新借阅记录和书籍状态
 7. 计算罚款（如果有）

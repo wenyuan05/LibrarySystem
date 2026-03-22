@@ -39,6 +39,7 @@
 - max_borrows: 5 (最大借阅数量)
 - max_reservations: 3 (最大预约数量)
 - blacklist_days: 30 (拉黑天数)
+- borrow_confirm_minutes: 60 (借阅确认时长，分钟)
 
 ### 2.2 categories 表
 
@@ -51,7 +52,7 @@
 | description | TEXT | | 分类描述 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-**默认分类**：文学、历史、科技、艺术、教育
+**默认分类**：Literature、History、Science、Art、Education
 
 ### 2.3 book_categories 表
 
@@ -87,7 +88,6 @@
 | title | TEXT | NOT NULL | 书名 |
 | author | TEXT | NOT NULL | 作者 |
 | isbn | TEXT | NOT NULL UNIQUE | ISBN号 |
-| status | TEXT | DEFAULT 'available' | 状态（available/borrowed/reserved） |
 | description | TEXT | | 描述 |
 | cover_image | TEXT | | 封面图片 |
 | total_copies | INTEGER | DEFAULT 1 | 总副本数 |
@@ -99,7 +99,19 @@
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.6 users 表
+### 2.6 book_copies 表
+
+**功能**：存储书籍副本信息
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| book_id | INTEGER | NOT NULL | 书籍ID，外键关联books表 |
+| status | TEXT | DEFAULT 'available' | 状态（available/borrowing/borrowed/reserved） |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+### 2.7 users 表
 
 **功能**：存储用户信息
 
@@ -132,8 +144,9 @@
 | confirm_deadline | TEXT | | 确认截止时间 |
 | status | TEXT | DEFAULT 'borrowed' | 状态（borrowing/borrowed/returning/returned/overdue/timeout） |
 | fine | REAL | DEFAULT 0 | 罚款金额 |
+| renew_count | INTEGER | DEFAULT 0 | 续借次数 |
 
-### 2.8 reservation_records 表
+### 2.9 reservation_records 表
 
 **功能**：存储书籍预约记录
 
@@ -146,7 +159,7 @@
 | status | TEXT | DEFAULT 'pending' | 状态（pending/confirmed/canceled） |
 | notification_sent | INTEGER | DEFAULT 0 | 是否已发送通知 |
 
-### 2.9 system_logs 表
+### 2.10 system_logs 表
 
 **功能**：存储系统操作日志
 
@@ -159,7 +172,7 @@
 | ip_address | TEXT | | 操作IP地址 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 操作时间 |
 
-### 2.10 announcements 表
+### 2.11 announcements 表
 
 **功能**：存储系统公告
 
@@ -178,7 +191,6 @@
 | 索引名 | 表名 | 字段 | 类型 | 描述 |
 |--------|------|------|------|------|
 | idx_books_isbn | books | isbn | UNIQUE | 加速ISBN查询 |
-| idx_books_status | books | status | | 加速状态查询 |
 | idx_users_username | users | username | UNIQUE | 加速用户名查询 |
 | idx_users_role | users | role | | 加速角色查询 |
 | idx_borrow_records_user_id | borrow_records | user_id | | 加速用户借阅记录查询 |
@@ -247,13 +259,18 @@
 - max_borrows: 5
 - max_reservations: 3
 - blacklist_days: 30
+- borrow_confirm_minutes: 60
 
 ### 5.4 图书分类
-- 文学
-- 历史
-- 科技
-- 艺术
-- 教育
+- Literature
+- History
+- Science
+- Art
+- Education
+
+### 5.5 书籍副本
+- 为每本书创建3个副本
+- 第三本书的第一个副本初始状态为borrowed，其他为available
 
 ## 6. 数据安全
 

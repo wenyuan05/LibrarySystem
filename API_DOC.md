@@ -27,7 +27,7 @@
 
 ### 3.1 用户管理接口
 
-#### 3.1.1 POST /api/login
+#### 3.1.1 POST /api/users/login
 **功能**：用户登录
 
 **请求体**：
@@ -50,7 +50,7 @@
 }
 ```
 
-#### 3.1.2 POST /api/register
+#### 3.1.2 POST /api/users/register
 **功能**：用户注册
 
 **请求体**：
@@ -113,7 +113,7 @@
 
 #### 3.1.5 POST /api/users
 **功能**：添加用户
-**权限**：admin
+**权限**：admin/librarian
 
 **请求体**：
 ```json
@@ -164,7 +164,7 @@
 
 #### 3.1.7 DELETE /api/users/:id
 **功能**：删除用户
-**权限**：admin
+**权限**：admin/librarian
 
 **响应**：
 ```json
@@ -228,7 +228,7 @@
 }
 ```
 
-#### 3.1.12 POST /api/password/reset/request
+#### 3.1.12 POST /api/users/reset-password/request
 **功能**：请求密码重置
 
 **请求体**：
@@ -297,7 +297,7 @@
   "publish_date": "1925-04-10",
   "language": "English",
   "page_count": 180,
-  "categories": ["文学"]
+  "categories": ["Literature"]
 }
 ```
 
@@ -367,38 +367,90 @@
 }
 ```
 
-#### 3.2.6 GET /api/categories
-**功能**：获取分类列表
+#### 3.2.6 GET /api/books/search
+**功能**：搜索书籍
+
+**查询参数**：
+- `q`：搜索关键词
 
 **响应**：
 ```json
 [
   {
     "id": 1,
-    "name": "文学",
-    "description": "文学类书籍"
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "isbn": "9780743273565",
+    "status": "available"
   }
 ]
 ```
 
-#### 3.2.7 POST /api/categories
-**功能**：添加分类
+#### 3.2.7 GET /api/books/popular
+**功能**：获取热门书籍
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "isbn": "9780743273565",
+    "borrow_count": 10
+  }
+]
+```
+
+#### 3.2.8 GET /api/books/export
+**功能**：导出书籍信息到CSV
+**权限**：admin/librarian
+
+**响应**：
+- CSV文件下载
+
+#### 3.2.9 GET /api/books/:book_id/copies
+**功能**：获取书籍的所有副本
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "book_id": 1,
+    "status": "available"
+  }
+]
+```
+
+#### 3.2.10 GET /api/books/copies/:id
+**功能**：获取单个副本信息
+
+**响应**：
+```json
+{
+  "id": 1,
+  "book_id": 1,
+  "status": "available"
+}
+```
+
+#### 3.2.11 PUT /api/books/copies/:id/status
+**功能**：更新副本状态
 **权限**：admin/librarian
 
 **请求体**：
 ```json
 {
-  "name": "哲学",
-  "description": "哲学类书籍"
+  "status": "available"
 }
 ```
 
 **响应**：
 ```json
 {
-  "id": 6,
-  "name": "哲学",
-  "description": "哲学类书籍"
+  "id": 1,
+  "status": "available"
 }
 ```
 
@@ -540,7 +592,7 @@
 ]
 ```
 
-#### 3.3.4 POST /api/reservations
+#### 3.3.8 POST /api/borrow/reserve
 **功能**：预约书籍
 
 **请求体**：
@@ -561,9 +613,8 @@
 }
 ```
 
-#### 3.3.5 GET /api/reservations
-**功能**：获取预约记录列表
-**权限**：admin/librarian
+#### 3.3.9 GET /api/borrow/reservations/:user_id
+**功能**：获取用户的预约记录
 
 **响应**：
 ```json
@@ -571,7 +622,6 @@
   {
     "id": 1,
     "user_id": 2,
-    "username": "user1",
     "book_id": 1,
     "title": "The Great Gatsby",
     "reservation_date": "2024-01-01",
@@ -580,9 +630,151 @@
 ]
 ```
 
-### 3.4 系统管理接口
+#### 3.3.10 POST /api/borrow/renew
+**功能**：续借图书
 
-#### 3.4.1 GET /api/settings
+**请求体**：
+```json
+{
+  "record_id": 10
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Book renewed successfully",
+  "new_due_date": "2024-01-29"
+}
+```
+
+### 3.4 分类管理接口
+
+#### 3.4.1 GET /api/categories
+**功能**：获取分类列表
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "name": "Literature",
+    "description": "Literature books"
+  }
+]
+```
+
+#### 3.4.2 GET /api/categories/:id
+**功能**：获取单个分类
+
+**响应**：
+```json
+{
+  "id": 1,
+  "name": "Literature",
+  "description": "Literature books"
+}
+```
+
+#### 3.4.3 POST /api/categories
+**功能**：添加分类
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "name": "Philosophy",
+  "description": "Philosophy books"
+}
+```
+
+**响应**：
+```json
+{
+  "id": 6,
+  "name": "Philosophy",
+  "description": "Philosophy books"
+}
+```
+
+#### 3.4.4 PUT /api/categories/:id
+**功能**：更新分类
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "name": "Updated Category",
+  "description": "Updated description"
+}
+```
+
+**响应**：
+```json
+{
+  "id": 1,
+  "name": "Updated Category",
+  "description": "Updated description"
+}
+```
+
+#### 3.4.5 DELETE /api/categories/:id
+**功能**：删除分类
+**权限**：admin/librarian
+
+**响应**：
+```json
+{
+  "message": "Category deleted"
+}
+```
+
+#### 3.4.6 GET /api/categories/book/:bookId
+**功能**：获取图书的分类
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "name": "Literature",
+    "description": "Literature books"
+  }
+]
+```
+
+#### 3.4.7 POST /api/categories/book/:bookId
+**功能**：为图书添加分类
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "category_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Category added to book"
+}
+```
+
+#### 3.4.8 DELETE /api/categories/book/:bookId/:categoryId
+**功能**：从图书中移除分类
+**权限**：admin/librarian
+
+**响应**：
+```json
+{
+  "message": "Category removed from book"
+}
+```
+
+### 3.5 系统管理接口
+
+#### 3.5.1 GET /api/system/settings
 **功能**：获取系统设置
 **权限**：admin
 
@@ -598,13 +790,14 @@
 ]
 ```
 
-#### 3.4.2 PUT /api/settings/:key
+#### 3.5.2 PUT /api/system/settings
 **功能**：更新系统设置
 **权限**：admin
 
 **请求体**：
 ```json
 {
+  "key": "borrow_period_days",
   "value": "21"
 }
 ```
@@ -618,7 +811,7 @@
 }
 ```
 
-#### 3.4.3 GET /api/announcements
+#### 3.5.3 GET /api/announcements
 **功能**：获取公告列表
 
 **响应**：
@@ -636,7 +829,23 @@
 ]
 ```
 
-#### 3.4.4 POST /api/announcements
+#### 3.5.4 GET /api/announcements/:id
+**功能**：获取单个公告
+
+**响应**：
+```json
+{
+  "id": 1,
+  "title": "系统更新通知",
+  "content": "图书馆系统已完成更新",
+  "author_id": 1,
+  "author_name": "Admin User",
+  "is_published": 1,
+  "created_at": "2024-01-01 00:00:00"
+}
+```
+
+#### 3.5.5 POST /api/announcements
 **功能**：添加公告
 **权限**：admin
 
@@ -660,7 +869,41 @@
 }
 ```
 
-#### 3.4.5 GET /api/logs
+#### 3.5.6 PUT /api/announcements/:id
+**功能**：更新公告
+**权限**：admin
+
+**请求体**：
+```json
+{
+  "title": "更新的公告",
+  "content": "更新的内容",
+  "is_published": 1
+}
+```
+
+**响应**：
+```json
+{
+  "id": 1,
+  "title": "更新的公告",
+  "content": "更新的内容",
+  "is_published": 1
+}
+```
+
+#### 3.5.7 DELETE /api/announcements/:id
+**功能**：删除公告
+**权限**：admin
+
+**响应**：
+```json
+{
+  "message": "Announcement deleted"
+}
+```
+
+#### 3.5.8 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -679,9 +922,20 @@
 ]
 ```
 
-### 3.5 统计分析接口
+#### 3.5.9 DELETE /api/logs/clear
+**功能**：清除系统日志
+**权限**：admin
 
-#### 3.5.1 GET /api/stats/borrow
+**响应**：
+```json
+{
+  "message": "Logs cleared successfully"
+}
+```
+
+### 3.6 统计分析接口
+
+#### 3.6.1 GET /api/stats/borrow-stats
 **功能**：获取借阅统计
 **权限**：admin/librarian
 
@@ -695,32 +949,32 @@
 }
 ```
 
-#### 3.5.2 GET /api/stats/users
-**功能**：获取用户统计
+#### 3.6.2 GET /api/stats/monthly-stats
+**功能**：获取月度借阅统计
 **权限**：admin/librarian
 
 **响应**：
 ```json
 {
-  "total_users": 50,
-  "active_users": 45,
-  "blocked_users": 5,
-  "new_users_today": 2
+  "months": ["Jan", "Feb", "Mar"],
+  "borrow_counts": [10, 15, 20]
 }
 ```
 
-#### 3.5.3 GET /api/stats/books
-**功能**：获取书籍统计
-**权限**：admin/librarian
+#### 3.6.3 GET /api/stats/popular-books
+**功能**：获取热门图书统计
+**权限**：所有登录用户
 
 **响应**：
 ```json
-{
-  "total_books": 1000,
-  "available_books": 800,
-  "borrowed_books": 150,
-  "reserved_books": 50
-}
+[
+  {
+    "id": 1,
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "borrow_count": 10
+  }
+]
 ```
 
 ## 4. 错误处理
@@ -750,7 +1004,7 @@
 
 ```javascript
 // 登录
-fetch('http://localhost:3001/api/login', {
+fetch('http://localhost:3001/api/users/login', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -800,7 +1054,7 @@ api.interceptors.request.use(config => {
 });
 
 // 登录
-api.post('/login', {
+api.post('/users/login', {
   username: 'admin',
   password: 'admin123'
 }).then(response => {
