@@ -594,6 +594,93 @@
   }
 }
 
+/* 副本管理样式 */
+.copies-management {
+  margin-top: var(--spacing-md);
+}
+
+.copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.copy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-tertiary);
+}
+
+.copy-id {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.copy-status-control select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.unavailable-copies-section {
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.unavailable-copies-section h4 {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.unavailable-copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.unavailable-copy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-tertiary);
+}
+
+.unavailable-copy-item span {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.add-copy-section {
+  margin-top: var(--spacing-md);
+}
+
+.btn-small {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-small:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .book-detail-section {
@@ -614,6 +701,30 @@
   }
   
   .book-detail-section .book-actions button {
+    width: 100%;
+  }
+  
+  .copy-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .copy-status-control {
+    width: 100%;
+  }
+  
+  .copy-status-control select {
+    width: 100%;
+  }
+  
+  .unavailable-copy-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .unavailable-copy-item button {
     width: 100%;
   }
 }

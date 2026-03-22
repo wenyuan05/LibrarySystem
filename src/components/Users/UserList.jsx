@@ -120,17 +120,21 @@ const UserList = () => {
     }
   };
 
-  // 处理搜索
-  const handleSearch = (e) => {
+  // 处理搜索输入变化
+  const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-    if (term.trim() === '') {
+  };
+
+  // 处理搜索按钮点击
+  const handleSearchClick = () => {
+    if (searchTerm.trim() === '') {
       setFilteredUsers(users);
     } else {
       const filtered = users.filter(userItem => 
-        (userItem.username || '').toLowerCase().includes(term.toLowerCase()) ||
-        (userItem.name || '').toLowerCase().includes(term.toLowerCase()) ||
-        (userItem.email || '').toLowerCase().includes(term.toLowerCase())
+        (userItem.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (userItem.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (userItem.email || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredUsers(filtered);
     }
@@ -167,13 +171,18 @@ const UserList = () => {
           </button>
         )}
         <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search users by username, name, or email..."
-            value={searchTerm}
-            onChange={handleSearch}
-            className="search-input"
-          />
+          <div className="search-input-container">
+            <input
+              type="text"
+              placeholder="Search users by username, name, or email..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="search-input"
+            />
+          </div>
+          <button className="search-button" onClick={handleSearchClick}>
+            🔍
+          </button>
         </div>
       </div>
       

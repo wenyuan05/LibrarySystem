@@ -151,6 +151,14 @@ export const booksAPI = {
   getCopyById: async (copyId) => {
     return request(`/books/copies/${copyId}`);
   },
+  
+  // 更新副本状态
+  updateCopyStatus: async (copyId, status) => {
+    return request(`/books/copies/${copyId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
 };
 
 // 用户相关API

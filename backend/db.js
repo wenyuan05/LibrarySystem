@@ -116,6 +116,7 @@ db.serialize(() => {
       confirm_deadline TEXT,
       status TEXT DEFAULT 'borrowed',
       fine REAL DEFAULT 0,
+      renew_count INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (book_id) REFERENCES books(id),
       FOREIGN KEY (copy_id) REFERENCES book_copies(id)
@@ -193,6 +194,11 @@ db.serialize(() => {
   db.run('ALTER TABLE books ADD COLUMN page_count INTEGER', (err) => {
     // 字段已存在，忽略错误
   });
+  
+  // 为现有借阅记录表添加renew_count字段
+  db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
+    // 字段已存在，忽略错误
+  });
 
   // 插入一些示例数据
   const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -213,29 +219,46 @@ db.serialize(() => {
 
   // 插入图书分类示例数据
   const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, description) VALUES (?, ?)');
-  insertCategory.run('文学', '文学类书籍');
-  insertCategory.run('历史', '历史类书籍');
-  insertCategory.run('科技', '科技类书籍');
-  insertCategory.run('艺术', '艺术类书籍');
-  insertCategory.run('教育', '教育类书籍');
+  insertCategory.run('Literature', 'Literature books');
+  insertCategory.run('History', 'History books');
+  insertCategory.run('Science', 'Science and technology books');
+  insertCategory.run('Art', 'Art books');
+  insertCategory.run('Education', 'Education books');
   insertCategory.finalize();
 
   // 为书籍创建分类关联
-  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 1 AND c.name = "文学"');
-  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 2 AND c.name = "历史"');
-  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 3 AND c.name = "科技"');
+  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 1 AND c.name = "Literature"');
+  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 2 AND c.name = "History"');
+  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 3 AND c.name = "Science"');
+  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 1 AND c.name = "Art"');
+  db.run('INSERT OR IGNORE INTO book_categories (book_id, category_id) SELECT b.id, c.id FROM books b, categories c WHERE b.id = 2 AND c.name = "Education"');
 
-  // 为示例书籍创建副本
-  const insertCopy = db.prepare('INSERT OR IGNORE INTO book_copies (book_id, status) VALUES (?, ?)');
-  // 为每本书创建3个副本
+  // 为示例书籍创建副本，确保每本书只有3个副本
   for (let bookId = 1; bookId <= 3; bookId++) {
-    for (let i = 0; i < 3; i++) {
-      // 第一本书的第一个副本设为borrowed，其他为available
-      const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
-      insertCopy.run(bookId, status);
-    }
+    // 检查当前副本数量
+    db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [bookId], (err, result) => {
+      if (err) {
+        console.error('Error checking copy count:', err.message);
+        return;
+      }
+      
+      const currentCount = result.count || 0;
+      const targetCount = 3;
+      
+      // 只创建需要的副本
+      if (currentCount < targetCount) {
+        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+        
+        for (let i = currentCount; i < targetCount; i++) {
+          // 第一本书的第一个副本设为borrowed，其他为available
+          const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
+          insertCopy.run(bookId, status);
+        }
+        
+        insertCopy.finalize();
+      }
+    });
   }
-  insertCopy.finalize();
 
   // 插入示例用户数据（使用密码哈希）
   const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
@@ -245,40 +268,7 @@ db.serialize(() => {
   insertUser.run('user1', userPasswordHash, 'user', 'Test User', 'user@example.com');
   insertUser.finalize();
 
-  // 插入示例借阅记录数据
-  const insertBorrowRecord = db.prepare('INSERT OR IGNORE INTO borrow_records (user_id, book_id, copy_id, borrow_date, due_date, return_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  
-  // 生成2024年的样本借阅数据
-  const currentYear = 2024;
-  for (let month = 1; month <= 12; month++) {
-    // 每个月生成2-5条借阅记录
-    const recordCount = Math.floor(Math.random() * 4) + 2;
-    for (let i = 0; i < recordCount; i++) {
-      const day = Math.floor(Math.random() * 28) + 1;
-      const borrowDate = `${currentYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-      const dueDate = `${currentYear}-${month.toString().padStart(2, '0')}-${Math.min(day + 14, 28).toString().padStart(2, '0')}`;
-      
-      // 70%的概率已归还
-      const isReturned = Math.random() < 0.7;
-      const returnDate = isReturned ? `${currentYear}-${month.toString().padStart(2, '0')}-${Math.min(day + Math.floor(Math.random() * 10) + 1, 28).toString().padStart(2, '0')}` : null;
-      const status = isReturned ? 'returned' : 'borrowed';
-      
-      // 为每本书分配一个副本ID（1-3）
-      const bookId = Math.floor(Math.random() * 3) + 1;
-      const copyId = (bookId - 1) * 3 + (Math.floor(Math.random() * 3) + 1);
-      
-      insertBorrowRecord.run(
-        2, // user1
-        bookId, // 随机书籍1-3
-        copyId, // 对应的副本ID
-        borrowDate,
-        dueDate,
-        returnDate,
-        status
-      );
-    }
-  }
-  insertBorrowRecord.finalize();
+
   
   // 插入额外的用户
   const insertAdditionalUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
@@ -291,7 +281,6 @@ db.serialize(() => {
   // 添加索引以提高查询性能
   // 书籍表索引
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)');
-  db.run('CREATE INDEX IF NOT EXISTS idx_books_status ON books(status)');
   
   // 用户表索引
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)');

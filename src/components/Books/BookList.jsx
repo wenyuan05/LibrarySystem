@@ -308,7 +308,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     >
                       Confirm Borrow
                     </button>
-                  ) : (book.status === 'available' && book.available_copies > 0) ? (
+                  ) : copies.get(book.id)?.filter(c => c.status === 'available').length > 0 ? (
                     <button 
                       className="btn-warning"
                       onClick={(e) => { e.stopPropagation(); handleBorrowBook(book.id); }}
@@ -316,16 +316,35 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     >
                       {borrowingBooks.has(book.id) ? 'Processing...' : 'Borrow'}
                     </button>
-                  ) : borrowRecords.some(record => record.book_id === book.id) ? (
-                    <button 
-                      className="btn-info"
-                      onClick={(e) => { e.stopPropagation(); handleReturnBook(book.id); }}
-                    >
-                      Return
-                    </button>
-                  ) : (
-                    // 检查用户是否已经预约了这本书
-                    (() => {
+                  ) : (() => {
+                    const borrowRecord = borrowRecords.find(record => record.book_id === book.id);
+                    if (borrowRecord) {
+                      if (borrowRecord.status === 'borrowing') {
+                        return (
+                          <button 
+                            className="btn-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBookId(book.id);
+                              setSelectedBorrowRecord(borrowRecord);
+                              setSelectedCopyId(borrowRecord.copy_id);
+                              setShowConfirmModal(true);
+                            }}
+                          >
+                            Confirm
+                          </button>
+                        );
+                      } else {
+                        return (
+                          <button 
+                            className="btn-info"
+                            onClick={(e) => { e.stopPropagation(); handleReturnBook(book.id); }}
+                          >
+                            Return
+                          </button>
+                        );
+                      }
+                    } else {
                       const userReservation = reservationRecords.find(record => record.book_id === book.id);
                       return userReservation ? (
                         <button 
@@ -334,16 +353,16 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                         >
                           Cancel Reservation
                         </button>
-                      ) : (
+                      ) : book.available_copies <= 0 ? (
                         <button 
                           className="btn-secondary"
                           onClick={(e) => { e.stopPropagation(); handleReserveBook(book.id); }}
                         >
                           Reserve
                         </button>
-                      );
-                    })()
-                  )
+                      ) : null;
+                    }
+                  })()
                 ) : (
                   <>
                     {showEditButton && (

@@ -11,6 +11,7 @@
 | book_categories | 图书分类关联 |
 | user_status | 用户状态 |
 | books | 书籍信息 |
+| book_copies | 书籍副本信息 |
 | users | 用户信息 |
 | borrow_records | 借阅记录 |
 | reservation_records | 预约记录 |
@@ -115,7 +116,7 @@
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.7 borrow_records 表
+### 2.8 borrow_records 表
 
 **功能**：存储书籍借阅记录
 
@@ -205,17 +206,21 @@
 │ username        │
 │ password        │     ┌─────────────────┐     ┌─────────────────┐
 │ role            │─────┤ borrow_records  │─────┤ books           │
-│ name            │     └─────────────────┘     ├─────────────────┤
-│ email           │                             │ id (PK)         │
-└─────────────────┘                             │ title           │
+└─────────────────┘     └─────────────────┘     ├─────────────────┤
+                                                │ id (PK)         │
+                                                │ title           │
                                                 │ author          │
 ┌─────────────────┐     ┌─────────────────┐     │ isbn            │
 │ announcements   │─────┤ reservation_records │  └─────────────────┘
 └─────────────────┘     └─────────────────┘          │
                                                       │
-┌─────────────────┐     ┌─────────────────┐          │
-│ categories      │─────┤ book_categories │──────────┘
-└─────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐          │     ┌─────────────────┐
+│ categories      │─────┤ book_categories │──────────┘     │ book_copies     │
+└─────────────────┘     └─────────────────┘                ├─────────────────┤
+                                                         │ id (PK)         │
+                                                         │ book_id (FK)    │
+                                                         │ status          │
+                                                         └─────────────────┘
 
 ┌─────────────────┐
 │ system_settings │
@@ -233,7 +238,7 @@
 
 ### 5.2 示例用户
 - 管理员：admin / admin123
-- 图书管理员：librarian / librarian123
+- 图书管理员：librarian / admin123
 - 普通用户：user1 / user123
 
 ### 5.3 系统参数

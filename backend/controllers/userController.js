@@ -106,28 +106,42 @@ exports.register = (req, res) => {
 exports.getUserById = (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT id, username, role, name, email, phone, address FROM users WHERE id = ?', [id], (err, user) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+  db.get(
+    `SELECT u.id, u.username, u.role, u.name, u.email, u.phone, u.address, 
+            COALESCE(us.status, 'active') as status 
+     FROM users u 
+     LEFT JOIN user_status us ON u.id = us.user_id 
+     WHERE u.id = ?`,
+    [id],
+    (err, user) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      res.json(user);
     }
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    res.json(user);
-  });
+  );
 };
 
 // 获取所有用户（管理员）
 exports.getAllUsers = (req, res) => {
-  db.all('SELECT id, username, role, name, email, phone, address FROM users', (err, users) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+  db.all(
+    `SELECT u.id, u.username, u.role, u.name, u.email, u.phone, u.address, 
+            COALESCE(us.status, 'active') as status 
+     FROM users u 
+     LEFT JOIN user_status us ON u.id = us.user_id`,
+    (err, users) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(users);
     }
-    res.json(users);
-  });
+  );
 };
 
 // 添加用户（管理员）
@@ -231,22 +245,31 @@ exports.updateUser = (req, res) => {
     }
     
     // 获取更新后的用户信息
-    db.get('SELECT id, username, role, name, email, phone, address FROM users WHERE id = ?', [id], (err, user) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
+    db.get(
+      `SELECT u.id, u.username, u.role, u.name, u.email, u.phone, u.address, 
+              COALESCE(us.status, 'active') as status 
+       FROM users u 
+       LEFT JOIN user_status us ON u.id = us.user_id 
+       WHERE u.id = ?`,
+      [id],
+      (err, user) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        // 确保返回完整的用户信息，包括role和status字段
+        res.json({
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          address: user.address,
+          status: user.status
+        });
       }
-      // 确保返回完整的用户信息，包括role字段
-      res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        address: user.address
-      });
-    });
+    );
   });
 };
 

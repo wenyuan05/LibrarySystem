@@ -2,7 +2,7 @@ const db = require('../db');
 
 // 获取所有书籍（无需登录，公开访问）
 exports.getAllBooks = (req, res) => {
-  db.all('SELECT * FROM books', (err, rows) => {
+  db.all('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books', (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -14,7 +14,7 @@ exports.getAllBooks = (req, res) => {
 // 获取单本书籍（无需登录，公开访问）
 exports.getBookById = (req, res) => {
   const { id } = req.params;
-  db.get('SELECT * FROM books WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books WHERE id = ?', [id], (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -235,7 +235,7 @@ exports.updateBook = (req, res) => {
                           }
                           
                           // 返回更新后的书籍信息
-                          db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+                          db.get('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books WHERE id = ?', [id], (err, book) => {
                             if (err) {
                               db.run('ROLLBACK');
                               res.status(500).json({ error: err.message });
@@ -303,7 +303,7 @@ exports.updateBook = (req, res) => {
                             }
                             
                             // 返回更新后的书籍信息
-                            db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+                            db.get('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books WHERE id = ?', [id], (err, book) => {
                               if (err) {
                                 db.run('ROLLBACK');
                                 res.status(500).json({ error: err.message });
@@ -326,7 +326,7 @@ exports.updateBook = (req, res) => {
               });
             } else {
               // 副本数量不变，直接返回
-              db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+              db.get('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books WHERE id = ?', [id], (err, book) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -344,7 +344,7 @@ exports.updateBook = (req, res) => {
           });
         } else {
           // 没有更新副本数量，直接返回
-          db.get('SELECT * FROM books WHERE id = ?', [id], (err, book) => {
+          db.get('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books WHERE id = ?', [id], (err, book) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
@@ -376,41 +376,56 @@ exports.deleteBook = (req, res) => {
         return;
       }
 
-      // 删除图书分类关联
-      db.run('DELETE FROM book_categories WHERE book_id = ?', [id], (err) => {
+      // 检查是否有正常借阅的记录（排除逾期记录）
+      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
 
-        // 删除书籍副本
-        db.run('DELETE FROM book_copies WHERE book_id = ?', [id], (err) => {
+        if (result.count > 0) {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete book: it has active borrowing records' });
+          return;
+        }
+
+        // 删除图书分类关联
+        db.run('DELETE FROM book_categories WHERE book_id = ?', [id], (err) => {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
             return;
           }
 
-          // 删除书籍
-          db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
+          // 删除书籍副本
+          db.run('DELETE FROM book_copies WHERE book_id = ?', [id], (err) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (this.changes === 0) {
-              db.run('ROLLBACK');
-              res.status(404).json({ error: 'Book not found' });
-              return;
-            }
 
-            db.run('COMMIT', (err) => {
+            // 删除书籍
+            db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
               if (err) {
+                db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
                 return;
               }
-              res.json({ message: 'Book deleted' });
+              if (this.changes === 0) {
+                db.run('ROLLBACK');
+                res.status(404).json({ error: 'Book not found' });
+                return;
+              }
+
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({ message: 'Book deleted' });
+              });
             });
           });
         });
@@ -428,7 +443,7 @@ exports.searchBooks = (req, res) => {
     return;
   }
 
-  let sql = 'SELECT b.* FROM books b';
+  let sql = 'SELECT b.id, b.title, b.author, b.isbn, b.description, b.cover_image, b.total_copies, b.available_copies, b.publisher, b.publish_date, b.language, b.page_count, b.created_at, b.updated_at FROM books b';
   const params = [];
 
   // 如果指定了分类，添加分类关联
@@ -467,7 +482,7 @@ exports.getPopularBooks = (req, res) => {
   
   // 通过统计借阅次数来获取热门图书
   const sql = `
-    SELECT b.*, COUNT(br.id) as borrow_count 
+    SELECT b.id, b.title, b.author, b.isbn, b.description, b.cover_image, b.total_copies, b.available_copies, b.publisher, b.publish_date, b.language, b.page_count, b.created_at, b.updated_at, COUNT(br.id) as borrow_count 
     FROM books b
     LEFT JOIN borrow_records br ON b.id = br.book_id
     GROUP BY b.id
@@ -488,7 +503,7 @@ exports.getPopularBooks = (req, res) => {
 exports.exportBooks = (req, res) => {
   // 查询所有图书信息
   const sql = `
-    SELECT b.id, b.title, b.author, b.isbn, b.status, 
+    SELECT b.id, b.title, b.author, b.isbn, 
            b.description, b.total_copies, b.available_copies,
            b.publisher, b.publish_date, b.language, b.page_count,
            GROUP_CONCAT(c.name, ', ') as categories
@@ -513,7 +528,7 @@ exports.exportBooks = (req, res) => {
         `"${book.title}"`,
         `"${book.author}"`,
         book.isbn,
-        book.status,
+        book.available_copies > 0 ? 'Available' : 'Not Available',
         `"${book.description || ''}"`,
         book.total_copies,
         book.available_copies,
@@ -561,5 +576,80 @@ exports.getCopyById = (req, res) => {
       return;
     }
     res.json(copy);
+  });
+};
+
+// 更新副本状态（管理员/图书管理员）
+exports.updateCopyStatus = (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  console.log('Update copy status request received:', { id, status });
+  
+  // 验证状态值
+  const validStatuses = ['available', 'unavailable', 'borrowing', 'borrowed', 'reserved'];
+  if (!validStatuses.includes(status)) {
+    res.status(400).json({ error: 'Invalid status. Valid statuses are: available, unavailable, borrowing, borrowed, reserved' });
+    return;
+  }
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 更新副本状态
+      db.run('UPDATE book_copies SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, id], function(err) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Copy not found' });
+          return;
+        }
+
+        // 获取副本信息以获取book_id
+        db.get('SELECT book_id FROM book_copies WHERE id = ?', [id], (err, copy) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          // 重新计算可用副本数
+          db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [copy.book_id, 'available'], (err, result) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+
+            // 更新书籍表中的可用副本数
+            db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, copy.book_id], (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              // 提交事务
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({ message: 'Copy status updated successfully' });
+              });
+            });
+          });
+        });
+      });
+    });
   });
 };

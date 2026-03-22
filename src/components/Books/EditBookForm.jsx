@@ -3,7 +3,7 @@ import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const EditBookForm = ({ book, onEditComplete, onCancel }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: 1, status: 'available', description: '', cover_image: '' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', description: '', cover_image: '' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -11,6 +11,8 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [copies, setCopies] = useState([]);
+  const [copiesLoading, setCopiesLoading] = useState(false);
   const titleInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -35,6 +37,20 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       }
     };
 
+    const fetchCopies = async () => {
+      if (book) {
+        try {
+          setCopiesLoading(true);
+          const bookCopies = await booksAPI.getCopies(book.id);
+          setCopies(bookCopies);
+        } catch (error) {
+          console.error('Error fetching copies:', error);
+        } finally {
+          setCopiesLoading(false);
+        }
+      }
+    };
+
     if (book) {
       setFormData({
         title: book.title || '',
@@ -42,8 +58,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         isbn: book.isbn || '',
         description: book.description || '',
         cover_image: book.cover_image || '',
-        total_copies: book.total_copies || 1,
-        status: book.status || 'available',
         publisher: book.publisher || '',
         publish_date: book.publish_date || '',
         language: book.language || 'Chinese',
@@ -56,6 +70,8 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       
       // 获取分类数据
       fetchBookCategories();
+      // 获取副本数据
+      fetchCopies();
     }
   }, [book]);
 
@@ -106,6 +122,40 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     });
   };
 
+  // 处理副本状态更新
+  const handleCopyStatusChange = async (copyId, newStatus) => {
+    try {
+      await booksAPI.updateCopyStatus(copyId, newStatus);
+      // 重新获取副本列表
+      const bookCopies = await booksAPI.getCopies(book.id);
+      setCopies(bookCopies);
+    } catch (error) {
+      console.error('Error updating copy status:', error);
+      setError('Failed to update copy status');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // 处理添加副本
+  const handleAddCopy = async () => {
+    try {
+      // 调用update接口，增加total_copies
+      await booksAPI.update(book.id, { total_copies: book.total_copies + 1 });
+      // 重新获取副本列表
+      const bookCopies = await booksAPI.getCopies(book.id);
+      setCopies(bookCopies);
+      // 更新书籍信息
+      if (onEditComplete) {
+        const updatedBook = await booksAPI.getById(book.id);
+        onEditComplete(updatedBook);
+      }
+    } catch (error) {
+      console.error('Error adding copy:', error);
+      setError('Failed to add copy');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -135,13 +185,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       setIsSubmitting(false);
       return;
     }
-    
-    // 验证available_copies <= total_copies
-    if (formData.available_copies > formData.total_copies) {
-      setError('Available copies cannot exceed total copies');
-      setIsSubmitting(false);
-      return;
-    }
 
     try {
       // 调用后端 API 更新书籍
@@ -164,6 +207,10 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
           await categoryAPI.addBookCategory(book.id, categoryId);
         }
       }
+      
+      // 重新获取副本列表
+      const bookCopies = await booksAPI.getCopies(book.id);
+      setCopies(bookCopies);
       
       setSuccess('Book updated successfully!');
       // 通知父组件编辑完成
@@ -190,6 +237,9 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   if (!book) {
     return null;
   }
+
+  // 过滤出不可用的副本
+  const unavailableCopies = copies.filter(copy => copy.status === 'unavailable');
 
   return (
     <div className="modal-overlay" onClick={handleModalClose}>
@@ -327,34 +377,7 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               disabled={isSubmitting}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="total_copies">Total Copies:</label>
-            <input
-              type="number"
-              id="total_copies"
-              name="total_copies"
-              min="1"
-              value={formData.total_copies}
-              onChange={handleChange}
-              required
-              disabled={isSubmitting}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="status">Status:</label>
-            <select
-              id="status"
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            >
-              <option value="available">Available</option>
-              <option value="borrowed">Borrowed</option>
-              <option value="reserved">Reserved</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
+
           <div className="form-group">
             <label>Categories:</label>
             {categoriesLoading ? (
@@ -396,6 +419,77 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               </div>
             )}
           </div>
+          
+          {/* 副本管理 */}
+          <div className="form-group">
+            <label>Book Copies:</label>
+            {copiesLoading ? (
+              <p>Loading copies...</p>
+            ) : copies.length === 0 ? (
+              <p>No copies available</p>
+            ) : (
+              <div className="copies-management">
+                <div className="copies-list">
+                  {copies.map(copy => (
+                    <div key={copy.id} className="copy-item">
+                      <span className="copy-id">Copy ID: {copy.id}</span>
+                      <div className="copy-status-control">
+                        <select
+                          value={copy.status}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            handleCopyStatusChange(copy.id, e.target.value);
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <option value="available">Available</option>
+                          <option value="unavailable">Unavailable</option>
+                          <option value="borrowing">Borrowing</option>
+                          <option value="borrowed">Borrowed</option>
+                          <option value="reserved">Reserved</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* 不可用副本列表和添加按钮 */}
+                {unavailableCopies.length > 0 && (
+                  <div className="unavailable-copies-section">
+                    <h4>Unavailable Copies</h4>
+                    <div className="unavailable-copies-list">
+                      {unavailableCopies.map(copy => (
+                        <div key={copy.id} className="unavailable-copy-item">
+                          <span>Copy ID: {copy.id}</span>
+                          <button
+                            type="button"
+                            className="btn-small"
+                            onClick={() => handleCopyStatusChange(copy.id, 'available')}
+                            disabled={isSubmitting}
+                          >
+                            Make Available
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 添加副本按钮 */}
+                <div className="add-copy-section">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleAddCopy}
+                    disabled={isSubmitting}
+                  >
+                    Add Copy
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="form-actions">
             <button 
               type="submit" 

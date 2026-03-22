@@ -61,17 +61,21 @@ const BookManagementPage = () => {
     ));
   };
 
-  // Handle search
-  const handleSearch = (e) => {
+  // Handle search input change
+  const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-    if (term.trim() === '') {
+  };
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    if (searchTerm.trim() === '') {
       setFilteredBooks(books);
     } else {
       const filtered = books.filter(book => 
-        book.title.toLowerCase().includes(term.toLowerCase()) ||
-        book.author.toLowerCase().includes(term.toLowerCase()) ||
-        book.isbn.includes(term)
+        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        book.isbn.includes(searchTerm)
       );
       setFilteredBooks(filtered);
     }
@@ -148,13 +152,18 @@ const BookManagementPage = () => {
           </button> */}
         </div>
         <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search books by title, author, or ISBN..."
-            value={searchTerm}
-            onChange={handleSearch}
-            className="search-input"
-          />
+          <div className="search-input-container">
+            <input
+              type="text"
+              placeholder="Search books by title, author, or ISBN..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="search-input"
+            />
+          </div>
+          <button className="search-button" onClick={handleSearchClick}>
+            🔍
+          </button>
         </div>
       </div>
       

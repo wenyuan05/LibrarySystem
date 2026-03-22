@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { booksAPI, borrowAPI } from '../utils/api';
+import { booksAPI, borrowAPI, usersAPI } from '../utils/api';
 import './BookDetailsPage.css';
 
 const BookDetailsPage = () => {
@@ -21,8 +21,31 @@ const BookDetailsPage = () => {
 
   // 加载书籍详情和副本信息
   useEffect(() => {
-    fetchBookDetails();
-  }, [id]);
+    const loadData = async () => {
+      await fetchBookDetails();
+      // 检查用户是否有该书籍的borrowing状态记录
+      if (user?.id) {
+        try {
+          const data = await usersAPI.getBorrowRecords(user.id);
+          const bookBorrowRecord = data.records.find(record => record.book_id === parseInt(id) && record.status === 'borrowing');
+          if (bookBorrowRecord) {
+            setBorrowRecord(bookBorrowRecord);
+            setSelectedCopyId(bookBorrowRecord.copy_id);
+            // 计算倒计时
+            if (bookBorrowRecord.confirm_deadline) {
+              const deadline = new Date(bookBorrowRecord.confirm_deadline);
+              const now = new Date();
+              const diffInSeconds = Math.max(0, Math.floor((deadline - now) / 1000));
+              setCountdown(diffInSeconds);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to check borrow records:', err);
+        }
+      }
+    };
+    loadData();
+  }, [id, user]);
 
   // 倒计时效果
   useEffect(() => {
@@ -53,8 +76,7 @@ const BookDetailsPage = () => {
       ]);
       setBook(bookData);
       setCopies(copiesData);
-      setBorrowRecord(null);
-      setCountdown(0);
+      // 不要重置borrowRecord和countdown，保持当前状态
     } catch (err) {
       setError('Failed to load book details');
       showToast('Failed to load book details', 'error');
@@ -171,10 +193,8 @@ const BookDetailsPage = () => {
             )}
           </div>
           <div className="book-status">
-            <span className={`status-badge status-${book.status}`}>
-              {book.status === 'available' ? 'Available' : 
-               book.status === 'borrowed' ? 'Borrowed' : 
-               book.status === 'reserved' ? 'Reserved' : book.status}
+            <span className={`status-badge status-${copies.filter(c => c.status === 'available').length > 0 ? 'available' : 'borrowed'}`}>
+              {copies.filter(c => c.status === 'available').length > 0 ? 'Available' : 'Not Available'}
             </span>
             <div className="copies-info">
               <span>Total: {copies.length}</span>
@@ -243,7 +263,7 @@ const BookDetailsPage = () => {
 
           {user && user.role === 'user' && (
             <div className="book-actions">
-              {!borrowRecord && book.status === 'available' && (
+              {!borrowRecord && copies.filter(c => c.status === 'available').length > 0 && (
                 <button 
                   className="btn-primary borrow-button"
                   onClick={handleBorrow}
@@ -266,7 +286,7 @@ const BookDetailsPage = () => {
                   </button>
                 </div>
               )}
-              {!borrowRecord && book.status !== 'available' && (
+              {!borrowRecord && copies.filter(c => c.status === 'available').length <= 0 && (
                 <button 
                   className="btn-secondary reserve-button"
                   onClick={handleReserve}
