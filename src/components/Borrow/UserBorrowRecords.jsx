@@ -7,6 +7,7 @@ import './Borrow.css';
 const UserBorrowRecords = () => {
   const { userId } = useParams();
   const [records, setRecords] = useState([]);
+  const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -34,7 +35,8 @@ const UserBorrowRecords = () => {
       
       // 获取用户借阅记录
       const recordsData = await usersAPI.getBorrowRecords(userId);
-      setRecords(recordsData);
+      setRecords(recordsData.records);
+      setOverdueCount(recordsData.overdue_count || 0);
     } catch (err) {
       setError('Failed to load user borrow records');
       console.error(err);
@@ -50,7 +52,7 @@ const UserBorrowRecords = () => {
         throw new Error('Book ID not found in record');
       }
       
-      await borrowAPI.return(userId, record.book_id);
+      await borrowAPI.return(Number(userId), record.book_id);
       
       // 更新借阅记录
       setRecords(prevRecords => prevRecords.map(r => 
@@ -58,6 +60,27 @@ const UserBorrowRecords = () => {
       ));
       
       showToast('Book returned successfully', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  // 处理确认借阅
+  const handleConfirmBorrow = async (record) => {
+    try {
+      if (!record.id || !record.copy_id) {
+        throw new Error('Record ID or Copy ID not found');
+      }
+      
+      const result = await borrowAPI.confirmBorrow(record.id, record.copy_id);
+      
+      // 更新借阅记录
+      setRecords(prevRecords => prevRecords.map(r => 
+        r.id === record.id ? { ...r, status: 'borrowed' } : r
+      ));
+      
+      showToast(result.message, 'success');
     } catch (err) {
       showToast(err.message, 'error');
       console.error(err);
@@ -90,7 +113,15 @@ const UserBorrowRecords = () => {
       <h2>User Borrow Records</h2>
       {user && (
         <div className="user-info">
-          <h3>{user.name} ({user.username})</h3>
+          <div className="user-info-header">
+            <h3>{user.name} ({user.username})</h3>
+            {overdueCount > 0 && (
+              <div className="overdue-count">
+                  <span className="overdue-badge">{overdueCount}</span>
+                  <span className="overdue-text">Overdue Books</span>
+                </div>
+            )}
+          </div>
           <p>Email: {user.email}</p>
         </div>
       )}
@@ -106,8 +137,8 @@ const UserBorrowRecords = () => {
               <tr>
                 <th>ID</th>
                 <th>Title</th>
-                <th>Author</th>
                 <th>Borrow Date</th>
+                <th>Due Date</th>
                 <th>Return Date</th>
                 <th>Status</th>
                 <th>Action</th>
@@ -118,19 +149,35 @@ const UserBorrowRecords = () => {
                 <tr key={record.id} className="fade-in">
                   <td>{record.id}</td>
                   <td>{record.title}</td>
-                  <td>{record.author}</td>
                   <td>{record.borrow_date}</td>
+                  <td>{record.due_date}</td>
                   <td>{record.return_date || 'Not returned'}</td>
-                  <td className={record.return_date ? 'status-returned' : 'status-borrowed'}>
-                    {record.return_date ? 'Returned' : 'Borrowed'}
+                  <td className={
+                    record.status === 'returned' ? 'status-returned' : 
+                    record.status === 'returning' ? 'status-returning' : 
+                    record.status === 'borrowing' ? 'status-borrowing' : 
+                    record.status === 'overdue' ? 'status-overdue' : 'status-borrowed'
+                  }>
+                    {record.status === 'returned' ? 'Returned' : 
+                     record.status === 'returning' ? 'Returning' : 
+                     record.status === 'borrowing' ? 'Borrowing' : 
+                     record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                   </td>
                   <td>
-                    {!record.return_date && (
+                    {(record.status === 'borrowed' || record.status === 'overdue') && (
                       <button 
                         className="btn-info"
                         onClick={() => handleReturnBook(record)}
                       >
                         Return
+                      </button>
+                    )}
+                    {record.status === 'borrowing' && (
+                      <button 
+                        className="btn-info"
+                        onClick={() => handleConfirmBorrow(record)}
+                      >
+                        Confirm
                       </button>
                     )}
                   </td>

@@ -1,25 +1,25 @@
 const db = require('./db');
 
-// 检查书籍状态
-db.all('SELECT * FROM books', (err, books) => {
+// 检查books表的结构
+db.all("PRAGMA table_info(books)", (err, columns) => {
   if (err) {
-    console.error('Error querying books:', err);
+    console.error('Error checking books table structure:', err.message);
     return;
   }
-  console.log('Books:');
-  books.forEach(book => {
-    console.log(`ID: ${book.id}, Title: ${book.title}, Status: ${book.status}`);
+  console.log('Books table columns:');
+  columns.forEach(column => {
+    console.log(`${column.name} (${column.type})`);
   });
   
-  // 检查借阅记录
-  db.all('SELECT * FROM borrow_records', (err, records) => {
+  // 检查book_copies表的结构
+  db.all("PRAGMA table_info(book_copies)", (err, columns) => {
     if (err) {
-      console.error('Error querying borrow records:', err);
+      console.error('Error checking book_copies table structure:', err.message);
       return;
     }
-    console.log('\nBorrow Records:');
-    records.forEach(record => {
-      console.log(`ID: ${record.id}, User ID: ${record.user_id}, Book ID: ${record.book_id}, Borrow Date: ${record.borrow_date}, Return Date: ${record.return_date}`);
+    console.log('\nBook_copies table columns:');
+    columns.forEach(column => {
+      console.log(`${column.name} (${column.type})`);
     });
     
     // 关闭数据库连接

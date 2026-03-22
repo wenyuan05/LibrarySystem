@@ -6,6 +6,47 @@
   margin-top: var(--spacing-lg);
 }
 
+/* 借阅记录头部 */
+.borrow-records-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 用户信息头部 */
+.user-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 逾期计数 */
+.overdue-count {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.overdue-badge {
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.overdue-count .overdue-text {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
 /* 空状态 */
 .empty-state {
   text-align: center;
@@ -21,4 +62,75 @@
   .empty-state {
     padding: var(--spacing-lg);
   }
+}
+
+/* 状态样式 */
+.status-borrowed {
+  color: var(--warning-color);
+  font-weight: 500;
+}
+
+.status-returned {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.status-returning {
+  color: var(--info-color);
+  font-weight: 500;
+}
+
+.status-active {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.status-inactive {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.status-pending {
+  color: var(--warning-color);
+  font-style: italic;
+}
+
+.status-overdue {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.action-buttons button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s ease;
+}
+
+.action-buttons .btn-info {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.action-buttons .btn-info:hover {
+  background-color: var(--info-hover);
+}
+
+.action-buttons .btn-secondary {
+  background-color: var(--primary-color);
+  color: white;
+  border: 1px solid var(--primary-color);
+}
+
+.action-buttons .btn-secondary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
 }

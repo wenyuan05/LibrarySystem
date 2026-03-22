@@ -42,3 +42,10 @@ backend/.env.production.local
 # Optimization logs
 OPTIMIZATION_PLAN.md
 OPTIMIZATION_STATUS.md
+
+# Privacy configuration
+src/config/privacy.js
+cloud.txt
+backend/cloud.txt
+localenv.bak
+backend/localenv.bak

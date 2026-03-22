@@ -178,6 +178,12 @@ table {
   width: 100%;
 }
 
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
 @media (max-width: 768px) {
   .action-bar {
     flex-direction: column;
@@ -297,9 +303,10 @@ button {
 }
 
 button:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--primary-hover) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
 }
 
 button:active {
@@ -602,37 +609,67 @@ tr:hover {
   background-color: var(--border-color);
 }
 
-/* 页脚样式 */
-.footer {
-  background-color: var(--bg-secondary);
-  padding: var(--spacing-md) var(--spacing-lg);
+/* 应用容器 */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 应用页脚 */
+.app-footer {
+  background-color: var(--background-color);
   border-top: 1px solid var(--border-color);
+  padding: var(--spacing-md) 0;
   margin-top: auto;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
 }
 
 .footer-content {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-sm);
 }
 
-.footer p {
+.footer-content p {
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+}
+
+.footer-content a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.footer-content a:hover {
+  text-decoration: underline;
+}
+
+/* 登录页脚 */
+.login-footer {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
   text-align: center;
 }
 
-@media (max-width: 768px) {
-  .footer {
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
-  
-  .footer p {
-    font-size: var(--font-size-xs);
-  }
+.login-footer p {
+  margin: var(--spacing-xs) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.login-footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
 }

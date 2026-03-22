@@ -143,6 +143,7 @@ const AddUserForm = ({ onUserAdded }) => {
             disabled={isSubmitting}
           >
             <option value="user">User</option>
+            <option value="librarian">Librarian</option>
             <option value="admin">Admin</option>
           </select>
         </div>
