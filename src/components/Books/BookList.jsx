@@ -20,9 +20,9 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     const fetchBorrowRecords = async () => {
       if (user?.id) {
         try {
-          const records = await usersAPI.getBorrowRecords(user.id);
+          const data = await usersAPI.getBorrowRecords(user.id);
           // 过滤出未归还的借阅记录
-          const activeRecords = records.filter(record => !record.return_date);
+          const activeRecords = data.records.filter(record => !record.return_date);
           setBorrowRecords(activeRecords);
         } catch (err) {
           console.error('Failed to fetch borrow records:', err);
@@ -152,8 +152,8 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         }
       }
       // 重新获取借阅记录
-      const records = await usersAPI.getBorrowRecords(user.id);
-      const activeRecords = records.filter(record => !record.return_date);
+      const data = await usersAPI.getBorrowRecords(user.id);
+      const activeRecords = data.records.filter(record => !record.return_date);
       setBorrowRecords(activeRecords);
       // 从borrowRecordsMap中移除已确认的借阅记录
       setBorrowRecordsMap(prev => {
