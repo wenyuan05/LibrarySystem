@@ -1,0 +1,112 @@
+/* 导入CSS变量 */
+@import '../../styles/variables.css';
+
+/* 登录容器 */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: var(--spacing-lg);
+  width: 100%;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* 登录表单 */
+.login-form {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-xl);
+  text-align: center;
+  margin: 0 auto !important;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.login-form h1 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--secondary-color);
+}
+
+.login-form h2 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+/* 登录信息 */
+.login-info {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.login-info p {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 找回密码样式 */
+.forgot-password {
+  display: block;
+  text-align: right;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.login-form h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.success-message {
+  background-color: var(--success-bg);
+  color: var(--success-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+}
+
+.success-message p {
+  margin: var(--spacing-xs) 0;
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  margin-top: var(--spacing-md);
+  transition: background-color var(--transition);
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-color-dark);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .login-form {
+    padding: var(--spacing-lg);
+  }
+  
+  .login-container {
+    padding: var(--spacing-md);
+  }
+  
+  .login-footer {
+    font-size: var(--font-size-xs);
+  }
+}

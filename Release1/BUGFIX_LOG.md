@@ -1,0 +1,733 @@
+# Bug Fix Log
+
+This file documents all bug fixes applied to the project.
+
+## 2026-03-08
+
+### Fix 1: Add security checks for books.find()
+- **Files modified**: `src/components/Books/BookList.jsx`
+- **Changes**: Added security checks in `handleUpdateStatus`, `handleBorrowBook`, and `handleReturnBook` functions to ensure `books.find()` returns a valid book object before spreading it.
+- **Reason**: Prevent `{...undefined, status}` error when book is not found.
+
+### Fix 2: Reset registerData on mode toggle
+- **Files modified**: `src/components/Login/Login.jsx`
+- **Changes**: Added code to reset `registerData` state when toggling between login and register modes.
+- **Reason**: Improve user experience by clearing form data when switching modes.
+
+### Fix 3: Add book_id to borrow records
+- **Files modified**: `backend/server.js`
+- **Changes**: Modified SQL query in `/api/users/:id/borrow-records` route to include `br.book_id` field.
+- **Reason**: Ensure frontend has access to book_id for proper filtering and display of Return buttons.
+
+### Fix 4: Remove unused state and improve error handling
+- **Files modified**: `src/components/Books/BookList.jsx`
+- **Changes**: 
+  - Removed unused `editingBook` state
+  - Changed error handling to use `setError(null)` instead of `window.location.reload()`
+- **Reason**: Fix lint error and provide a more gentle error recovery mechanism.
+
+### Fix 5: Remove unused user check in MainLayout
+- **Files modified**: `src/App.jsx`
+- **Changes**: Removed the `if (!user)` check in MainLayout component
+- **Reason**: ProtectedRoute already ensures only authenticated users can access, so null user shouldn't happen
+
+### Fix 6: Improve JWT secret handling
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Added warning when JWT_SECRET environment variable is not set
+  - Updated all JWT operations to use process.env.JWT_SECRET
+  - Added security note about using environment variables in production
+- **Reason**: Enhance security by encouraging proper JWT secret management in production
+
+### Fix 7: Improve CORS configuration
+- **Files modified**: `backend/server.js`
+- **Changes**: Updated CORS configuration to use specific origin and allowed methods
+- **Reason**: Enhance security by restricting CORS to specific origins
+
+### Fix 8: Use async bcrypt hashing
+- **Files modified**: `backend/db.js`
+- **Changes**: Changed bcrypt.hashSync to bcrypt.hash in the password migration loop
+- **Reason**: Prevent blocking the event loop with synchronous hashing
+
+### Fix 9: Improve transaction handling
+- **Files modified**: `backend/server.js`
+- **Changes**: Added proper BEGIN TRANSACTION and ROLLBACK/COMMIT statements to borrow and return routes
+- **Reason**: Ensure data consistency and handle errors properly during transactions
+
+### Fix 10: Add aria-label to toast close button
+- **Files modified**: `src/components/Toast/Toast.jsx`
+- **Changes**: Added aria-label="Close toast" to the close button
+- **Reason**: Improve accessibility for screen readers
+
+### Fix 11: Implement book update functionality
+- **Files modified**: 
+  - `backend/server.js`
+  - `src/utils/api.js`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated backend `/api/books/:id` route to support updating all book fields
+  - Added booksAPI.update method
+  - Modified EditBookForm to call the actual API instead of using mock data
+- **Reason**: Make EditBookForm functional and persist changes
+
+### Fix 12: Improve user API access control
+- **Files modified**: `backend/server.js`
+- **Changes**: Added access control to `/api/users/:id` route to only allow users to view their own information or admins to view all
+- **Reason**: Enhance security and protect user privacy
+
+### Fix 13: Extract environment variables
+- **Files modified**: 
+  - `.env`
+  - `backend/.env`
+  - `backend/package.json`
+  - `backend/server.js`
+  - `src/utils/api.js`
+- **Changes**: 
+  - Created .env files for both frontend and backend
+  - Added dotenv dependency to backend
+  - Modified api.js to use VITE_API_BASE_URL environment variable
+  - Updated server.js to load environment variables and use them for JWT_SECRET and CORS configuration
+- **Reason**: Improve configurability and security by using environment variables instead of hardcoding values
+
+### Fix 14: Fix CORS and public book access
+- **Files modified**: 
+  - `backend/.env`
+  - `backend/server.js`
+- **Changes**: 
+  - Updated FRONTEND_URL in backend/.env to http://localhost:5173
+  - Removed authenticateToken middleware from /api/books and /api/books/:id routes
+  - Made book listings publicly accessible without authentication
+- **Reason**: Fix CORS error and allow users to browse books without logging in
+
+### Fix 15: Implement unified error handling
+- **Files modified**: 
+  - `backend/server.js`
+  - `src/hooks/useApiRequest.jsx`
+- **Changes**: 
+  - Added unified error handling middleware in backend to catch and format all errors
+  - Created useApiRequest custom hook for frontend to handle API requests with loading states and error messages
+  - Added error logging with stack traces in backend for better debugging
+- **Reason**: Improve error handling consistency and reduce code duplication
+
+## 2026-03-08
+
+### Fix 16: Optimize user interface and permission control
+- **Files modified**: 
+  - `src/App.jsx`
+  - `src/components/Login/Login.css`
+  - `src/components/ProtectedRoute.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Users/Users.css`
+  - `src/index.css`
+  - `README.md`
+- **Changes**: 
+  - Optimized App.jsx route configuration, added user role requirement for /books path
+  - Improved Login.css styles, enhanced login form layout
+  - Enhanced ProtectedRoute.jsx permission control, implemented admin redirection
+  - Improved Sidebar.jsx navigation logic, displayed different menus based on user role
+  - Optimized UserList.jsx, added search functionality and deletion confirmation
+  - Improved Users.css styles, added responsive design
+  - Optimized index.css layout styles
+  - Updated README.md documentation, added new feature descriptions
+- **Reason**: Enhance user experience, improve permission control, and optimize interface design
+
+## 2026-03-09
+
+### Fix 17: Add request validation for admin add user
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Created `validateAdminAddUserBody` middleware for POST /api/users route
+  - Added validation for all required fields (username, password, role, name, email)
+  - Added length validation for username, password, and name
+  - Added email format validation
+  - Added strict role validation (only 'user' or 'admin' allowed)
+  - Updated POST /api/users route to use the new validation middleware
+- **Reason**: Prevent creation of invalid users and return consistent 400 responses
+
+### Fix 18: Update documentation
+- **Files modified**: `README.md`
+- **Changes**: 
+  - Updated security section to include strict role validation
+  - Updated backend development guide to include role validation
+- **Reason**: Keep documentation in sync with code changes
+
+### Fix 19: Fix toast stacking and animation
+- **Files modified**: 
+  - `src/context/ToastContext.jsx`
+  - `src/components/Toast/Toast.jsx`
+  - `src/components/Toast/Toast.css`
+- **Changes**: 
+  - Added toast-container to handle multiple toasts
+  - Updated toast styles to use relative positioning
+  - Added closing animation for toasts
+  - Ensured toasts stack and animate independently
+- **Reason**: Fix multiple toasts overlapping and ensure smooth animations
+
+### Fix 20: Consolidate card styles
+- **Files modified**: `src/styles/global.css`
+- **Changes**: 
+  - Removed duplicate .card and .card:hover definitions
+  - Consolidated into a single .card definition with consistent styling
+  - Retained max-width: 1000px and centering behavior
+- **Reason**: Avoid unintentional style overrides and make layout changes predictable
+
+### Fix 21: Secure environment variables
+- **Files modified**: 
+  - `.env`
+  - `backend/.env`
+  - `.gitignore`
+  - `.env.example`
+  - `backend/.env.example`
+  - `README.md`
+- **Changes**: 
+  - Created `.env.example` files for both root and backend directories
+  - Updated `.gitignore` to exclude all .env files
+  - Rotated JWT_SECRET to a new value
+  - Updated README.md with detailed environment variable configuration instructions
+  - Added security notes about JWT_SECRET management
+- **Reason**: Prevent secrets from being committed to version control and improve security practices
+
+### Fix 22: Fix undefined CSS variable
+- **Files modified**: 
+  - `src/components/Users/Users.css`
+- **Changes**: 
+  - Replaced undefined `--font-size-base` variable with existing `--font-size-md` variable
+- **Reason**: Ensure CSS variables are properly defined and avoid fallback to browser defaults
+
+### Fix 23: Add null/undefined guard for user search
+- **Files modified**: 
+  - `src/components/Users/UserList.jsx`
+- **Changes**: 
+  - Added null/undefined guards for username, name, and email fields before calling toLowerCase()
+  - Used (value || '') pattern to default to empty string for missing fields
+- **Reason**: Prevent search functionality from crashing on incomplete user records with null/undefined fields
+
+### Fix 24: Remove duplicate CSS definitions
+- **Files modified**: 
+  - `src/styles/global.css`
+- **Changes**: 
+  - Removed duplicate .search-bar, .action-bar, and .form-actions definitions
+  - Retained the centered versions with max-width constraints
+  - Added responsive media query for .action-bar
+- **Reason**: Eliminate CSS-order-dependent behavior and maintain a single source of truth for shared layout classes
+
+### Fix 25: Add ISBN unique index
+- **Files modified**: 
+  - `backend/db.js`
+- **Changes**: 
+  - Added CREATE UNIQUE INDEX IF NOT EXISTS for books(isbn)
+  - Ensures ISBN uniqueness even on already-created databases
+- **Reason**: Enforce ISBN uniqueness across all database instances, including existing ones
+
+### Fix 26: Add Node.js version requirement
+- **Files modified**: 
+  - `package.json`
+- **Changes**: 
+  - Added engines field specifying node >= 20.0.0
+- **Reason**: Ensure compatibility with react-router-dom@7.13.1 which requires Node.js >= 20
+
+### Fix 27: Add error handling for fetchBooks
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Added error state management for BooksPage and BookManagementPage
+  - Added toast notifications for error messages
+  - Added error UI with retry button
+- **Reason**: Provide user-friendly error feedback when book loading fails, instead of just logging to console
+
+### Fix 28: Remove backend/.env from version control and rotate JWT secret
+- **Files modified**: 
+  - `backend/.env` (removed from git)
+- **Changes**: 
+  - Removed backend/.env from version control using git rm --cached
+  - Rotated JWT_SECRET to a new value
+  - Ensured only backend/.env.example remains in git
+- **Reason**: Prevent secrets from being committed to version control and improve security
+
+### Fix 29: Fix README.md API authentication documentation
+- **Files modified**: 
+  - `README.md`
+- **Changes**: 
+  - Moved `/api/register` from the authenticated endpoints list to the public endpoints list
+- **Reason**: Correct documentation to reflect that the register endpoint is public and doesn't require an Authorization header
+
+### Fix 30: Fix Toast.jsx animationEndTimer cleanup
+- **Files modified**: 
+  - `src/components/toast/Toast.jsx`
+- **Changes**: 
+  - Added refs to store timeout IDs
+  - Updated cleanup function to clear all timers
+  - Fixed ineffective cleanup of animationEndTimer
+- **Reason**: Prevent calling onClose after component unmount and avoid memory leaks
+
+### Fix 31: Fix toast ID generation to prevent collisions
+- **Files modified**: 
+  - `src/context/ToastContext.jsx`
+- **Changes**: 
+  - Replaced Date.now() with crypto.randomUUID() for toast IDs
+- **Reason**: Prevent ID collisions when multiple toasts are created within the same millisecond
+
+### Fix 32: Scope Users.css styles to avoid global conflicts
+- **Files modified**: 
+  - `src/components/Users/Users.css`
+- **Changes**: 
+  - Scoped .action-bar, .search-bar, and .search-input selectors under .user-list
+- **Reason**: Prevent CSS class name collisions with global styles and avoid order-dependent behavior
+
+### Fix 33: Fix BookList.jsx error button text
+- **Files modified**: 
+  - `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Changed error state button text from "Retry" to "Dismiss"
+- **Reason**: The button only clears the error state, not retry any action, so the text should accurately reflect its function
+
+### Fix 34: Use book_id for returning books in BorrowRecords
+- **Files modified**: 
+  - `src/components/borrow/BorrowRecords.jsx`
+- **Changes**: 
+  - Updated handleReturnBook to use record.book_id directly
+  - Removed unnecessary books state and fetchBooks call
+  - Added validation for book_id presence
+- **Reason**: Prevent returning the wrong book when titles are not unique, and simplify the component
+
+### Fix 35: Add validation for PUT /api/books/:id
+- **Files modified**: 
+  - `backend/server.js`
+- **Changes**: 
+  - Added validateBookUpdateBody middleware
+  - Added validation for title, author, isbn, and status fields
+  - Added status whitelist validation (only "available" or "borrowed")
+  - Added type and length validation for all fields
+- **Reason**: Prevent invalid data from being submitted and provide clear 400 error responses
+
+### Fix 36: Fix body layout in index.css
+- **Files modified**: 
+  - `src/index.css`
+- **Changes**: 
+  - Removed display:flex, place-items, and justify-content from body
+- **Reason**: Allow #root to stretch to viewport and prevent layout/scroll issues with the full-screen app layout
+
+### Fix 37: Fix useToast usage in App.jsx
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Replaced `addToast` with `showToast` in BooksPage and BookManagementPage components
+  - Updated function call signature from `addToast({ message, type })` to `showToast(message, type)`
+- **Reason**: Fix runtime error caused by using the wrong function name and signature for toast notifications
+
+### Fix 38: Fix search bar styles
+- **Files modified**: 
+  - `src/styles/global.css`
+- **Changes**: 
+  - Added global `.search-input` styles with proper background color, border, and focus effects
+  - Ensured search input uses `--bg-secondary` for background and `--text-primary` for text
+  - Added consistent padding, border radius, and transition effects
+- **Reason**: Fix search bar appearing with black background and inconsistent styling across pages
+
+### Fix 39: Remove unused AddUserForm import
+- **Files modified**: 
+  - `src/App.jsx`
+- **Changes**: 
+  - Removed unused `AddUserForm` import
+- **Reason**: Fix no-unused-vars linting error and clean up unused imports
+
+### Fix 40: Remove .env from version control and rotate JWT_SECRET
+- **Files modified**: 
+  - `.env` (removed from git)
+  - `backend/.env`
+- **Changes**: 
+  - Removed `.env` from version control using git rm --cached
+  - Rotated JWT_SECRET to a new secure value
+  - Updated both root and backend .env files with the new secret
+- **Reason**: Prevent secrets from being committed to version control and improve security
+
+### Fix 41: Convert EditBookForm to modal popup
+- **Files modified**: 
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added modal styles to Books.css including overlay, content, and animations
+  - Modified EditBookForm.jsx to use modal structure
+  - Added modal header with close button
+  - Updated event handling for modal closing
+  - Ensured form functionality remains unchanged
+- **Reason**: Improve user experience by displaying edit form as a popup instead of inline, maintaining consistent styling with the rest of the application
+
+### Fix 42: Add admin user borrow records management
+- **Files modified**: 
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/App.jsx`
+- **Changes**: 
+  - Added "Borrow Records" button to each user in UserList
+  - Created UserBorrowRecords component to display user-specific borrow records
+  - Added new route `/user-borrow-records/:userId` for admin access
+  - Implemented return functionality for admin to manage borrow status
+  - Ensured only admins can access user borrow records
+- **Reason**: Allow administrators to view and manage user borrow records, including manually returning books
+
+### Fix 43: Add back button to user borrow records page
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Added useNavigate hook for navigation
+  - Added "Back to Users" button at the top of the page
+  - Implemented handleBackToUsers function to navigate back to user list
+- **Reason**: Improve user experience by providing an easy way for administrators to return to the user list page
+
+### Fix 44: Fix animation name conflict in Books.css
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Renamed `fadeIn` animation to `booksModalFadeIn`
+  - Renamed `slideIn` animation to `booksModalSlideIn`
+  - Updated all references to these animations in the file
+- **Reason**: Avoid conflicts with globally defined animations in global.css, ensuring animations don't override each other across the application
+
+### Fix 45: Improve modal accessibility in EditBookForm
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added `role="dialog"`, `aria-modal="true"`, and `aria-labelledby="modal-title"` attributes to modal
+  - Added keyboard handling for Escape key to close modal
+  - Added focus management to automatically focus on title input when modal opens
+  - Updated `aria-label` for close button to be more descriptive
+  - Added proper focus trapping and cleanup
+- **Reason**: Improve accessibility for keyboard users and screen readers, making the modal more usable for all users
+
+### Fix 46: Fix stale state in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Changed `setRecords(records.map(...))` to use functional state update `setRecords(prevRecords => prevRecords.map(...))`
+- **Reason**: Avoid stale state issues when multiple updates happen close together, ensuring the update always applies to the latest state
+
+### Fix 47: Improve error handling in UserBorrowRecords
+- **Files modified**: `src/components/Borrow/UserBorrowRecords.jsx`
+- **Changes**: 
+  - Removed `setError('Failed to return book')` from return-book error path
+  - Kept only `showToast(err.message, 'error')` for action-level failures
+- **Reason**: Prevent the entire page from switching to error UI when a single return action fails, keeping the records list visible and only showing error via toast
+
+## 2026-03-10
+
+### Fix 48: Implement book detail page and database refactoring
+- **Files modified**: 
+  - `backend/db.js`
+  - `backend/server.js`
+  - `src/App.jsx`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/BookDetail.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Added new fields to books table: publisher, publication_date, description, total_copies, available_copies
+  - Updated database initialization with sample data
+  - Modified borrow and return functionality to use available_copies field
+  - Created BookDetail component for book detail page
+  - Updated BookList component to support click-to-detail functionality
+  - Modified AddBookForm and EditBookForm to support new fields
+  - Added corresponding styles for new components and fields
+- **Reason**: Enhance book information display and improve borrowing functionality
+
+### Fix 49: Fix import error in BookList.jsx
+- **Files modified**: `src/components/Books/BookList.jsx`
+- **Changes**: 
+  - Changed import statement to import motion from framer-motion instead of react-router-dom
+- **Reason**: Fix SyntaxError caused by incorrect import path
+
+### Fix 51: Allow admins to access book detail page
+- **Files modified**: 
+  - `src/App.jsx`
+  - `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated /books/:id route in App.jsx to remove user-only restriction
+  - Reverted BookList changes to allow all roles to click on cards
+  - Ensured cursor style always shows pointer for all roles
+- **Reason**: Allow admins to access book detail page for better management capabilities
+
+### Fix 52: Add cross-field validation for book copies
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody middleware to ensure available_copies <= total_copies when adding new books
+  - Updated validateBookUpdateBody middleware to ensure available_copies <= total_copies when both are provided
+  - Enhanced book update handler to load current values from DB and validate when only one of total_copies or available_copies is updated
+  - Added validation to prevent reducing total_copies below the number of borrowed books
+- **Reason**: Ensure book inventory consistency and prevent invalid states
+
+### Fix 53: Fix number input handling in book forms
+- **Files modified**: 
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated handleChange functions to convert number input values to integers
+  - Added validation for available_copies <= total_copies in both forms
+  - Ensured proper type handling when submitting form data to the API
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields
+
+### Fix 54: Fix CSS styling conflicts for book actions
+- **Files modified**: `src/components/books/Books.css`
+- **Changes**: 
+  - Scoped book card actions to .book-card .book-actions
+  - Scoped book detail actions to .book-detail-section .book-actions
+  - Updated responsive styles to maintain proper scoping
+- **Reason**: Prevent styling conflicts between book list and detail page actions
+
+### Fix 55: Fix book list button logic for multiple copies
+- **Files modified**: `src/components/books/BookList.jsx`
+- **Changes**: 
+  - Updated render logic to show Return button whenever user has an active borrow record
+  - Updated render logic to show Borrow button when available_copies > 0
+  - Now both buttons can be displayed simultaneously for books with multiple copies
+- **Reason**: Allow users to return borrowed books even when copies are still available
+
+### Fix 56: Fix numeric field validation in backend
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use !== undefined checks for numeric fields
+  - Added string-to-number coercion for numeric fields
+  - Updated validateBookUpdateBody with the same fixes
+  - Added numeric conversion in book update handler
+  - Ensured proper validation of 0 values
+- **Reason**: Fix validation issues with numeric fields, especially when values are 0 or come as strings from HTML inputs
+
+### Fix 57: Fix concurrent borrow issue
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated borrow flow to add conditional update for available_copies
+  - Added WHERE clause to ensure only available books are borrowed
+  - Added check for affected rows to handle concurrent borrows
+  - Updated return flow to check for affected rows
+  - Ensured proper rollback when no rows are affected
+- **Reason**: Prevent available_copies from going negative during concurrent borrow operations
+
+### Fix 58: Fix EditBookForm numeric field initialization
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated useEffect initialization to parse total_copies and available_copies as integers
+  - Ensured numeric fields are properly converted from strings to numbers when initializing form data
+  - Maintained consistency with AddBookForm's number handling
+- **Reason**: Fix 400 errors caused by string values being sent to the backend for number fields when editing books
+
+### Fix 59: Fix const variable reassignment in backend validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookBody to use separate local variables for numeric coercion
+  - Updated validateBookUpdateBody to use separate local variables for numeric coercion
+  - Updated book update handler to use separate local variables for numeric coercion
+  - Renamed request body variables to avoid const reassignment
+- **Reason**: Fix runtime errors caused by trying to reassign const variables during numeric coercion
+
+### Fix 60: Add crypto.randomUUID fallback mechanism
+- **Files modified**: `src/context/ToastContext.jsx`
+- **Changes**: 
+  - Added feature detection for crypto.randomUUID availability
+  - Implemented fallback using Date.now().toString(36) + Math.random().toString(36).substr(2)
+  - Ensured toast ID generation works in all environments
+- **Reason**: Fix "crypto.randomUUID is not a function" error when deploying to servers that don't support this API
+
+### Fix 61: Fix publication_date empty string validation
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publication_date
+  - Modified book update handler to skip updating publication_date when value is empty string
+  - Updated both update branches to handle empty publication_date properly
+- **Reason**: Fix 400 errors when updating books with empty publication_date from frontend date inputs
+
+### Fix 62: Fix EditBookForm parseInt handling for 0 values
+- **Files modified**: `src/components/Books/EditBookForm.jsx`
+- **Changes**: 
+  - Updated parseInt logic to use isNaN check instead of logical OR
+  - Ensured legitimate 0 values are preserved instead of being converted to 1
+  - Improved number parsing reliability
+- **Reason**: Fix incorrect conversion of 0 values to 1 when initializing form data
+
+### Fix 63: Fix optional fields validation for empty strings
+- **Files modified**: `backend/server.js`
+- **Changes**: 
+  - Updated validateBookUpdateBody to allow empty strings for publisher and description fields
+  - Modified book update handler to skip updating publisher and description when values are empty strings
+  - Updated both update branches to handle empty optional fields properly
+- **Reason**: Fix 400 errors when editing books with empty optional fields from frontend forms
+
+## 2026-03-13
+
+### Fix 64: Configure cloud deployment settings
+- **Files modified**: 
+  - `backend/.env`
+  - `backend/server.js`
+  - `.env`
+- **Changes**: 
+  - Updated backend CORS configuration to support wildcard origin
+  - Modified frontend API base URL to use relative path `/api`
+  - Updated backend FRONTEND_URL to use wildcard `*`
+  - Added logic to handle credentials properly when using wildcard origin
+- **Reason**: Enable cloud deployment with domain access by using relative paths instead of hardcoded URLs
+
+### Fix 65: Update website name and add footer information
+- **Files modified**: 
+  - `index.html`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `src/styles/global.css`
+  - `src/components/Login/Login.css`
+- **Changes**: 
+  - Changed website title from "librarysystem" to "个人项目展示"
+  - Updated header title in App.jsx from "Library Management System" to "个人项目展示"
+  - Updated login page title from "Library Management System" to "个人项目展示"
+  - Added footer section to both main layout and login page
+  - Added copyright and ICP record information to footers
+  - Added corresponding CSS styles for footers
+- **Reason**: Update website branding and comply with Chinese website requirements for ICP records
+
+### Fix 66: Separate privacy information into dedicated file
+- **Files modified**: 
+  - `src/config/privacy.js`
+  - `src/App.jsx`
+  - `src/components/Login/Login.jsx`
+  - `.gitignore`
+- **Changes**: 
+  - Created `src/config/privacy.js` to store sensitive privacy information
+  - Updated App.jsx and Login.jsx to import and use privacyConfig
+  - Added `src/config/privacy.js` to .gitignore
+  - Moved ICP record and copyright information to privacy.js
+- **Reason**: Protect sensitive privacy information by keeping it out of version control while maintaining easy access for the application
+
+## 2026-03-21
+
+### Fix 67: Prevent multiple responses in getBorrowStats
+- **Files modified**: `backend/controllers/statsController.js`
+- **Changes**: 
+  - Added `done` variable to track if a response has already been sent
+  - Added guard clauses in each `db.get` callback to check if `done` is true
+  - Set `done = true` before sending any response (error or success)
+  - Added guard clause in `checkCompletion` function to prevent duplicate responses
+- **Reason**: Fix "Cannot set headers after they are sent" error by ensuring only one response is sent per request, even when multiple async queries are in flight
+
+### Fix 68: Fix unused useEffect import in Login.jsx
+- **Files modified**: `src/components/login/Login.jsx`
+- **Changes**: 
+  - Changed `React.useEffect` to `useEffect` to use the imported version
+  - Ensured consistent use of imported hooks throughout the component
+- **Reason**: Fix unused import warning and maintain consistent coding style
+
+### Fix 69: Add type="button" to dropdown buttons in AddBookForm
+- **Files modified**: `src/components/Books/AddBookForm.jsx`
+- **Changes**: 
+  - Added `type="button"` to the category dropdown toggle button
+  - Added `type="button"` to all category option buttons in the dropdown
+- **Reason**: Prevent unintended form submission when clicking category options, as buttons inside forms default to type="submit"
+
+### Fix 70: Remove non-existent column filters from getSystemLogs
+- **Files modified**: `backend/controllers/logController.js`
+- **Changes**: 
+  - Removed `level` and `module` parameters from query destructuring
+  - Removed SQL filters for non-existent `level` and `module` columns
+  - Simplified SQL queries to only use existing columns in system_logs table
+- **Reason**: Fix SQL errors caused by referencing non-existent columns, ensuring the API endpoint works correctly
+
+### Fix 71: Remove unused 'status' field from book update
+- **Files modified**: 
+  - `backend/controllers/bookController.js`
+  - `backend/middleware/validation.js`
+- **Changes**: 
+  - Removed `status` parameter from destructuring in updateBook function
+  - Removed `status` validation from validateBookUpdateBody middleware
+- **Reason**: Fix misleading API behavior where status field was accepted but not applied, since books table doesn't have a status column (status is managed at the copy level)
+
+### Fix 72: Fix available_copies calculation in book update
+- **Files modified**: `backend/controllers/bookController.js`
+- **Changes**: 
+  - Removed unconditional setting of available_copies = total_copies
+  - Added logic to recompute available_copies by counting actual available copies in book_copies table
+  - Updated available_copies after adding or removing book copies
+- **Reason**: Fix incorrect available_copies value when updating total_copies, ensuring it reflects the actual number of available copies
+
+### Fix 73: Add validation for password reset endpoints
+- **Files modified**: 
+  - `backend/middleware/validation.js`
+  - `backend/routes/userRoutes.js`
+- **Changes**: 
+  - Added `validatePasswordResetRequest` middleware for /reset-password/request endpoint
+  - Added `validatePasswordReset` middleware for /reset-password endpoint
+  - Added validation for required fields, email format, and password strength
+  - Updated userRoutes to use the new validation middleware
+- **Reason**: Enhance security and user experience by validating password reset requests, ensuring the backend enforces the same constraints as the frontend
+
+### Fix 74: Fix search button handler in BooksPage
+- **Files modified**: `src/pages/BooksPage.jsx`
+- **Changes**: 
+  - Renamed `handleSearch` to `handleSearchChange` for input onChange event
+  - Created new `handleSearchClick` function for search button onClick event
+  - Updated JSX to use the correct handlers
+- **Reason**: Fix error when clicking search button, where e.target.value was undefined because the event target was the button itself
+
+### Fix 75: Prevent multiple responses in updateSystemSettings
+- **Files modified**: `backend/controllers/systemController.js`
+- **Changes**: 
+  - Added `hasFailed` flag to track if an error has occurred
+  - Added guard clauses in all callback functions to check if `hasFailed` is true
+  - Set `hasFailed = true` before sending any error response
+  - Ensured only one response is sent per request
+- **Reason**: Fix "Cannot set headers after they are sent" error by ensuring only one response is sent per request, even when multiple async updates are in flight
+
+### Fix 76: Fix countdown calculation in BookDetailsPage
+- **Files modified**: `src/pages/BookDetailsPage.jsx`
+- **Changes**: 
+  - Changed countdown calculation from hard-coded 60 minutes to using `confirm_deadline` from API response
+  - Added logic to calculate time difference between current time and deadline
+  - Added fallback to 60 minutes if `confirm_deadline` is not provided
+- **Reason**: Ensure UI countdown matches backend's borrow confirmation time limit, which uses the `borrow_confirm_minutes` system setting
+
+### Fix 77: Fix SQLite migration script for foreign key constraint
+- **Files modified**: `backend/migrate_database.js`
+- **Changes**: 
+  - Removed unsupported `ALTER TABLE ... ADD FOREIGN KEY` statement
+  - Added comment explaining that SQLite doesn't support adding foreign keys via ALTER TABLE
+  - Added note that foreign key constraints will be handled at the application level
+- **Reason**: Fix migration failure caused by SQLite's lack of support for adding foreign key constraints through ALTER TABLE statements
+
+### Fix 78: Fix user edit modal position
+- **Files modified**: `src/components/Users/Users.css`
+- **Changes**: 
+  - Added `min-height: 100vh;` to `.modal-overlay` to ensure full viewport height
+  - Added `box-sizing: border-box;` to ensure proper box model calculation
+- **Reason**: Fix user edit modal appearing too high on the screen, ensuring it's properly centered vertically
+
+### Feature: Implement book renewal functionality
+- **Files modified**: 
+  - `backend/migrate_database.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**: 
+  - Added `max_renew_times` and `renew_days` system settings
+  - Added `renew_count` field to borrow_records table
+  - Updated renewBook controller to check renewal limit and use system settings
+  - Added renewal settings to SystemSettingsPage
+  - Added Renew button to BorrowRecords component
+  - Added handleRenewBook function to process renewal requests
+  - Added CSS styles for action buttons
+  - Changed Renew button color from black to primary color for better visibility
+  - Modified BorrowRecords table to replace Author column with Due Date column
+  - Modified UserBorrowRecords table to replace Author column with Due Date column
+- **Reason**: Implement book renewal functionality with configurable limits, allowing users to renew borrowed books within system-defined limits, and improve user experience by showing due dates instead of author information in both user and admin views
+
+### Feature: Implement overdue book tracking and notification
+- **Files modified**: 
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**: 
+  - Added `checkOverdueRecords` function in borrowController to identify and update overdue records
+  - Modified `getUserBorrowRecords` function to automatically check and update overdue status
+  - Added overdue count calculation in user borrow records API
+  - Updated BorrowRecords component to display overdue status and count
+  - Added overdue notification when entering borrow records page
+  - Updated UserBorrowRecords component to display user overdue count
+  - Modified unblockUser function to clear overdue status when unblocking users
+  - Added CSS styles for overdue status and count display
+- **Reason**: Implement comprehensive overdue book tracking, including automatic status updates, user notifications, and admin visibility, ensuring timely book returns and proper management of overdue items
+
