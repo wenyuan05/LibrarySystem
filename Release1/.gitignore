@@ -98,3 +98,4 @@ Thumbs.db
 
 # Database
 *.db
+backend/library.db
