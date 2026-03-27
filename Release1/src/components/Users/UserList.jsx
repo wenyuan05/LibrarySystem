@@ -114,7 +114,7 @@ const UserList = () => {
   }, [users]);
 
   if (loading) {
-    return <div className="loading">Loading readers...</div>;
+    return <div className="loading">Loading users...</div>;
   }
 
   if (error) {
@@ -135,14 +135,14 @@ const UserList = () => {
             className="btn-primary"
             onClick={() => setShowAddForm(!showAddForm)}
           >
-            {showAddForm ? 'Cancel' : 'Add Reader'}
+            {showAddForm ? 'Cancel' : 'Add User'}
           </button>
         )}
         <div className="search-bar">
           <div className="search-input-container">
             <input
               type="text"
-              placeholder="Search readers by username, name, or email..."
+              placeholder="Search users by username, name, or email..."
               value={searchTerm}
               onChange={handleSearchChange}
               className="search-input"

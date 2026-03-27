@@ -4,9 +4,9 @@ import UserList from '../components/Users/UserList';
 const UserManagementPage = () => {
   return (
     <div className="users-section card fade-in">
-      <h2>Reader Management</h2>
+      <h2>User Management</h2>
       
-      {/* Reader List */}
+      {/* User List */}
       <UserList />
     </div>
   );

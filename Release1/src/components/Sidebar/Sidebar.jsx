@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li className={location.pathname === '/users' ? 'active' : ''}>
                 <Link to="/users" onClick={onClose}>
                   <span className="nav-icon">👥</span>
-                  <span className="nav-text">Reader Management</span>
+                  <span className="nav-text">User Management</span>
                 </Link>
               </li>
             </>
