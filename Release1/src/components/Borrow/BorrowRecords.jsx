@@ -59,27 +59,7 @@ const BorrowRecords = () => {
     }
   };
 
-  // 处理续借书籍
-  const handleRenewBook = async (record) => {
-    try {
-      if (!record.book_id) {
-        throw new Error('Book ID not found in record');
-      }
-      
-      const result = await borrowAPI.renew(user.id, record.book_id);
-      
-      // 更新借阅记录
-      setRecords(records.map(r => 
-        r.id === record.id ? { ...r, due_date: result.new_due_date, renew_count: result.renew_count } : r
-      ));
-      
-      showToast(result.message, 'success');
-    } catch (err) {
-      setError('Failed to renew book');
-      showToast(err.message, 'error');
-      console.error(err);
-    }
-  };
+
 
   // 处理确认借阅
   const handleConfirmBorrow = async (record) => {
@@ -171,14 +151,6 @@ const BorrowRecords = () => {
                       >
                         Return
                       </button>
-                      {record.status === 'borrowed' && (
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => handleRenewBook(record)}
-                        >
-                          Renew
-                        </button>
-                      )}
                     </div>
                   )}
                   {record.status === 'borrowing' && (

@@ -18,10 +18,10 @@ const Sidebar = ({ isOpen, onClose }) => {
       </div>
       
       <div className="user-info">
-        <h4>{user?.name || 'User'}</h4>
+        <h4>{user?.name || 'Reader'}</h4>
         <p>
           {user?.role === 'admin' ? 'Administrator' : 
-           user?.role === 'librarian' ? 'Librarian' : 'User'}
+           user?.role === 'librarian' ? 'Librarian' : 'Reader'}
         </p>
         <p>{user?.email || ''}</p>
       </div>
@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li className={location.pathname === '/users' ? 'active' : ''}>
                 <Link to="/users" onClick={onClose}>
                   <span className="nav-icon">👥</span>
-                  <span className="nav-text">User Management</span>
+                  <span className="nav-text">Reader Management</span>
                 </Link>
               </li>
             </>

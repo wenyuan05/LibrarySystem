@@ -10,7 +10,6 @@ import './Books.css';
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
   const [error, setError] = useState(null);
   const [borrowRecords, setBorrowRecords] = useState([]);
-  const [reservationRecords, setReservationRecords] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -30,22 +29,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       }
     };
 
-    // 获取用户预约记录
-    const fetchReservationRecords = async () => {
-      if (user?.id) {
-        try {
-          const records = await borrowAPI.getReservations(user.id);
-          // 过滤出活跃的预约记录
-          const activeReservations = records.filter(record => record.status === 'active');
-          setReservationRecords(activeReservations);
-        } catch (err) {
-          console.error('Failed to fetch reservation records:', err);
-        }
-      }
-    };
-
     fetchBorrowRecords();
-    fetchReservationRecords();
   }, [user]);
 
   // 获取所有书籍的副本信息
@@ -70,22 +54,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
 
 
 
-  // 处理书籍删除（管理员）
-  const handleDeleteBook = async (id) => {
-    if (window.confirm('Are you sure you want to delete this book?')) {
-      try {
-        await booksAPI.delete(id);
-        if (onBookDeleted) {
-          onBookDeleted(id);
-        }
-        showToast('Book deleted successfully', 'success');
-      } catch (err) {
-        setError('Failed to delete book');
-        showToast('Failed to delete book', 'error');
-        console.error(err);
-      }
-    }
-  };
+
 
   // 处理借阅书籍（用户）
   const [borrowingBooks, setBorrowingBooks] = useState(new Set());
@@ -184,43 +153,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     }
   };
 
-  // 处理预约书籍（用户）
-  const handleReserveBook = async (bookId) => {
-    try {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-      const result = await borrowAPI.reserve(user.id, bookId);
-      // 重新获取预约记录
-      const records = await borrowAPI.getReservations(user.id);
-      const activeReservations = records.filter(record => record.status === 'active');
-      setReservationRecords(activeReservations);
-      showToast(result.message, 'success');
-    } catch (err) {
-      setError('Failed to reserve book');
-      showToast(err.message, 'error');
-      console.error(err);
-    }
-  };
 
-  // 处理取消预约（用户）
-  const handleCancelReservation = async (reservationId) => {
-    try {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-      const result = await borrowAPI.cancelReservation(reservationId);
-      // 重新获取预约记录
-      const records = await borrowAPI.getReservations(user.id);
-      const activeReservations = records.filter(record => record.status === 'active');
-      setReservationRecords(activeReservations);
-      showToast(result.message, 'success');
-    } catch (err) {
-      setError('Failed to cancel reservation');
-      showToast(err.message, 'error');
-      console.error(err);
-    }
-  };
 
   if (loading) {
     return <SkeletonLoader count={5} />;
@@ -345,22 +278,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                         );
                       }
                     } else {
-                      const userReservation = reservationRecords.find(record => record.book_id === book.id);
-                      return userReservation ? (
-                        <button 
-                          className="btn-danger"
-                          onClick={(e) => { e.stopPropagation(); handleCancelReservation(userReservation.id); }}
-                        >
-                          Cancel Reservation
-                        </button>
-                      ) : book.available_copies <= 0 ? (
-                        <button 
-                          className="btn-secondary"
-                          onClick={(e) => { e.stopPropagation(); handleReserveBook(book.id); }}
-                        >
-                          Reserve
-                        </button>
-                      ) : null;
+                      return null;
                     }
                   })()
                 ) : (
@@ -373,12 +291,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                         Edit
                       </button>
                     )}
-                    <button 
-                      className="btn-danger"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteBook(book.id); }}
-                    >
-                      Delete
-                    </button>
                   </>
                 )}
               </div>
@@ -393,7 +305,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
           <div className="modal-content">
             <h3>Confirm Borrowing</h3>
             <div className="modal-body">
-              <p><strong>User:</strong> {user?.name}</p>
+              <p><strong>Reader:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {books.find(b => b.id === selectedBookId)?.title}</p>
               <div className="copy-selection">
                 <label>Select Copy:</label>

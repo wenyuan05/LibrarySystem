@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
-import EditBookForm from '../components/Books/EditBookForm';
 import { booksAPI } from '../utils/api';
 
 const BookManagementPage = () => {
@@ -10,7 +9,6 @@ const BookManagementPage = () => {
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
-  const [editingBook, setEditingBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [error, setError] = useState(null);
   const { showToast } = useToast();
@@ -54,12 +52,7 @@ const BookManagementPage = () => {
     fetchBooks();
   }, []);
 
-  // Handle book edit
-  const handleBookEdit = (updatedBook) => {
-    setBooks(prevBooks => prevBooks.map(book => 
-      book.id === updatedBook.id ? updatedBook : book
-    ));
-  };
+
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -177,26 +170,15 @@ const BookManagementPage = () => {
         />
       )}
       
-      {/* Edit Book Form */}
-      {editingBook && (
-        <EditBookForm 
-          book={editingBook}
-          onEditComplete={(updatedBook) => {
-            handleBookEdit(updatedBook);
-            setEditingBook(null);
-          }}
-          onCancel={() => setEditingBook(null)}
-        />
-      )}
 
-      {/* Book List (with edit functionality) */}
+
+      {/* Book List */}
       <BookList 
         books={filteredBooks}
         loading={booksLoading}
         onBookUpdated={handleBookUpdated}
         onBookDeleted={handleBookDeleted}
-        showEditButton={true}
-        onEditBook={setEditingBook}
+        showEditButton={false}
       />
     </div>
   );

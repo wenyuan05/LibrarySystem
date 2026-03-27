@@ -107,10 +107,10 @@ const UserBorrowRecords = () => {
           className="btn-secondary"
           onClick={handleBackToUsers}
         >
-          Back to Users
+          Back to Readers
         </button>
       </div>
-      <h2>User Borrow Records</h2>
+      <h2>Reader Borrow Records</h2>
       {user && (
         <div className="user-info">
           <div className="user-info-header">
@@ -129,7 +129,7 @@ const UserBorrowRecords = () => {
       <div className="borrow-records">
         {records.length === 0 ? (
           <div className="empty-state">
-            <p>No borrow records found for this user.</p>
+            <p>No borrow records found for this reader.</p>
           </div>
         ) : (
           <table>

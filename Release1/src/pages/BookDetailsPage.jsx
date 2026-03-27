@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../utils/api';
+import releaseConfig from '../config/releaseConfig';
 import './BookDetailsPage.css';
 
 const BookDetailsPage = () => {
@@ -136,19 +137,7 @@ const BookDetailsPage = () => {
     }
   };
 
-  // 处理预约书籍
-  const handleReserve = async () => {
-    try {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-      const result = await borrowAPI.reserve(user.id, book.id);
-      showToast(result.message, 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-      console.error(err);
-    }
-  };
+
 
   // 处理返回列表
   const handleBack = () => {
@@ -286,14 +275,7 @@ const BookDetailsPage = () => {
                   </button>
                 </div>
               )}
-              {!borrowRecord && copies.filter(c => c.status === 'available').length <= 0 && (
-                <button 
-                  className="btn-secondary reserve-button"
-                  onClick={handleReserve}
-                >
-                  Reserve
-                </button>
-              )}
+
             </div>
           )}
         </div>
@@ -305,7 +287,7 @@ const BookDetailsPage = () => {
           <div className="modal-content">
             <h3>Confirm Borrowing</h3>
             <div className="modal-body">
-              <p><strong>User:</strong> {user?.name}</p>
+              <p><strong>Reader:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {book.title}</p>
               <div className="copy-selection">
                 <label>Select Copy:</label>

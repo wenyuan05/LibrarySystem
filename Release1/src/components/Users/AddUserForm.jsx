@@ -142,7 +142,7 @@ const AddUserForm = ({ onUserAdded }) => {
             onChange={handleChange}
             disabled={isSubmitting}
           >
-            <option value="user">User</option>
+            <option value="user">Reader</option>
             <option value="librarian">Librarian</option>
             <option value="admin">Admin</option>
           </select>

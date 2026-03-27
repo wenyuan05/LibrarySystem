@@ -50,12 +50,12 @@ const UserList = () => {
       return;
     }
 
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    if (window.confirm('Are you sure you want to delete this reader?')) {
       try {
         await usersAPI.delete(id);
         setUsers(users.filter(userItem => userItem.id !== id));
       } catch (err) {
-        setError('Failed to delete user');
+        setError('Failed to delete reader');
         console.error(err);
       }
     }
@@ -86,39 +86,7 @@ const UserList = () => {
     setEditingUser(null);
   };
 
-  // 处理拉黑用户
-  const handleBlockUser = async (id) => {
-    if (window.confirm('Are you sure you want to block this user?')) {
-      try {
-        await usersAPI.block(id);
-        setUsers(users.map(userItem => 
-          userItem.id === id ? { ...userItem, status: 'blocked' } : userItem
-        ));
-        showToast('User blocked successfully', 'success');
-      } catch (err) {
-        setError('Failed to block user');
-        showToast('Failed to block user', 'error');
-        console.error(err);
-      }
-    }
-  };
 
-  // 处理解除拉黑用户
-  const handleUnblockUser = async (id) => {
-    if (window.confirm('Are you sure you want to unblock this user?')) {
-      try {
-        await usersAPI.unblock(id);
-        setUsers(users.map(userItem => 
-          userItem.id === id ? { ...userItem, status: 'active' } : userItem
-        ));
-        showToast('User unblocked successfully', 'success');
-      } catch (err) {
-        setError('Failed to unblock user');
-        showToast('Failed to unblock user', 'error');
-        console.error(err);
-      }
-    }
-  };
 
   // 处理搜索输入变化
   const handleSearchChange = (e) => {
@@ -146,7 +114,7 @@ const UserList = () => {
   }, [users]);
 
   if (loading) {
-    return <div className="loading">Loading users...</div>;
+    return <div className="loading">Loading readers...</div>;
   }
 
   if (error) {
@@ -167,14 +135,14 @@ const UserList = () => {
             className="btn-primary"
             onClick={() => setShowAddForm(!showAddForm)}
           >
-            {showAddForm ? 'Cancel' : 'Add User'}
+            {showAddForm ? 'Cancel' : 'Add Reader'}
           </button>
         )}
         <div className="search-bar">
           <div className="search-input-container">
             <input
               type="text"
-              placeholder="Search users by username, name, or email..."
+              placeholder="Search readers by username, name, or email..."
               value={searchTerm}
               onChange={handleSearchChange}
               className="search-input"
@@ -222,7 +190,7 @@ const UserList = () => {
             <tr key={userItem.id} className="fade-in">
               <td>{userItem.id}</td>
               <td>{userItem.username}</td>
-              <td>{userItem.role}</td>
+              <td>{userItem.role === 'user' ? 'Reader' : userItem.role}</td>
               <td>{userItem.name}</td>
               <td>{userItem.email}</td>
               <td>
@@ -245,23 +213,7 @@ const UserList = () => {
                     Edit
                   </button>
                 )}
-                {(user.role === 'admin' || user.role === 'librarian') && userItem.role === 'user' && (
-                  userItem.status !== 'blocked' ? (
-                    <button 
-                      className="btn-warning"
-                      onClick={() => handleBlockUser(userItem.id)}
-                    >
-                      Block
-                    </button>
-                  ) : (
-                    <button 
-                      className="btn-success"
-                      onClick={() => handleUnblockUser(userItem.id)}
-                    >
-                      Unblock
-                    </button>
-                  )
-                )}
+
                 {user.role === 'admin' && (
                   <button 
                     className="btn-danger"
