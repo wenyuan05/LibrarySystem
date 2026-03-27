@@ -5,7 +5,7 @@ const releaseConfig = require('./config/releaseConfig');
 require('dotenv').config();
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 // 检查 JWT_SECRET 是否设置
 if (!process.env.JWT_SECRET) {
