@@ -94,8 +94,8 @@ const UserList = () => {
     setSearchTerm(term);
   };
 
-  // 处理搜索按钮点击
-  const handleSearchClick = () => {
+  // 处理搜索
+  const performSearch = () => {
     if (searchTerm.trim() === '') {
       setFilteredUsers(users);
     } else {
@@ -105,6 +105,18 @@ const UserList = () => {
         (userItem.email || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredUsers(filtered);
+    }
+  };
+
+  // 处理搜索按钮点击
+  const handleSearchClick = () => {
+    performSearch();
+  };
+
+  // 处理回车键搜索
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      performSearch();
     }
   };
 
@@ -145,6 +157,7 @@ const UserList = () => {
               placeholder="Search users by username, name, or email..."
               value={searchTerm}
               onChange={handleSearchChange}
+              onKeyPress={handleKeyPress}
               className="search-input"
             />
           </div>
