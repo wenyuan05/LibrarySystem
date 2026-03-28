@@ -11,7 +11,7 @@ const {
   validateCancelReservationBody, 
   validateRenewBody 
 } = require('../middleware/validation');
-
+// [杨庆业补充]: 使用 Prisma 的 include 关联查询，将 Loan 表与 Book 表联表，以便前端直观展示书名详情。
 // 借阅书籍（需要登录）
 router.post('/borrow', authenticateToken, validateBorrowBody, borrowController.borrowBook);
 
