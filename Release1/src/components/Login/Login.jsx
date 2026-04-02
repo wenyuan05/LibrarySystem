@@ -264,7 +264,7 @@ const Login = () => {
           <p>Sample accounts:</p>
           <p>Admin: admin / admin123</p>
           <p>Reader: user1 / user123</p>
-          <p>Librarian: librarian / librarian123</p>
+          <p>Librarian: librarian / admin123</p>
         </div>
         
       </div>
