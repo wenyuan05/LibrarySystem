@@ -2,6 +2,9 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import releaseConfig from '../../config/releaseConfig';
+import bookIcon from '../../assets/book.svg';
+import borrowIcon from '../../assets/borrow.svg';
+import userIcon from '../../assets/user.svg';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -31,7 +34,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {user.role !== 'admin' && user.role !== 'librarian' && (
             <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
               <Link to="/books" onClick={onClose}>
-                <span className="nav-icon">📚</span>
+                <span className="nav-icon"><img src={bookIcon} alt="Books" className="sidebar-icon" /></span>
                 <span className="nav-text">Books</span>
               </Link>
             </li>
@@ -41,9 +44,9 @@ const Sidebar = ({ isOpen, onClose }) => {
             <>
               <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
                 <Link to="/borrow-records" onClick={onClose}>
-                  <span className="nav-icon">📖</span>
-                  <span className="nav-text">My Borrows</span>
-                </Link>
+                <span className="nav-icon"><img src={borrowIcon} alt="Borrow" className="sidebar-icon" /></span>
+                <span className="nav-text">My Borrows</span>
+              </Link>
               </li>
             </>
           )}
@@ -53,7 +56,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/book-management' ? 'active' : ''}>
                   <Link to="/book-management" onClick={onClose}>
-                    <span className="nav-icon">📚</span>
+                    <span className="nav-icon"><img src={bookIcon} alt="Book Management" className="sidebar-icon" /></span>
                     <span className="nav-text">Book Management</span>
                   </Link>
                 </li>
@@ -68,7 +71,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               )}
               <li className={location.pathname === '/users' ? 'active' : ''}>
                 <Link to="/users" onClick={onClose}>
-                  <span className="nav-icon">👥</span>
+                  <span className="nav-icon"><img src={userIcon} alt="User Management" className="sidebar-icon" /></span>
                   <span className="nav-text">User Management</span>
                 </Link>
               </li>

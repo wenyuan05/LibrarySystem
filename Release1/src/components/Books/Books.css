@@ -53,6 +53,12 @@
   height: 100%;
 }
 
+.search-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
 .search-button:hover {
   background: var(--primary-hover) !important;
   border-color: var(--primary-hover) !important;

@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import { booksAPI } from '../utils/api';
 import releaseConfig from '../config/releaseConfig';
+import searchIcon from '../assets/search.svg';
 
 const BooksPage = () => {
   const [books, setBooks] = useState([]);
@@ -103,7 +104,7 @@ const BooksPage = () => {
             />
           </div>
           <button className="search-button" onClick={handleSearchClick}>
-            🔍
+            <img src={searchIcon} alt="Search" className="search-icon" />
           </button>
         </div>
       </div>
