@@ -81,6 +81,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       book_id INTEGER NOT NULL,
       status TEXT DEFAULT 'available',
+      location TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (book_id) REFERENCES books(id)
@@ -195,6 +196,11 @@ db.serialize(() => {
     // 字段已存在，忽略错误
   });
   
+  // 为现有书籍副本表添加 location 字段
+  db.run('ALTER TABLE book_copies ADD COLUMN location TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+
   // 为现有借阅记录表添加renew_count字段
   db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
     // 字段已存在，忽略错误
@@ -247,12 +253,12 @@ db.serialize(() => {
       
       // 只创建需要的副本
       if (currentCount < targetCount) {
-        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
         
         for (let i = currentCount; i < targetCount; i++) {
           // 第一本书的第一个副本设为borrowed，其他为available
           const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
-          insertCopy.run(bookId, status);
+          insertCopy.run(bookId, status, null);
         }
         
         insertCopy.finalize();

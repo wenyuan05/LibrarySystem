@@ -159,6 +159,14 @@ export const booksAPI = {
       body: JSON.stringify({ status }),
     });
   },
+
+  // 更新副本位置
+  updateCopyLocation: async (copyId, location) => {
+    return request(`/books/copies/${copyId}/location`, {
+      method: 'PUT',
+      body: JSON.stringify({ location }),
+    });
+  },
 };
 
 // 用户相关API

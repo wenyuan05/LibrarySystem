@@ -136,6 +136,20 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     }
   };
 
+  // 处理副本位置更新
+  const handleCopyLocationChange = async (copyId, newLocation) => {
+    try {
+      await booksAPI.updateCopyLocation(copyId, newLocation);
+      // 重新获取副本列表
+      const bookCopies = await booksAPI.getCopies(book.id);
+      setCopies(bookCopies);
+    } catch (error) {
+      console.error('Error updating copy location:', error);
+      setError('Failed to update copy location');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   // 处理添加副本
   const handleAddCopy = async () => {
     try {
@@ -448,6 +462,18 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
                           <option value="borrowed">Borrowed</option>
                           <option value="reserved">Reserved</option>
                         </select>
+                      </div>
+                      <div className="copy-location-control">
+                        <input
+                          type="text"
+                          placeholder="Location"
+                          value={copy.location || ''}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            handleCopyLocationChange(copy.id, e.target.value);
+                          }}
+                          disabled={isSubmitting}
+                        />
                       </div>
                     </div>
                   ))}

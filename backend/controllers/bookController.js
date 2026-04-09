@@ -29,7 +29,7 @@ exports.getBookById = (req, res) => {
 
 // 添加书籍（管理员）
 exports.addBook = (req, res) => {
-  const { title, author, isbn, description, cover_image, total_copies, publisher, publish_date, language, page_count } = req.body;
+  const { title, author, isbn, description, cover_image, total_copies, publisher, publish_date, language, page_count, location } = req.body;
   
   // 检查ISBN是否已存在
   db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
@@ -63,13 +63,13 @@ exports.addBook = (req, res) => {
             }
             
             const bookId = this.lastID;
-            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
             let copyCount = 0;
             const totalCopies = copies;
             
             // 创建副本记录
-            for (let i = 0; i < totalCopies; i++) {
-              insertCopy.run(bookId, 'available', (err) => {
+        for (let i = 0; i < totalCopies; i++) {
+          insertCopy.run(bookId, 'available', location, (err) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -203,12 +203,12 @@ exports.updateBook = (req, res) => {
             
             if (currentCount < targetCount) {
               // 需要添加副本
-              const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+              const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
               let addedCount = 0;
               const addCount = targetCount - currentCount;
               
               for (let i = 0; i < addCount; i++) {
-                insertCopy.run(id, 'available', (err) => {
+                insertCopy.run(id, 'available', null, (err) => {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
@@ -648,6 +648,45 @@ exports.updateCopyStatus = (req, res) => {
               });
             });
           });
+        });
+      });
+    });
+  });
+};
+
+// 更新副本位置（管理员/图书管理员）
+exports.updateCopyLocation = (req, res) => {
+  const { id } = req.params;
+  const { location } = req.body;
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 更新副本位置
+      db.run('UPDATE book_copies SET location = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [location, id], function(err) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Copy not found' });
+          return;
+        }
+
+        // 提交事务
+        db.run('COMMIT', (err) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json({ message: 'Copy location updated successfully' });
         });
       });
     });

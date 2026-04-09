@@ -256,6 +256,9 @@ const BookDetailsPage = () => {
                      copy.status === 'borrowing' ? 'Borrowing' : 
                      copy.status === 'reserved' ? 'Reserved' : copy.status}
                   </span>
+                  {copy.location && (
+                    <span className="copy-location">Location: {copy.location}</span>
+                  )}
                 </div>
               ))}
             </div>

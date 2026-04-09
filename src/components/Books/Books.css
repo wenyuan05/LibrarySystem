@@ -608,8 +608,8 @@
 
 .copy-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   padding: var(--spacing-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -629,6 +629,16 @@
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
+}
+
+.copy-location-control input {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  width: 200px;
 }
 
 .unavailable-copies-section {
@@ -715,6 +725,14 @@
   }
   
   .copy-status-control select {
+    width: 100%;
+  }
+  
+  .copy-location-control {
+    width: 100%;
+  }
+  
+  .copy-location-control input {
     width: 100%;
   }
   

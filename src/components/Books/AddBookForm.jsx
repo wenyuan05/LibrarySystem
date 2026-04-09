@@ -3,7 +3,7 @@ import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
 const AddBookForm = ({ onBookAdded }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1', location: '' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,7 +151,7 @@ const AddBookForm = ({ onBookAdded }) => {
       
       setSuccess('Book added successfully!');
       // 重置表单
-      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1' });
+      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1', location: '' });
       setSelectedCategories([]);
       // 通知父组件刷新书籍列表
       if (onBookAdded) {
@@ -281,6 +281,17 @@ const AddBookForm = ({ onBookAdded }) => {
             min="1"
             max="100"
             required
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="location">Location:</label>
+          <input
+            type="text"
+            id="location"
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
             disabled={isSubmitting}
           />
         </div>

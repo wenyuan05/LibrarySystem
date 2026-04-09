@@ -22,6 +22,9 @@ router.post('/', authenticateToken, requireRole(['admin', 'librarian']), validat
 // 更新副本状态（管理员或图书管理员）
 router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
 
+// 更新副本位置（管理员或图书管理员）
+router.put('/copies/:id/location', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyLocation);
+
 // 获取单个副本信息（无需登录，公开访问）
 router.get('/copies/:id', bookController.getCopyById);
 
