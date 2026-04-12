@@ -19,6 +19,12 @@ router.get('/export', authenticateToken, requireRole(['admin', 'librarian']), bo
 // 添加书籍（管理员或图书管理员）
 router.post('/', authenticateToken, requireRole(['admin', 'librarian']), validateBookBody, bookController.addBook);
 
+// 通过 ISBN 查询书籍信息（管理员或图书管理员）
+router.get('/isbn/:isbn', authenticateToken, requireRole(['admin', 'librarian']), bookController.searchByISBN);
+
+// 批量导入书籍（管理员或图书管理员）
+router.post('/batch', authenticateToken, requireRole(['admin', 'librarian']), bookController.batchImportBooks);
+
 // 更新副本状态（管理员或图书管理员）
 router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
 

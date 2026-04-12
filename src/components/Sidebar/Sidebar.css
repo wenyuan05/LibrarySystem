@@ -4,7 +4,7 @@
 /* 侧边栏 */
 .sidebar {
   width: var(--sidebar-width);
-  background-color: var(--secondary-color);
+  background-color: var(--secondary-light);
   color: var(--text-white);
   height: 100vh;
   position: fixed;
@@ -24,7 +24,7 @@
 /* 侧边栏头部 */
 .sidebar-header {
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--secondary-light);
+  border-bottom: 1px solid var(--text-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -61,7 +61,7 @@
 /* 用户信息 */
 .user-info {
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--secondary-light);
+  border-bottom: 1px solid var(--text-light);
   text-align: center;
 }
 
@@ -111,7 +111,7 @@
 
 .sidebar-nav button:hover,
 .sidebar-nav a:hover {
-  background-color: var(--secondary-light);
+  background-color: rgba(255, 255, 255, 0.1);
   transform: none;
   box-shadow: none;
 }
@@ -127,6 +127,12 @@
   text-align: center;
 }
 
+.nav-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 .nav-text {
   flex: 1;
 }
@@ -134,7 +140,7 @@
 /* 侧边栏底部 */
 .sidebar-footer {
   padding: var(--spacing-lg);
-  border-top: 1px solid var(--secondary-light);
+  border-top: 1px solid var(--text-light);
 }
 
 .logout-btn {

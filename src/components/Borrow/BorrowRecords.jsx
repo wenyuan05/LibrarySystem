@@ -9,6 +9,9 @@ const BorrowRecords = () => {
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showFineModal, setShowFineModal] = useState(false);
+  const [fines, setFines] = useState([]);
+  const [totalFine, setTotalFine] = useState(0);
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -102,6 +105,33 @@ const BorrowRecords = () => {
     }
   };
 
+  // 获取用户罚款记录
+  const handleGetFines = async () => {
+    try {
+      const data = await borrowAPI.getUserFines(user.id);
+      setFines(data.fines || []);
+      setTotalFine(data.total_fine || 0);
+      setShowFineModal(true);
+    } catch (err) {
+      showToast('Failed to load fines', 'error');
+      console.error(err);
+    }
+  };
+
+  // 支付罚款
+  const handlePayFine = async () => {
+    try {
+      const result = await borrowAPI.payFine(user.id);
+      showToast(result.message, 'success');
+      setShowFineModal(false);
+      // 重新加载借阅记录
+      fetchBorrowRecords();
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -124,6 +154,14 @@ const BorrowRecords = () => {
             <span className="overdue-badge">{overdueCount}</span>
             <span className="overdue-text">Overdue Books</span>
           </div>
+        )}
+        {user.role === 'user' && (
+          <button 
+            className="btn-warning"
+            onClick={handleGetFines}
+          >
+            View Fines
+          </button>
         )}
       </div>
       {records.length === 0 ? (
@@ -197,6 +235,66 @@ const BorrowRecords = () => {
             ))}
           </tbody>
         </table>
+      )}
+
+      {/* 罚款信息弹窗 */}
+      {showFineModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>My Fines</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowFineModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {fines.length === 0 ? (
+                <p>No fines found.</p>
+              ) : (
+                <div>
+                  <table className="fines-table">
+                    <thead>
+                      <tr>
+                        <th>Record ID</th>
+                        <th>Book Title</th>
+                        <th>Overdue Days</th>
+                        <th>Fine Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fines.map(fine => (
+                        <tr key={fine.record_id}>
+                          <td>{fine.record_id}</td>
+                          <td>{fine.title}</td>
+                          <td>{fine.overdue_days}</td>
+                          <td>${fine.fine_amount.toFixed(2)}</td>
+                          <td className={fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                            {fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="total-fine">
+                    <strong>Total Fine: ${totalFine.toFixed(2)}</strong>
+                  </div>
+                  {totalFine > 0 && (
+                    <button 
+                      className="btn-danger"
+                      onClick={handlePayFine}
+                    >
+                      Pay Fine
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

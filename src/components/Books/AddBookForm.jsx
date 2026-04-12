@@ -10,6 +10,11 @@ const AddBookForm = ({ onBookAdded }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [isSearchingISBN, setIsSearchingISBN] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [isbnList, setIsbnList] = useState('');
+  const [activeTab, setActiveTab] = useState('single'); // 'single' or 'batch'
   const dropdownRef = useRef(null);
 
   const handleChange = (e) => {
@@ -63,6 +68,98 @@ const AddBookForm = ({ onBookAdded }) => {
         return [...prev, categoryId];
       }
     });
+  };
+
+  // 通过 ISBN 查询书籍信息
+  const handleSearchISBN = async () => {
+    if (!formData.isbn) {
+      setError('ISBN is required');
+      return;
+    }
+    
+    setIsSearchingISBN(true);
+    setError('');
+    
+    try {
+      const bookData = await booksAPI.searchByISBN(formData.isbn);
+      setFormData(prev => ({
+        ...prev,
+        title: bookData.title || '',
+        author: bookData.author || '',
+        publisher: bookData.publisher || '',
+        publish_date: bookData.publish_date || '',
+        language: bookData.language || 'Chinese',
+        page_count: bookData.page_count || '',
+        cover_image: bookData.cover_image || ''
+      }));
+      setSuccess('Book information fetched successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch book information. Please try again.');
+      console.error(err);
+    } finally {
+      setIsSearchingISBN(false);
+    }
+  };
+
+  // 批量导入书籍
+  const handleBatchImport = async () => {
+    if (!isbnList) {
+      setError('ISBN list is required');
+      return;
+    }
+    
+    const isbns = isbnList.split('\n').filter(isbn => isbn.trim());
+    if (isbns.length === 0) {
+      setError('No valid ISBNs found');
+      return;
+    }
+    
+    setIsImporting(true);
+    setError('');
+    setImportResult(null);
+    
+    try {
+      // 构建书籍数据列表
+      const books = [];
+      for (const isbn of isbns) {
+        try {
+          const bookData = await booksAPI.searchByISBN(isbn.trim());
+          books.push({
+            ...bookData,
+            total_copies: 1,
+            location: formData.location
+          });
+        } catch (err) {
+          console.error(`Failed to fetch book for ISBN ${isbn}:`, err);
+          // 继续处理其他 ISBN
+        }
+      }
+      
+      if (books.length === 0) {
+        setError('No valid books found');
+        return;
+      }
+      
+      // 批量导入书籍
+      const result = await booksAPI.batchImport(books);
+      setImportResult(result);
+      setSuccess(`Batch import completed: ${result.success} success, ${result.failed} failed`);
+      setIsbnList('');
+      
+      // 通知父组件刷新书籍列表
+      if (onBookAdded && result.success > 0) {
+        onBookAdded();
+      }
+      
+      // 3秒后清除成功消息
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to import books. Please try again.');
+      console.error(err);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -183,43 +280,73 @@ const AddBookForm = ({ onBookAdded }) => {
         </div>
       )}
       
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="title">Title:</label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="author">Author:</label>
-          <input
-            type="text"
-            id="author"
-            name="author"
-            value={formData.author}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="isbn">ISBN:</label>
-          <input
-            type="text"
-            id="isbn"
-            name="isbn"
-            value={formData.isbn}
-            onChange={handleChange}
-            required
-            disabled={isSubmitting}
-          />
-        </div>
+      {/* 标签页切换 */}
+      <div className="tab-container">
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'single' ? 'active' : ''}`}
+          onClick={() => setActiveTab('single')}
+        >
+          Single Book
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'batch' ? 'active' : ''}`}
+          onClick={() => setActiveTab('batch')}
+        >
+          Batch Import
+        </button>
+      </div>
+      
+      {/* 单本书籍添加 */}
+      {activeTab === 'single' && (
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="title">Title:</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="author">Author:</label>
+            <input
+              type="text"
+              id="author"
+              name="author"
+              value={formData.author}
+              onChange={handleChange}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="isbn">ISBN:</label>
+            <div className="isbn-input-group">
+              <input
+                type="text"
+                id="isbn"
+                name="isbn"
+                value={formData.isbn}
+                onChange={handleChange}
+                required
+                disabled={isSubmitting || isSearchingISBN}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleSearchISBN}
+                disabled={isSubmitting || isSearchingISBN || !formData.isbn}
+              >
+                {isSearchingISBN ? 'Searching...' : 'Search ISBN'}
+              </button>
+            </div>
+          </div>
         <div className="form-group">
           <label htmlFor="publisher">Publisher:</label>
           <input
@@ -346,7 +473,62 @@ const AddBookForm = ({ onBookAdded }) => {
         >
           {isSubmitting ? 'Adding...' : 'Add Book'}
         </button>
-      </form>
+        </form>
+      )}
+      
+      {/* 批量导入书籍 */}
+      {activeTab === 'batch' && (
+        <div className="batch-import-form">
+          <div className="form-group">
+            <label>ISBN List (one per line):</label>
+            <textarea
+              value={isbnList}
+              onChange={(e) => setIsbnList(e.target.value)}
+              rows="10"
+              placeholder="Enter ISBNs one per line"
+              disabled={isImporting}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="batch-location">Location:</label>
+            <input
+              type="text"
+              id="batch-location"
+              value={formData.location}
+              onChange={handleChange}
+              name="location"
+              disabled={isImporting}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleBatchImport}
+            disabled={isImporting || !isbnList}
+          >
+            {isImporting ? 'Importing...' : 'Import Books'}
+          </button>
+          
+          {/* 导入结果 */}
+          {importResult && (
+            <div className="import-result">
+              <h4>Import Result</h4>
+              <p>Success: {importResult.success}</p>
+              <p>Failed: {importResult.failed}</p>
+              {importResult.errors.length > 0 && (
+                <div className="import-errors">
+                  <h5>Errors:</h5>
+                  <ul>
+                    {importResult.errors.map((error, index) => (
+                      <li key={index}>{error.isbn}: {error.error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI } from '../utils/api';
+import { Link } from 'react-router-dom';
+import { usersAPI, borrowAPI } from '../utils/api';
 import EditUserForm from '../components/Users/EditUserForm';
 import './ProfilePage.css';
 
@@ -10,6 +11,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [totalFine, setTotalFine] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -23,6 +25,11 @@ const ProfilePage = () => {
       setError(null);
       const userData = await usersAPI.getById(user.id);
       setProfile(userData);
+      
+      // 获取用户的罚款信息
+      const fines = await borrowAPI.getUserFines(user.id);
+      const total = fines.reduce((sum, fine) => sum + fine.fine, 0);
+      setTotalFine(total);
     } catch (err) {
       setError('Failed to load profile');
       console.error(err);
@@ -121,6 +128,22 @@ const ProfilePage = () => {
                 <div className="info-item full-width">
                   <span className="info-label">Address</span>
                   <span className="info-value">{profile.address || 'Not provided'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Fine Information */}
+            <div className="profile-section">
+              <h3 className="section-title">Fine Information</h3>
+              <div className="info-grid">
+                <div className="info-item full-width">
+                  <span className="info-label">Total Fine</span>
+                  <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
+                </div>
+                <div className="info-item full-width">
+                  <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
+                    View Fine Details
+                  </Link>
                 </div>
               </div>
             </div>

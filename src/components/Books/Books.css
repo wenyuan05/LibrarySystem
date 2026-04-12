@@ -53,6 +53,12 @@
   height: 100%;
 }
 
+.search-button img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
 .search-button:hover {
   background: var(--primary-hover) !important;
   border-color: var(--primary-hover) !important;
@@ -743,6 +749,129 @@
   }
   
   .unavailable-copy-item button {
+    width: 100%;
+  }
+}
+
+/* 标签页样式 */
+.tab-container {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-button {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: all var(--transition);
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  color: var(--primary-color);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ISBN 输入组样式 */
+.isbn-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+}
+
+.isbn-input-group input {
+  flex: 1;
+}
+
+.isbn-input-group button {
+  white-space: nowrap;
+}
+
+/* 批量导入表单样式 */
+.batch-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.batch-import-form textarea {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  resize: vertical;
+  transition: border-color var(--transition);
+  outline: none;
+}
+
+.batch-import-form textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+}
+
+/* 导入结果样式 */
+.import-result {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-tertiary);
+}
+
+.import-result h4 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+.import-result p {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+}
+
+.import-errors {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.import-errors h5 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-md);
+  color: var(--danger-color);
+}
+
+.import-errors ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.import-errors li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .isbn-input-group {
+    flex-direction: column;
+  }
+  
+  .isbn-input-group button {
     width: 100%;
   }
 }

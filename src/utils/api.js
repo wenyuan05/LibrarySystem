@@ -104,9 +104,20 @@ export const booksAPI = {
       body: JSON.stringify(book),
     });
   },
-  
 
-  
+  // 通过 ISBN 查询书籍信息
+  searchByISBN: async (isbn) => {
+    return request(`/books/isbn/${isbn}`);
+  },
+
+  // 批量导入书籍
+  batchImport: async (books) => {
+    return request('/books/batch', {
+      method: 'POST',
+      body: JSON.stringify({ books }),
+    });
+  },
+
   // 更新书籍信息
   update: async (id, bookData) => {
     return request(`/books/${id}`, {
@@ -301,6 +312,19 @@ export const borrowAPI = {
   handleTimeout: async () => {
     return request('/borrow/handle-timeout', {
       method: 'POST',
+    });
+  },
+
+  // 获取用户的罚款记录
+  getUserFines: async (userId) => {
+    return request(`/borrow/fines/${userId}`);
+  },
+
+  // 支付罚款
+  payFine: async (userId) => {
+    return request('/borrow/pay-fine', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
     });
   },
 };

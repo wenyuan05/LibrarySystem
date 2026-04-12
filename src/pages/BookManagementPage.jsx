@@ -162,7 +162,7 @@ const BookManagementPage = () => {
             />
           </div>
           <button className="search-button" onClick={handleSearchClick}>
-            🔍
+            <img src="/放大镜.svg" alt="Search" />
           </button>
         </div>
       </div>

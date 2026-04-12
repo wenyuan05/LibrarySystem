@@ -97,6 +97,14 @@ const BookDetailsPage = () => {
       if (isBorrowing) {
         return; // 防止重复点击
       }
+      
+      // 检查用户是否有未结清的罚款
+      const fines = await borrowAPI.getUserFines(user.id);
+      const totalFine = fines.reduce((sum, fine) => sum + fine.fine, 0);
+      if (totalFine > 0) {
+        throw new Error('You have unpaid fines and cannot borrow books');
+      }
+      
       setIsBorrowing(true);
       const result = await borrowAPI.borrow(user.id, book.id);
       setBorrowRecord(result);

@@ -31,7 +31,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {user.role !== 'admin' && (
             <li className={location.pathname === '/profile' ? 'active' : ''}>
               <Link to="/profile" onClick={onClose}>
-                <span className="nav-icon">👤</span>
+                <span className="nav-icon"><img src="/用户.svg" alt="User" /></span>
                 <span className="nav-text">My Profile</span>
               </Link>
             </li>
@@ -41,7 +41,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {user.role !== 'admin' && (
             <li className={location.pathname === '/announcements' ? 'active' : ''}>
               <Link to="/announcements" onClick={onClose}>
-                <span className="nav-icon">📢</span>
+                <span className="nav-icon"><img src="/公告.svg" alt="Announcements" /></span>
                 <span className="nav-text">Announcements</span>
               </Link>
             </li>
@@ -50,7 +50,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {user.role !== 'admin' && user.role !== 'librarian' && (
             <li className={location.pathname === '/' || location.pathname === '/books' ? 'active' : ''}>
               <Link to="/books" onClick={onClose}>
-                <span className="nav-icon">📚</span>
+                <span className="nav-icon"><img src="/图书 (1).svg" alt="Books" /></span>
                 <span className="nav-text">Books</span>
               </Link>
             </li>
@@ -60,15 +60,15 @@ const Sidebar = ({ isOpen, onClose }) => {
             <>
               <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
                 <Link to="/borrow-records" onClick={onClose}>
-                  <span className="nav-icon">📖</span>
-                  <span className="nav-text">My Borrows</span>
-                </Link>
+                <span className="nav-icon"><img src="/书.svg" alt="Borrows" /></span>
+                <span className="nav-text">My Borrows</span>
+              </Link>
               </li>
               <li className={location.pathname === '/reservations' ? 'active' : ''}>
                 <Link to="/reservations" onClick={onClose}>
-                  <span className="nav-icon">📅</span>
-                  <span className="nav-text">My Reservations</span>
-                </Link>
+                <span className="nav-icon"><img src="/书.svg" alt="Reservations" /></span>
+                <span className="nav-text">My Reservations</span>
+              </Link>
               </li>
             </>
           )}
@@ -78,60 +78,60 @@ const Sidebar = ({ isOpen, onClose }) => {
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/stats' ? 'active' : ''}>
                   <Link to="/stats" onClick={onClose}>
-                    <span className="nav-icon">📊</span>
-                    <span className="nav-text">Statistics</span>
-                  </Link>
+                <span className="nav-icon"><img src="/书.svg" alt="Statistics" /></span>
+                <span className="nav-text">Statistics</span>
+              </Link>
                 </li>
               )}
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/book-management' ? 'active' : ''}>
                   <Link to="/book-management" onClick={onClose}>
-                    <span className="nav-icon">📚</span>
-                    <span className="nav-text">Book Management</span>
-                  </Link>
+                <span className="nav-icon"><img src="/图书 (1).svg" alt="Book Management" /></span>
+                <span className="nav-text">Book Management</span>
+              </Link>
                 </li>
               )}
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/return-approval' ? 'active' : ''}>
                   <Link to="/return-approval" onClick={onClose}>
-                    <span className="nav-icon">🔄</span>
-                    <span className="nav-text">Return Approval</span>
-                  </Link>
+                <span className="nav-icon"><img src="/归还.svg" alt="Return Approval" /></span>
+                <span className="nav-text">Return Approval</span>
+              </Link>
                 </li>
               )}
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/category-management' ? 'active' : ''}>
                   <Link to="/category-management" onClick={onClose}>
-                    <span className="nav-icon">📁</span>
-                    <span className="nav-text">Category Management</span>
-                  </Link>
+                <span className="nav-icon"><img src="/书.svg" alt="Category Management" /></span>
+                <span className="nav-text">Category Management</span>
+              </Link>
                 </li>
               )}
               <li className={location.pathname === '/users' ? 'active' : ''}>
                 <Link to="/users" onClick={onClose}>
-                  <span className="nav-icon">👥</span>
-                  <span className="nav-text">User Management</span>
-                </Link>
+                <span className="nav-icon"><img src="/用户.svg" alt="User Management" /></span>
+                <span className="nav-text">User Management</span>
+              </Link>
               </li>
               {user.role === 'admin' && (
                 <>
                   <li className={location.pathname === '/announcement-management' ? 'active' : ''}>
                     <Link to="/announcement-management" onClick={onClose}>
-                      <span className="nav-icon">📝</span>
-                      <span className="nav-text">Announcement Management</span>
-                    </Link>
+                    <span className="nav-icon"><img src="/公告.svg" alt="Announcement Management" /></span>
+                    <span className="nav-text">Announcement Management</span>
+                  </Link>
                   </li>
                   <li className={location.pathname === '/logs' ? 'active' : ''}>
                     <Link to="/logs" onClick={onClose}>
-                      <span className="nav-icon">📋</span>
-                      <span className="nav-text">System Logs</span>
-                    </Link>
+                    <span className="nav-icon"><img src="/书.svg" alt="System Logs" /></span>
+                    <span className="nav-text">System Logs</span>
+                  </Link>
                   </li>
                   <li className={location.pathname === '/system-settings' ? 'active' : ''}>
                     <Link to="/system-settings" onClick={onClose}>
-                      <span className="nav-icon">⚙️</span>
-                      <span className="nav-text">System Settings</span>
-                    </Link>
+                    <span className="nav-icon"><img src="/设置.svg" alt="System Settings" /></span>
+                    <span className="nav-text">System Settings</span>
+                  </Link>
                   </li>
                 </>
               )}
@@ -142,7 +142,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={logout}>
-          <span className="nav-icon">🚪</span>
+          <span className="nav-icon"><img src="/退出.svg" alt="Logout" /></span>
           <span className="nav-text">Logout</span>
         </button>
       </div>

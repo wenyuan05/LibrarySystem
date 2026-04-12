@@ -692,3 +692,178 @@ exports.updateCopyLocation = (req, res) => {
     });
   });
 };
+
+// 通过 ISBN 查询书籍信息
+exports.searchByISBN = (req, res) => {
+  const { isbn } = req.params;
+  const https = require('https');
+  
+  // 构建 OpenLibrary API URL
+  const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+  
+  https.get(url, (apiRes) => {
+    let data = '';
+    
+    apiRes.on('data', (chunk) => {
+      data += chunk;
+    });
+    
+    apiRes.on('end', () => {
+      try {
+        const response = JSON.parse(data);
+        const bookKey = `ISBN:${isbn}`;
+        
+        if (response[bookKey]) {
+          const bookData = response[bookKey];
+          
+          // 清洗数据，只返回需要的信息
+          const cleanedData = {
+            title: bookData.title || '',
+            author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
+            publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
+            publish_date: bookData.publish_date || '',
+            isbn: isbn,
+            description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
+            cover_image: bookData.cover ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '',
+            language: 'Chinese',
+            page_count: bookData.number_of_pages || 0
+          };
+          
+          res.json(cleanedData);
+        } else {
+          res.status(404).json({ error: 'Book not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to parse API response' });
+      }
+    });
+  }).on('error', (error) => {
+    res.status(500).json({ error: 'Failed to fetch book information' });
+  });
+};
+
+// 批量导入书籍
+exports.batchImportBooks = (req, res) => {
+  const { books } = req.body;
+  
+  if (!books || !Array.isArray(books)) {
+    res.status(400).json({ error: 'Invalid request data' });
+    return;
+  }
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      let processedCount = 0;
+      const totalCount = books.length;
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: []
+      };
+      
+      if (totalCount === 0) {
+        db.run('COMMIT', (err) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json(results);
+        });
+        return;
+      }
+      
+      books.forEach((bookData) => {
+        const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = '' } = bookData;
+        
+        // 检查ISBN是否已存在
+        db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
+          if (err) {
+            results.failed++;
+            results.errors.push({ isbn, error: err.message });
+            processedCount++;
+            
+            if (processedCount === totalCount) {
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json(results);
+              });
+            }
+            return;
+          }
+          
+          if (existingBook) {
+            results.failed++;
+            results.errors.push({ isbn, error: 'Book with this ISBN already exists' });
+            processedCount++;
+            
+            if (processedCount === totalCount) {
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json(results);
+              });
+            }
+            return;
+          }
+          
+          // 插入书籍信息
+          const copies = total_copies || 1;
+          db.run(
+            'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, 'Chinese', 0],
+            function(err) {
+              if (err) {
+                results.failed++;
+                results.errors.push({ isbn, error: err.message });
+              } else {
+                const bookId = this.lastID;
+                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
+                let copyCount = 0;
+                const totalCopies = copies;
+                
+                // 创建副本记录
+                for (let i = 0; i < totalCopies; i++) {
+                  insertCopy.run(bookId, 'available', location, (err) => {
+                    if (err) {
+                      console.error('创建副本失败:', err.message);
+                    }
+                    
+                    copyCount++;
+                    if (copyCount === totalCopies) {
+                      insertCopy.finalize(() => {
+                        results.success++;
+                      });
+                    }
+                  });
+                }
+              }
+              
+              processedCount++;
+              
+              if (processedCount === totalCount) {
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json(results);
+                });
+              }
+            }
+          );
+        });
+      });
+    });
+  });
+};

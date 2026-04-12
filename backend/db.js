@@ -99,6 +99,7 @@ db.serialize(() => {
       email TEXT NOT NULL,
       phone TEXT,
       address TEXT,
+      total_fine REAL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -117,6 +118,7 @@ db.serialize(() => {
       confirm_deadline TEXT,
       status TEXT DEFAULT 'borrowed',
       fine REAL DEFAULT 0,
+      fine_status TEXT DEFAULT 'unpaid',
       renew_count INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (book_id) REFERENCES books(id),
@@ -203,6 +205,16 @@ db.serialize(() => {
 
   // 为现有借阅记录表添加renew_count字段
   db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
+    // 字段已存在，忽略错误
+  });
+
+  // 为现有借阅记录表添加 fine_status 字段
+  db.run('ALTER TABLE borrow_records ADD COLUMN fine_status TEXT DEFAULT "unpaid"', (err) => {
+    // 字段已存在，忽略错误
+  });
+
+  // 为现有用户表添加 total_fine 字段
+  db.run('ALTER TABLE users ADD COLUMN total_fine REAL DEFAULT 0', (err) => {
     // 字段已存在，忽略错误
   });
 
