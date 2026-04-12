@@ -12,7 +12,6 @@ const FineDetailsPage = () => {
   const { showToast } = useToast();
   const [fines, setFines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isPaying, setIsPaying] = useState(false);
   const [totalFine, setTotalFine] = useState(0);
 
@@ -21,14 +20,12 @@ const FineDetailsPage = () => {
     const fetchFines = async () => {
       try {
         setLoading(true);
-        setError(null);
         const data = await borrowAPI.getUserFines(user_id || user.id);
         setFines(data);
         // 计算总罚款金额
         const total = data.reduce((sum, fine) => sum + fine.fine, 0);
         setTotalFine(total);
       } catch (err) {
-        setError('Failed to load fine records');
         showToast('Failed to load fine records', 'error');
         console.error(err);
       } finally {
@@ -69,15 +66,6 @@ const FineDetailsPage = () => {
 
   if (loading) {
     return <div className="loading">Loading fine records...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={handleBack} className="btn-primary">Back</button>
-      </div>
-    );
   }
 
   return (

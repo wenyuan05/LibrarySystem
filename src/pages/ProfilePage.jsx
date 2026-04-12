@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Link } from 'react-router-dom';
 import { usersAPI, borrowAPI } from '../utils/api';
 import EditUserForm from '../components/Users/EditUserForm';
@@ -7,9 +8,9 @@ import './ProfilePage.css';
 
 const ProfilePage = () => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [totalFine, setTotalFine] = useState(0);
 
@@ -22,7 +23,6 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      setError(null);
       const userData = await usersAPI.getById(user.id);
       setProfile(userData);
       
@@ -31,7 +31,7 @@ const ProfilePage = () => {
       const total = fines.reduce((sum, fine) => sum + fine.fine, 0);
       setTotalFine(total);
     } catch (err) {
-      setError('Failed to load profile');
+      showToast('Failed to load profile', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -64,15 +64,6 @@ const ProfilePage = () => {
 
   if (loading) {
     return <div className="loading">Loading profile...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchProfile} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   if (!profile) {

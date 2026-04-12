@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { usersAPI } from '../../utils/api';
 import './Users.css';
 
@@ -11,8 +12,7 @@ const AddUserForm = ({ onUserAdded }) => {
     email: '' 
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,51 +25,49 @@ const AddUserForm = ({ onUserAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
-    setSuccess('');
 
     // 前端验证
     if (!formData.username.trim()) {
-      setError('Username is required');
+      showToast('Username is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.username.length < 3) {
-      setError('Username must be at least 3 characters');
+      showToast('Username must be at least 3 characters', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.password) {
-      setError('Password is required');
+      showToast('Password is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      showToast('Password must be at least 6 characters', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.name.trim()) {
-      setError('Name is required');
+      showToast('Name is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.email.trim()) {
-      setError('Email is required');
+      showToast('Email is required', 'error');
       setIsSubmitting(false);
       return;
     }
     // 邮箱格式检查
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(formData.email)) {
-      setError('Invalid email format');
+      showToast('Invalid email format', 'error');
       setIsSubmitting(false);
       return;
     }
 
     try {
       const newUser = await usersAPI.add(formData);
-      setSuccess('User added successfully!');
+      showToast('User added successfully!', 'success');
       // 重置表单
       setFormData({ 
         username: '', 
@@ -82,10 +80,8 @@ const AddUserForm = ({ onUserAdded }) => {
       if (onUserAdded) {
         onUserAdded(newUser);
       }
-      // 3秒后清除成功消息
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to add user. Please try again.');
+      showToast(err.message || 'Failed to add user. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -95,18 +91,6 @@ const AddUserForm = ({ onUserAdded }) => {
   return (
     <div className="add-user-form card">
       <h3>Add New User</h3>
-      
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
-      
-      {success && (
-        <div className="success-message">
-          {success}
-        </div>
-      )}
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">

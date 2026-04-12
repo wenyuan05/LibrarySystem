@@ -9,7 +9,6 @@ const UserBorrowRecords = () => {
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -27,7 +26,6 @@ const UserBorrowRecords = () => {
   const fetchUserAndRecords = async () => {
     try {
       setLoading(true);
-      setError(null);
       
       // 获取用户信息
       const userData = await usersAPI.getById(userId);
@@ -38,7 +36,7 @@ const UserBorrowRecords = () => {
       setRecords(recordsData.records);
       setOverdueCount(recordsData.overdue_count || 0);
     } catch (err) {
-      setError('Failed to load user borrow records');
+      showToast('Failed to load user borrow records', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -89,15 +87,6 @@ const UserBorrowRecords = () => {
 
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchUserAndRecords} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

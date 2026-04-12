@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
@@ -7,14 +8,13 @@ const AddBookForm = ({ onBookAdded }) => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isSearchingISBN, setIsSearchingISBN] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [isbnList, setIsbnList] = useState('');
   const [activeTab, setActiveTab] = useState('single'); // 'single' or 'batch'
+  const { showToast } = useToast();
   const dropdownRef = useRef(null);
 
   const handleChange = (e) => {
@@ -73,12 +73,11 @@ const AddBookForm = ({ onBookAdded }) => {
   // 通过 ISBN 查询书籍信息
   const handleSearchISBN = async () => {
     if (!formData.isbn) {
-      setError('ISBN is required');
+      showToast('ISBN is required', 'error');
       return;
     }
     
     setIsSearchingISBN(true);
-    setError('');
     
     try {
       const bookData = await booksAPI.searchByISBN(formData.isbn);
@@ -92,10 +91,9 @@ const AddBookForm = ({ onBookAdded }) => {
         page_count: bookData.page_count || '',
         cover_image: bookData.cover_image || ''
       }));
-      setSuccess('Book information fetched successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      showToast('Book information fetched successfully!', 'success');
     } catch (err) {
-      setError(err.message || 'Failed to fetch book information. Please try again.');
+      showToast(err.message || 'Failed to fetch book information. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsSearchingISBN(false);
@@ -105,18 +103,17 @@ const AddBookForm = ({ onBookAdded }) => {
   // 批量导入书籍
   const handleBatchImport = async () => {
     if (!isbnList) {
-      setError('ISBN list is required');
+      showToast('ISBN list is required', 'error');
       return;
     }
     
     const isbns = isbnList.split('\n').filter(isbn => isbn.trim());
     if (isbns.length === 0) {
-      setError('No valid ISBNs found');
+      showToast('No valid ISBNs found', 'error');
       return;
     }
     
     setIsImporting(true);
-    setError('');
     setImportResult(null);
     
     try {
@@ -137,25 +134,22 @@ const AddBookForm = ({ onBookAdded }) => {
       }
       
       if (books.length === 0) {
-        setError('No valid books found');
+        showToast('No valid books found', 'error');
         return;
       }
       
       // 批量导入书籍
       const result = await booksAPI.batchImport(books);
       setImportResult(result);
-      setSuccess(`Batch import completed: ${result.success} success, ${result.failed} failed`);
+      showToast(`Batch import completed: ${result.success} success, ${result.failed} failed`, 'success');
       setIsbnList('');
       
       // 通知父组件刷新书籍列表
       if (onBookAdded && result.success > 0) {
         onBookAdded();
       }
-      
-      // 3秒后清除成功消息
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to import books. Please try again.');
+      showToast(err.message || 'Failed to import books. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsImporting(false);
@@ -165,72 +159,70 @@ const AddBookForm = ({ onBookAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
-    setSuccess('');
 
     // 前端验证
     if (!formData.title || typeof formData.title !== 'string' || !formData.title.trim()) {
-      setError('Title is required');
+      showToast('Title is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.title.length > 100) {
-      setError('Title must be less than 100 characters');
+      showToast('Title must be less than 100 characters', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.author || typeof formData.author !== 'string' || !formData.author.trim()) {
-      setError('Author is required');
+      showToast('Author is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.author.length > 50) {
-      setError('Author must be less than 50 characters');
+      showToast('Author must be less than 50 characters', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.isbn || typeof formData.isbn !== 'string' || !formData.isbn.trim()) {
-      setError('ISBN is required');
+      showToast('ISBN is required', 'error');
       setIsSubmitting(false);
       return;
     }
     // 严格的ISBN格式检查
     const isbnPattern = /^\d{10}(?:\d{3})?$/;
     if (!isbnPattern.test(formData.isbn)) {
-      setError('ISBN must be 10 or 13 digits');
+      showToast('ISBN must be 10 or 13 digits', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.total_copies || typeof formData.total_copies !== 'string' && typeof formData.total_copies !== 'number') {
-      setError('Total copies is required');
+      showToast('Total copies is required', 'error');
       setIsSubmitting(false);
       return;
     }
     const totalCopies = parseInt(formData.total_copies);
     if (isNaN(totalCopies) || totalCopies < 1 || totalCopies > 100) {
-      setError('Total copies must be between 1 and 100');
+      showToast('Total copies must be between 1 and 100', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.publisher && typeof formData.publisher !== 'string') {
-      setError('Publisher must be a string');
+      showToast('Publisher must be a string', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.publisher && formData.publisher.length > 50) {
-      setError('Publisher must be less than 50 characters');
+      showToast('Publisher must be less than 50 characters', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.page_count && (typeof formData.page_count !== 'string' && typeof formData.page_count !== 'number')) {
-      setError('Page count must be a number');
+      showToast('Page count must be a number', 'error');
       setIsSubmitting(false);
       return;
     }
     if (formData.page_count) {
       const pageCount = parseInt(formData.page_count);
       if (isNaN(pageCount) || pageCount < 1 || pageCount > 10000) {
-        setError('Page count must be between 1 and 10000');
+        showToast('Page count must be between 1 and 10000', 'error');
         setIsSubmitting(false);
         return;
       }
@@ -246,7 +238,7 @@ const AddBookForm = ({ onBookAdded }) => {
         }
       }
       
-      setSuccess('Book added successfully!');
+      showToast('Book added successfully!', 'success');
       // 重置表单
       setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '', total_copies: '1', location: '' });
       setSelectedCategories([]);
@@ -254,10 +246,8 @@ const AddBookForm = ({ onBookAdded }) => {
       if (onBookAdded) {
         onBookAdded(newBook);
       }
-      // 3秒后清除成功消息
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to add book. Please try again.');
+      showToast(err.message || 'Failed to add book. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -267,18 +257,6 @@ const AddBookForm = ({ onBookAdded }) => {
   return (
     <div className="add-book-form card">
       <h3>Add New Book</h3>
-      
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
-      
-      {success && (
-        <div className="success-message">
-          {success}
-        </div>
-      )}
       
       {/* 标签页切换 */}
       <div className="tab-container">

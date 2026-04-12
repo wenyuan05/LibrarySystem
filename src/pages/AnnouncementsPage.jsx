@@ -5,7 +5,6 @@ import { announcementAPI } from '../utils/api';
 const AnnouncementsPage = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { showToast } = useToast();
 
   // Load announcements list
@@ -16,13 +15,11 @@ const AnnouncementsPage = () => {
   const fetchAnnouncements = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await announcementAPI.getAll();
       // Only show published announcements
       const publishedAnnouncements = data.filter(announcement => announcement.is_published);
       setAnnouncements(publishedAnnouncements);
     } catch (err) {
-      setError('Failed to load announcements');
       showToast('Failed to load announcements', 'error');
       console.error(err);
     } finally {
@@ -32,15 +29,6 @@ const AnnouncementsPage = () => {
 
   if (loading) {
     return <div className="loading">Loading announcements...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchAnnouncements} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

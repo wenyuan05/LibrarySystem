@@ -12,20 +12,17 @@ const BookDetail = () => {
   const { showToast } = useToast();
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // 加载书籍详情
   useEffect(() => {
     const fetchBookDetail = async () => {
       try {
         setLoading(true);
-        setError(null);
         const data = await booksAPI.getById(id);
         setBook(data);
       } catch (err) {
         console.error('Failed to load book detail:', err);
         const errorMessage = 'Failed to load book detail. Please try again.';
-        setError(errorMessage);
         showToast(errorMessage, 'error');
       } finally {
         setLoading(false);
@@ -73,12 +70,12 @@ const BookDetail = () => {
     );
   }
 
-  if (error || !book) {
+  if (!book) {
     return (
       <div className="book-detail-section card fade-in">
         <h2>Book Detail</h2>
         <div className="error-message">
-          {error || 'Book not found'}
+          Book not found
           <button onClick={handleBack} className="btn-primary">Back</button>
         </div>
       </div>

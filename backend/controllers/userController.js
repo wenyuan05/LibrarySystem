@@ -285,33 +285,48 @@ exports.deleteUser = (req, res) => {
         return;
       }
 
-      // 删除用户状态记录
-      db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
+      // 检查用户是否有未归还的借阅记录
+      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
 
-        // 删除用户
-        db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
+        if (result.count > 0) {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
+          return;
+        }
+
+        // 删除用户状态记录
+        db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
             return;
           }
-          if (this.changes === 0) {
-            db.run('ROLLBACK');
-            res.status(404).json({ error: 'User not found' });
-            return;
-          }
 
-          db.run('COMMIT', (err) => {
+          // 删除用户
+          db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
             if (err) {
+              db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            res.json({ message: 'User deleted' });
+            if (this.changes === 0) {
+              db.run('ROLLBACK');
+              res.status(404).json({ error: 'User not found' });
+              return;
+            }
+
+            db.run('COMMIT', (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json({ message: 'User deleted' });
+            });
           });
         });
       });

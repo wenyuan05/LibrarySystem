@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
@@ -7,12 +8,11 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [copies, setCopies] = useState([]);
   const [copiesLoading, setCopiesLoading] = useState(false);
+  const { showToast } = useToast();
   const titleInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -129,10 +129,10 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       // 重新获取副本列表
       const bookCopies = await booksAPI.getCopies(book.id);
       setCopies(bookCopies);
+      showToast('Copy status updated successfully', 'success');
     } catch (error) {
       console.error('Error updating copy status:', error);
-      setError('Failed to update copy status');
-      setTimeout(() => setError(''), 3000);
+      showToast('Failed to update copy status', 'error');
     }
   };
 
@@ -143,10 +143,10 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       // 重新获取副本列表
       const bookCopies = await booksAPI.getCopies(book.id);
       setCopies(bookCopies);
+      showToast('Copy location updated successfully', 'success');
     } catch (error) {
       console.error('Error updating copy location:', error);
-      setError('Failed to update copy location');
-      setTimeout(() => setError(''), 3000);
+      showToast('Failed to update copy location', 'error');
     }
   };
 
@@ -158,6 +158,7 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       // 重新获取副本列表
       const bookCopies = await booksAPI.getCopies(book.id);
       setCopies(bookCopies);
+      showToast('Copy added successfully', 'success');
       // 更新书籍信息
       if (onEditComplete) {
         const updatedBook = await booksAPI.getById(book.id);
@@ -165,37 +166,34 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       }
     } catch (error) {
       console.error('Error adding copy:', error);
-      setError('Failed to add copy');
-      setTimeout(() => setError(''), 3000);
+      showToast('Failed to add copy', 'error');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
-    setSuccess('');
 
     // 前端验证
     if (!formData.title.trim()) {
-      setError('Title is required');
+      showToast('Title is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.author.trim()) {
-      setError('Author is required');
+      showToast('Author is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.isbn.trim()) {
-      setError('ISBN is required');
+      showToast('ISBN is required', 'error');
       setIsSubmitting(false);
       return;
     }
     // 简单的ISBN格式检查
     const isbnPattern = /^\d{10}(?:\d{3})?$/;
     if (!isbnPattern.test(formData.isbn)) {
-      setError('ISBN must be 10 or 13 digits');
+      showToast('ISBN must be 10 or 13 digits', 'error');
       setIsSubmitting(false);
       return;
     }
@@ -226,15 +224,13 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       const bookCopies = await booksAPI.getCopies(book.id);
       setCopies(bookCopies);
       
-      setSuccess('Book updated successfully!');
+      showToast('Book updated successfully!', 'success');
       // 通知父组件编辑完成
       if (onEditComplete) {
         onEditComplete(updatedBook);
       }
-      // 3秒后清除成功消息
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to update book. Please try again.');
+      showToast(err.message || 'Failed to update book. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -268,18 +264,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
           <h3 id="modal-title">Edit Book</h3>
           <button className="modal-close" onClick={handleModalClose} aria-label="Close modal">×</button>
         </div>
-        
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="success-message">
-            {success}
-          </div>
-        )}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">

@@ -8,7 +8,6 @@ import SkeletonLoader from './SkeletonLoader';
 import './Books.css';
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
-  const [error, setError] = useState(null);
   const [borrowRecords, setBorrowRecords] = useState([]);
   const [reservationRecords, setReservationRecords] = useState([]);
   const { user } = useAuth();
@@ -80,7 +79,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         }
         showToast('Book deleted successfully', 'success');
       } catch (err) {
-        setError('Failed to delete book');
         showToast('Failed to delete book', 'error');
         console.error(err);
       }
@@ -123,7 +121,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       showToast('Borrow request initiated. Please confirm.', 'success');
       setShowConfirmModal(true);
     } catch (err) {
-      setError('Failed to borrow book');
       showToast(err.message, 'error');
       console.error(err);
     } finally {
@@ -178,7 +175,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       setBorrowRecords(prevRecords => prevRecords.filter(record => record.book_id !== bookId));
       showToast('Return request submitted successfully. Waiting for librarian approval.', 'success');
     } catch (err) {
-      setError('Failed to return book');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -197,7 +193,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       setReservationRecords(activeReservations);
       showToast(result.message, 'success');
     } catch (err) {
-      setError('Failed to reserve book');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -216,7 +211,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       setReservationRecords(activeReservations);
       showToast(result.message, 'success');
     } catch (err) {
-      setError('Failed to cancel reservation');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -224,15 +218,6 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
 
   if (loading) {
     return <SkeletonLoader count={5} />;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={() => setError(null)} className="btn-primary">Dismiss</button>
-      </div>
-    );
   }
 
   // 动画变量

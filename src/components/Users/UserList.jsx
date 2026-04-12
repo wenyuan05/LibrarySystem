@@ -12,7 +12,6 @@ const UserList = () => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const { user } = useAuth();
@@ -32,11 +31,10 @@ const UserList = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await usersAPI.getAll();
       setUsers(data);
     } catch (err) {
-      setError('Failed to load users');
+      showToast('Failed to load users', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -46,7 +44,7 @@ const UserList = () => {
   // 处理用户删除
   const handleDeleteUser = async (id) => {
     if (id === user.id) {
-      alert('You cannot delete your own account');
+      showToast('You cannot delete your own account', 'error');
       return;
     }
 
@@ -54,8 +52,9 @@ const UserList = () => {
       try {
         await usersAPI.delete(id);
         setUsers(users.filter(userItem => userItem.id !== id));
+        showToast('User deleted successfully', 'success');
       } catch (err) {
-        setError('Failed to delete user');
+        showToast('Failed to delete user', 'error');
         console.error(err);
       }
     }
@@ -96,7 +95,6 @@ const UserList = () => {
         ));
         showToast('User blocked successfully', 'success');
       } catch (err) {
-        setError('Failed to block user');
         showToast('Failed to block user', 'error');
         console.error(err);
       }
@@ -113,7 +111,6 @@ const UserList = () => {
         ));
         showToast('User unblocked successfully', 'success');
       } catch (err) {
-        setError('Failed to unblock user');
         showToast('Failed to unblock user', 'error');
         console.error(err);
       }
@@ -147,15 +144,6 @@ const UserList = () => {
 
   if (loading) {
     return <div className="loading">Loading users...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchUsers} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

@@ -5,19 +5,16 @@ import { borrowAPI } from '../utils/api';
 const ReturnApprovalPage = () => {
   const [returningRecords, setReturningRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { showToast } = useToast();
 
   // Load returning requests to be approved
   const fetchReturningRecords = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await borrowAPI.getReturningList();
       setReturningRecords(data);
     } catch (err) {
-      setError('Failed to load returning records');
-      showToast(err.message, 'error');
+      showToast('Failed to load returning records', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -46,15 +43,6 @@ const ReturnApprovalPage = () => {
 
   if (loading) {
     return <div className="loading">Loading returning records...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchReturningRecords} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

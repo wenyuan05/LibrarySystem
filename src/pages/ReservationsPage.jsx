@@ -7,7 +7,6 @@ import './ReservationsPage.css';
 const ReservationsPage = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -19,11 +18,9 @@ const ReservationsPage = () => {
   const fetchReservations = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await borrowAPI.getReservations(user.id);
       setReservations(data);
     } catch (err) {
-      setError('Failed to load reservations');
       showToast('Failed to load reservations', 'error');
       console.error(err);
     } finally {
@@ -47,7 +44,6 @@ const ReservationsPage = () => {
       
       showToast(result.message, 'success');
     } catch (err) {
-      setError('Failed to cancel reservation');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -55,15 +51,6 @@ const ReservationsPage = () => {
 
   if (loading) {
     return <div className="loading">Loading reservations...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchReservations} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

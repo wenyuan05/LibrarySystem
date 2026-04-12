@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { authAPI } from '../../utils/api';
 import privacyConfig from '../../config/privacy';
 import './Login.css';
@@ -19,6 +20,7 @@ const Login = () => {
   const [isResetPasswordMode, setIsResetPasswordMode] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const { login, register } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -49,19 +51,19 @@ const Login = () => {
 
   const validateLoginForm = () => {
     if (!formData.username.trim()) {
-      setLoginError('Username is required');
+      showToast('Username is required', 'error');
       return false;
     }
     if (formData.username.length < 3 || formData.username.length > 20) {
-      setLoginError('Username must be between 3 and 20 characters');
+      showToast('Username must be between 3 and 20 characters', 'error');
       return false;
     }
     if (!formData.password) {
-      setLoginError('Password is required');
+      showToast('Password is required', 'error');
       return false;
     }
     if (formData.password.length < 6) {
-      setLoginError('Password must be at least 6 characters');
+      showToast('Password must be at least 6 characters', 'error');
       return false;
     }
     return true;
@@ -70,7 +72,6 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setLoginError('');
     
     if (!validateLoginForm()) {
       setIsSubmitting(false);
@@ -82,7 +83,7 @@ const Login = () => {
       // 登录成功后导航到首页
       navigate('/');
     } catch (error) {
-      setLoginError(error.message);
+      showToast(error.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -90,36 +91,36 @@ const Login = () => {
 
   const validateRegisterForm = () => {
     if (!registerData.username.trim()) {
-      setLoginError('Username is required');
+      showToast('Username is required', 'error');
       return false;
     }
     if (registerData.username.length < 3 || registerData.username.length > 20) {
-      setLoginError('Username must be between 3 and 20 characters');
+      showToast('Username must be between 3 and 20 characters', 'error');
       return false;
     }
     if (!registerData.password) {
-      setLoginError('Password is required');
+      showToast('Password is required', 'error');
       return false;
     }
     if (registerData.password.length < 6) {
-      setLoginError('Password must be at least 6 characters');
+      showToast('Password must be at least 6 characters', 'error');
       return false;
     }
     if (!registerData.name.trim()) {
-      setLoginError('Name is required');
+      showToast('Name is required', 'error');
       return false;
     }
     if (registerData.name.length < 2 || registerData.name.length > 50) {
-      setLoginError('Name must be between 2 and 50 characters');
+      showToast('Name must be between 2 and 50 characters', 'error');
       return false;
     }
     if (!registerData.email.trim()) {
-      setLoginError('Email is required');
+      showToast('Email is required', 'error');
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(registerData.email)) {
-      setLoginError('Invalid email format');
+      showToast('Invalid email format', 'error');
       return false;
     }
     return true;
@@ -143,13 +144,13 @@ const Login = () => {
 
   const validateResetForm = () => {
     if (!resetData.email.trim() && !resetData.phone.trim()) {
-      setLoginError('Email or phone is required');
+      showToast('Email or phone is required', 'error');
       return false;
     }
     if (resetData.email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(resetData.email)) {
-        setLoginError('Invalid email format');
+        showToast('Invalid email format', 'error');
         return false;
       }
     }
@@ -158,15 +159,15 @@ const Login = () => {
 
   const validateNewPasswordForm = () => {
     if (!newPasswordData.newPassword) {
-      setLoginError('New password is required');
+      showToast('New password is required', 'error');
       return false;
     }
     if (newPasswordData.newPassword.length < 6) {
-      setLoginError('New password must be at least 6 characters');
+      showToast('New password must be at least 6 characters', 'error');
       return false;
     }
     if (newPasswordData.newPassword !== newPasswordData.confirmPassword) {
-      setLoginError('Passwords do not match');
+      showToast('Passwords do not match', 'error');
       return false;
     }
     return true;
@@ -175,7 +176,6 @@ const Login = () => {
   const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setLoginError('');
     
     if (!validateResetForm()) {
       setIsSubmitting(false);
@@ -189,7 +189,7 @@ const Login = () => {
       setIsForgotPasswordMode(false);
       setIsResetPasswordMode(true);
     } catch (error) {
-      setLoginError(error.message);
+      showToast(error.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -198,7 +198,6 @@ const Login = () => {
   const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setLoginError('');
     
     if (!validateNewPasswordForm()) {
       setIsSubmitting(false);
@@ -210,6 +209,7 @@ const Login = () => {
       const token = resetToken || searchParams.get('token');
       await authAPI.resetPassword(token, newPasswordData.newPassword);
       setResetSuccess(true);
+      showToast('Password reset successfully!', 'success');
       // 3秒后返回登录页
       setTimeout(() => {
         setIsResetPasswordMode(false);
@@ -219,7 +219,7 @@ const Login = () => {
         setNewPasswordData({ newPassword: '', confirmPassword: '' });
       }, 3000);
     } catch (error) {
-      setLoginError(error.message);
+      showToast(error.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -230,12 +230,6 @@ const Login = () => {
       <div className="login-form card fade-in">
         <h1>{privacyConfig.website.name}</h1>
         <h2>{isRegisterMode ? 'Register' : 'Login'}</h2>
-        
-        {loginError && (
-          <div className="error-message">
-            {loginError}
-          </div>
-        )}
         
         {!isRegisterMode && !isForgotPasswordMode && !isResetPasswordMode && (
           <form onSubmit={handleSubmit}>

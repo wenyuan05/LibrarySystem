@@ -8,7 +8,6 @@ const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showFineModal, setShowFineModal] = useState(false);
   const [fines, setFines] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
@@ -23,7 +22,6 @@ const BorrowRecords = () => {
   const fetchBorrowRecords = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await usersAPI.getBorrowRecords(user.id);
       setRecords(data.records);
       setOverdueCount(data.overdue_count || 0);
@@ -33,7 +31,7 @@ const BorrowRecords = () => {
         showToast(`您有 ${data.overdue_count} 本图书已逾期，请及时归还！`, 'warning');
       }
     } catch (err) {
-      setError('Failed to load borrow records');
+      showToast('Failed to load borrow records', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -56,7 +54,6 @@ const BorrowRecords = () => {
       
       showToast(result.message, 'success');
     } catch (err) {
-      setError('Failed to submit return request');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -78,7 +75,6 @@ const BorrowRecords = () => {
       
       showToast(result.message, 'success');
     } catch (err) {
-      setError('Failed to renew book');
       showToast(err.message, 'error');
       console.error(err);
     }
@@ -134,15 +130,6 @@ const BorrowRecords = () => {
 
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchBorrowRecords} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (

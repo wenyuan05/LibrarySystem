@@ -13,7 +13,6 @@ const BookDetailsPage = () => {
   const [book, setBook] = useState(null);
   const [copies, setCopies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [borrowRecord, setBorrowRecord] = useState(null);
   const [countdown, setCountdown] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -69,7 +68,6 @@ const BookDetailsPage = () => {
   const fetchBookDetails = async () => {
     try {
       setLoading(true);
-      setError(null);
       const [bookData, copiesData] = await Promise.all([
         booksAPI.getById(id),
         booksAPI.getCopies(id)
@@ -78,7 +76,6 @@ const BookDetailsPage = () => {
       setCopies(copiesData);
       // 不要重置borrowRecord和countdown，保持当前状态
     } catch (err) {
-      setError('Failed to load book details');
       showToast('Failed to load book details', 'error');
       console.error(err);
     } finally {
@@ -174,10 +171,10 @@ const BookDetailsPage = () => {
     return <div className="loading">Loading book details...</div>;
   }
 
-  if (error || !book) {
+  if (!book) {
     return (
       <div className="error-message">
-        {error || 'Book not found'}
+        Book not found
         <button onClick={handleBack} className="btn-primary">Back to Books</button>
       </div>
     );

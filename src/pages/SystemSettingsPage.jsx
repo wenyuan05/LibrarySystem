@@ -15,7 +15,6 @@ const SystemSettingsPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
   const { showToast } = useToast();
 
   // Load system settings
@@ -26,11 +25,9 @@ const SystemSettingsPage = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await systemAPI.getSettings();
       setSettings(data);
     } catch (err) {
-      setError('Failed to load system settings');
       showToast('Failed to load system settings', 'error');
       console.error(err);
     } finally {
@@ -49,13 +46,11 @@ const SystemSettingsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError(null);
 
     try {
       await systemAPI.updateSettings(settings);
       showToast('System settings updated successfully', 'success');
     } catch (err) {
-      setError('Failed to update system settings');
       showToast('Failed to update system settings', 'error');
       console.error(err);
     } finally {
@@ -65,15 +60,6 @@ const SystemSettingsPage = () => {
 
   if (loading) {
     return <div className="loading">Loading system settings...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchSettings} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   return (
