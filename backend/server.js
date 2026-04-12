@@ -35,6 +35,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// 健康检查
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
 // 引入路由
 const userRoutes = require('./routes/userRoutes');
 const bookRoutes = require('./routes/bookRoutes');
@@ -57,11 +62,6 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/logs', logRoutes);
-
-// 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
-});
 
 // 统一错误处理中间件
 app.use(errorHandler);

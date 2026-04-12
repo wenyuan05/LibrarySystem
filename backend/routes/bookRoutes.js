@@ -25,6 +25,9 @@ router.get('/isbn/:isbn', authenticateToken, requireRole(['admin', 'librarian'])
 // 批量导入书籍（管理员或图书管理员）
 router.post('/batch', authenticateToken, requireRole(['admin', 'librarian']), bookController.batchImportBooks);
 
+// 获取书籍的所有副本（无需登录，公开访问）
+router.get('/:book_id/copies', bookController.getBookCopies);
+
 // 更新副本状态（管理员或图书管理员）
 router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
 
@@ -33,9 +36,6 @@ router.put('/copies/:id/location', authenticateToken, requireRole(['admin', 'lib
 
 // 获取单个副本信息（无需登录，公开访问）
 router.get('/copies/:id', bookController.getCopyById);
-
-// 获取书籍的所有副本（无需登录，公开访问）
-router.get('/:book_id/copies', bookController.getBookCopies);
 
 // 更新书籍信息（管理员或图书管理员）
 router.put('/:id', authenticateToken, requireRole(['admin', 'librarian']), validateBookUpdateBody, bookController.updateBook);

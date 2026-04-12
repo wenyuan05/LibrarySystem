@@ -1,5 +1,5 @@
 // API基础URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // 从本地存储读取 token
 const getAuthToken = () => {
@@ -107,7 +107,43 @@ export const booksAPI = {
 
   // 通过 ISBN 查询书籍信息
   searchByISBN: async (isbn) => {
-    return request(`/books/isbn/${isbn}`);
+    // 直接调用 OpenLibrary API
+    const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+    
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const bookKey = `ISBN:${isbn}`;
+      
+      if (data[bookKey]) {
+        const bookData = data[bookKey];
+        
+        // 清洗数据，只返回需要的信息
+        const cleanedData = {
+          title: bookData.title || '',
+          author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
+          publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
+          publish_date: bookData.publish_date || '',
+          isbn: isbn,
+          description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
+          cover_image: bookData.cover ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '',
+          language: 'Chinese',
+          page_count: bookData.number_of_pages || 0
+        };
+        
+        return cleanedData;
+      } else {
+        throw new Error('Book not found');
+      }
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
+    }
   },
 
   // 批量导入书籍
