@@ -26,10 +26,12 @@ const ProfilePage = () => {
       const userData = await usersAPI.getById(user.id);
       setProfile(userData);
       
-      // 获取用户的罚款信息
-      const fines = await borrowAPI.getUserFines(user.id);
-      const total = fines.reduce((sum, fine) => sum + fine.fine, 0);
-      setTotalFine(total);
+      // 只有用户角色才获取罚款信息
+      if (userData.role === 'user') {
+        const fines = await borrowAPI.getUserFines(user.id);
+        const total = fines.reduce((sum, fine) => sum + fine.fine, 0);
+        setTotalFine(total);
+      }
     } catch (err) {
       showToast('Failed to load profile', 'error');
       console.error(err);
@@ -123,21 +125,23 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Fine Information */}
-            <div className="profile-section">
-              <h3 className="section-title">Fine Information</h3>
-              <div className="info-grid">
-                <div className="info-item full-width">
-                  <span className="info-label">Total Fine</span>
-                  <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
-                </div>
-                <div className="info-item full-width">
-                  <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
-                    View Fine Details
-                  </Link>
+            {/* Fine Information - Only for user role */}
+            {profile.role === 'user' && (
+              <div className="profile-section">
+                <h3 className="section-title">Fine Information</h3>
+                <div className="info-grid">
+                  <div className="info-item full-width">
+                    <span className="info-label">Total Fine</span>
+                    <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
+                  </div>
+                  <div className="info-item full-width">
+                    <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
+                      View Fine Details
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Action Buttons */}
