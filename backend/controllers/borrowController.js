@@ -163,63 +163,69 @@ exports.returnBook = function(req, res) {
     return;
   }
   const return_date = new Date().toISOString().split('T')[0];
-  
-  // 开始事务
-  db.serialize(function() {
-    db.run('BEGIN TRANSACTION', function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
 
-      // 查找未归还的借阅记录
-      db.get(
-        'SELECT id, due_date FROM borrow_records WHERE user_id = ? AND book_id = ? AND status = ?',
-        [user_id, book_id, 'borrowed'],
-        function(err, record) {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-          if (!record) {
-            db.run('ROLLBACK');
-            res.status(400).json({ error: 'No active borrow record found' });
-            return;
-          }
-          
-          // 计算罚款
-          let fine = 0;
-          const due_date = new Date(record.due_date);
-          const return_date_obj = new Date(return_date);
-          if (return_date_obj > due_date) {
-            const days_overdue = Math.ceil((return_date_obj - due_date) / (1000 * 60 * 60 * 24));
-            fine = days_overdue * 0.5; // 每天0.5元罚款
-          }
-          
-          // 更新借阅记录为 returning 状态，等待管理员审批
-          db.run(
-            'UPDATE borrow_records SET return_date = ?, status = ?, fine = ? WHERE id = ?',
-            [return_date, 'returning', fine, record.id],
-            function(err) {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              
-              // 不立即更新书籍状态，等待管理员审批
-              db.run('COMMIT', function(err) {
+  // 从系统设置获取每日罚款金额
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], function(err, row) {
+    const finePerDay = (!err && row) ? (parseFloat(row.value) || 0.5) : 0.5;
+
+    // 开始事务
+    db.serialize(function() {
+      db.run('BEGIN TRANSACTION', function(err) {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+
+        // 查找未归还的借阅记录
+        db.get(
+          'SELECT id, due_date FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
+          [user_id, book_id, 'borrowed', 'overdue'],
+          function(err, record) {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            if (!record) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: 'No active borrow record found' });
+              return;
+            }
+
+            // 计算罚款
+            let fine = 0;
+            const due_date = new Date(record.due_date);
+            const return_date_obj = new Date(return_date);
+            if (return_date_obj > due_date) {
+              const days_overdue = Math.ceil((return_date_obj - due_date) / (1000 * 60 * 60 * 24));
+              fine = days_overdue * finePerDay;
+            }
+
+            // 更新借阅记录为 returning 状态，等待管理员审批
+            const fineStatus = fine > 0 ? 'unpaid' : 'paid';
+            db.run(
+              'UPDATE borrow_records SET return_date = ?, status = ?, fine = ?, fine_status = ? WHERE id = ?',
+              [return_date, 'returning', fine, fineStatus, record.id],
+              function(err) {
                 if (err) {
+                  db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                res.json({ message: 'Return request submitted successfully. Waiting for librarian approval.', return_date, fine, status: 'returning' });
-              });
-            }
-          );
-        }
-      );
+
+                // 不立即更新书籍状态，等待管理员审批
+                db.run('COMMIT', function(err) {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({ message: 'Return request submitted successfully. Waiting for librarian approval.', return_date, fine, status: 'returning' });
+                });
+              }
+            );
+          }
+        );
+      });
     });
   });
 };
@@ -1114,7 +1120,7 @@ exports.getUserFines = function(req, res) {
            br.borrow_date, br.due_date, br.return_date, br.fine, br.fine_status 
     FROM borrow_records br 
     JOIN books b ON br.book_id = b.id 
-    WHERE br.user_id = ? AND br.fine > 0
+    WHERE br.user_id = ? AND br.fine > 0 AND br.fine_status = 'unpaid'
     ORDER BY br.return_date DESC
   `;
 
