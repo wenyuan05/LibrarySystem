@@ -66,7 +66,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               </li>
               <li className={location.pathname === '/reservations' ? 'active' : ''}>
                 <Link to="/reservations" onClick={onClose}>
-                <span className="nav-icon"><img src="/书.svg" alt="Reservations" /></span>
+                <span className="nav-icon"><img src="/_预约订单.svg" alt="Reservations" /></span>
                 <span className="nav-text">My Reservations</span>
               </Link>
               </li>
@@ -78,7 +78,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/stats' ? 'active' : ''}>
                   <Link to="/stats" onClick={onClose}>
-                <span className="nav-icon"><img src="/书.svg" alt="Statistics" /></span>
+                <span className="nav-icon"><img src="/统计.svg" alt="Statistics" /></span>
                 <span className="nav-text">Statistics</span>
               </Link>
                 </li>
@@ -102,7 +102,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/category-management' ? 'active' : ''}>
                   <Link to="/category-management" onClick={onClose}>
-                <span className="nav-icon"><img src="/书.svg" alt="Category Management" /></span>
+                <span className="nav-icon"><img src="/分类.svg" alt="Category Management" /></span>
                 <span className="nav-text">Category Management</span>
               </Link>
                 </li>
@@ -123,7 +123,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   </li>
                   <li className={location.pathname === '/logs' ? 'active' : ''}>
                     <Link to="/logs" onClick={onClose}>
-                    <span className="nav-icon"><img src="/书.svg" alt="System Logs" /></span>
+                    <span className="nav-icon"><img src="/日志.svg" alt="System Logs" /></span>
                     <span className="nav-text">System Logs</span>
                   </Link>
                   </li>
