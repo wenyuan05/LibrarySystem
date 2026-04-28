@@ -5,8 +5,8 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理 | 15 |
-| 借阅管理 | 借阅、归还、预约 | 10 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入 | 18 |
+| 借阅管理 | 借阅、归还、预约、续借、罚款管理 | 14 |
 | 系统管理 | 系统设置、公告、日志 | 8 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
 
@@ -454,6 +454,65 @@
 }
 ```
 
+#### 3.2.12 GET /api/books/isbn/:isbn
+**功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
+**权限**：admin/librarian
+
+**响应**：
+```json
+{
+  "title": "The Great Gatsby",
+  "author": "F. Scott Fitzgerald",
+  "publisher": "Scribner",
+  "publish_date": "1925-04-10",
+  "language": "English",
+  "page_count": 180,
+  "cover_image": "https://covers.openlibrary.org/..."
+}
+```
+
+#### 3.2.13 POST /api/books/batch
+**功能**：批量导入书籍
+**权限**：admin/librarian
+
+**请求体**：
+```json
+[
+  {
+    "title": "Book 1", "author": "Author 1", "isbn": "9780743273565",
+    "publisher": "Pub", "publish_date": "2024-01-01", "language": "English", "page_count": 200, "total_copies": 1
+  }
+]
+```
+
+**响应**：
+```json
+{
+  "message": "Batch import completed",
+  "success": 2,
+  "failed": 0,
+  "errors": []
+}
+```
+
+#### 3.2.14 PUT /api/books/copies/:id/location
+**功能**：更新副本位置
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "location": "A1-01"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Location updated successfully"
+}
+```
+
 ### 3.3 借阅管理接口
 
 #### 3.3.1 POST /api/borrow/borrow
@@ -648,6 +707,46 @@
 }
 ```
 
+#### 3.3.11 GET /api/borrow/fines/:user_id
+**功能**：获取用户的未支付罚款记录
+**权限**：本人或admin/librarian
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "book_id": 1,
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "borrow_date": "2024-01-01",
+    "due_date": "2024-01-15",
+    "return_date": "2024-01-20",
+    "fine": 2.5,
+    "fine_status": "unpaid"
+  }
+]
+```
+
+#### 3.3.12 POST /api/borrow/pay-fine
+**功能**：支付所有未支付罚款
+**权限**：本人或admin/librarian
+
+**请求体**：
+```json
+{
+  "user_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "message": "All fines paid successfully",
+  "amount": 2.5
+}
+```
+
 ### 3.4 分类管理接口
 
 #### 3.4.1 GET /api/categories
@@ -791,23 +890,21 @@
 ```
 
 #### 3.5.2 PUT /api/system/settings
-**功能**：更新系统设置
+**功能**：更新系统设置（支持部分更新）
 **权限**：admin
 
-**请求体**：
+**请求体**（支持单项或多项更新）：
 ```json
 {
-  "key": "borrow_period_days",
-  "value": "21"
+  "borrow_period_days": "21",
+  "fine_per_day": "1.0"
 }
 ```
 
 **响应**：
 ```json
 {
-  "key": "borrow_period_days",
-  "value": "21",
-  "description": "借阅期限（天）"
+  "message": "System settings updated successfully"
 }
 ```
 

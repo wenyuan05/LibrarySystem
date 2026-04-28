@@ -146,19 +146,19 @@ src/
 | 页面名称 | 路径 | 权限 | 主要功能 |
 |----------|------|------|----------|
 | 登录页 | /login | 无 | 用户登录 |
-| 书籍列表 | /books | user | 浏览书籍、搜索 |
-| 书籍详情 | /books/:id | user | 查看书籍详情 |
-| 个人借阅记录 | /borrow-records | user | 查看个人借阅记录 |
-| 个人资料 | /profile | user | 查看和更新个人信息 |
+| 书籍列表 | /books | user | 浏览书籍、搜索、借阅 |
+| 书籍详情 | /books/:id | user | 查看书籍详情、副本信息 |
+| 个人借阅记录 | /borrow-records | user | 查看个人借阅记录、归还书籍、查看罚款 |
+| 个人资料 | /profile | user | 查看和更新个人信息、查看罚款、支付罚款 |
 | 公告列表 | /announcements | user | 查看系统公告 |
-| 书籍管理 | /book-management | admin/librarian | 管理书籍（增删改查） |
+| 书籍管理 | /book-management | admin/librarian | 管理书籍（增删改查）、ISBN导入、批量导入、副本位置管理 |
 | 用户管理 | /users | admin/librarian | 管理用户（增删改查） |
 | 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录 |
-| 归还审批 | /return-approval | admin/librarian | 审批书籍归还 |
+| 归还审批 | /return-approval | admin/librarian | 审批书籍归还、一键批量审批 |
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
 | 预约管理 | /reservations | user | 管理书籍预约 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
-| 系统设置 | /system-settings | admin | 管理系统参数 |
+| 系统设置 | /system-settings | admin | 管理系统参数（逐项编辑，显示默认值） |
 | 系统日志 | /logs | admin | 查看系统操作日志 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 
@@ -271,6 +271,9 @@ backend/
   - getBookCopies：获取书籍的所有副本
   - getCopyById：获取单个副本信息
   - updateCopyStatus：更新副本状态
+  - searchByISBN：通过ISBN查询书籍信息（调用OpenLibrary API）
+  - batchAddBooks：批量导入书籍
+  - updateCopyLocation：更新副本位置信息
 
 **categoryController.js**
 - **功能**：处理分类相关操作
@@ -290,16 +293,19 @@ backend/
 - **功能**：处理借阅相关操作
 - **方法**：
   - borrowBook：借阅书籍（开始借阅流程）
-  - returnBook：归还书籍
+  - returnBook：归还书籍（计算逾期罚款）
   - confirmBorrow：确认借阅
   - handleTimeoutBorrows：处理超时借阅
-  - approveReturn：审批归还请求
+  - approveReturn：审批归还请求（累计罚款到用户账户）
+  - approveAllReturns：一键审批所有待归还请求（支持按日期筛选）
   - getBorrowingList：获取借阅中列表
   - getReturningList：获取待审批的归还请求列表
   - reserveBook：预约图书
   - getUserReservations：获取用户的预约记录
   - renewBook：续借图书
   - cancelReservation：取消预约
+  - getUserFines：获取用户未支付罚款记录
+  - payFine：支付所有未支付罚款
 
 #### 3.2.4 系统模块
 
@@ -342,11 +348,11 @@ backend/
 
 | 模块 | 路由前缀 | 主要接口 |
 |------|----------|----------|
-| 用户管理 | /api/users | 登录、注册、用户CRUD |
-| 书籍管理 | /api/books | 书籍CRUD、分类管理 |
-| 借阅管理 | /api/borrow | 借阅、归还、预约 |
+| 用户管理 | /api/users | 登录、注册、用户CRUD、状态管理 |
+| 书籍管理 | /api/books | 书籍CRUD、副本管理、ISBN导入、批量导入、位置管理 |
+| 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
-| 系统管理 | /api/system | 系统设置 |
+| 系统管理 | /api/system | 系统设置（支持部分更新） |
 | 公告管理 | /api/announcements | 公告CRUD |
 | 日志管理 | /api/logs | 系统日志 |
 | 统计分析 | /api/stats | 各种统计数据 |
@@ -388,44 +394,53 @@ backend/
 2. 选择要借阅的书籍
 3. 点击借阅按钮
 4. 前端发送借阅请求到 `/api/borrow/borrow`
-5. 后端检查书籍状态和用户状态
-6. 查找可用的书籍副本
-7. 更新副本状态为 "borrowing"
-8. 创建借阅记录，状态为 "borrowing"，设置确认截止时间
-9. 返回借阅请求启动成功响应
-10. 前端显示倒计时和确认借阅按钮
-11. 用户点击确认借阅按钮
-12. 前端发送确认请求到 `/api/borrow/confirm-borrow`
-13. 后端检查是否超时
-14. 更新借阅记录状态为 "borrowed"
-15. 更新副本状态为 "borrowed"
-16. 返回确认成功响应
-17. 前端显示成功消息
+5. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
+6. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
+7. 查找可用的书籍副本
+8. 更新副本状态为 "borrowing"
+9. 创建借阅记录，状态为 "borrowing"，设置确认截止时间
+10. 返回借阅请求启动成功响应
+11. 前端显示倒计时和确认借阅按钮
+12. 用户点击确认借阅按钮
+13. 前端发送确认请求到 `/api/borrow/confirm-borrow`
+14. 后端检查是否超时
+15. 更新借阅记录状态为 "borrowed"
+16. 更新副本状态为 "borrowed"
+17. 返回确认成功响应
+18. 前端显示成功消息
 
 **超时处理**：
 - 如果用户在确认截止时间内未确认，系统会自动处理超时
 - 借阅记录状态变为 "timeout"
 - 副本状态变回 "available"
 
-**图书管理员审批归还**：
-1. 用户提交归还请求
-2. 借阅记录状态变为 "returning"
-3. 图书管理员在归还审批页面查看请求
-4. 图书管理员批准归还
-5. 借阅记录状态变为 "returned"
-6. 副本状态变为 "available"
-
-### 4.3 书籍归还流程
+### 4.3 书籍归还与罚款流程
 
 1. 用户访问个人借阅记录页面
 2. 选择要归还的书籍
 3. 点击归还按钮
 4. 前端发送归还请求到 `/api/borrow/return`
-5. 后端检查借阅记录
-6. 更新借阅记录和书籍状态
-7. 计算罚款（如果有）
-8. 返回归还成功响应
-9. 前端显示成功消息和罚款信息
+5. 后端检查借阅记录（支持 borrowed 和 overdue 状态）
+6. 从系统设置读取 fine_per_day 计算逾期罚款
+7. 更新借阅记录状态为 "returning"，设置罚款金额和 fine_status='unpaid'
+8. 返回归还成功响应，包含罚款信息
+9. 图书管理员在归还审批页面查看待审批请求
+10. 管理员批准归还（可单条或一键批量审批，支持按日期筛选）
+11. 后端更新借阅记录状态为 "returned"
+12. 如果罚款未支付，累计到用户 total_fine
+13. 副本状态变回 "available"
+14. 用户可在个人资料或借阅记录中查看罚款
+15. 用户通过 pay fine 功能一次性支付所有未支付罚款
+16. 系统清除用户 total_fine 并标记相关记录 fine_status='paid'
+
+### 4.4 书籍预约流程
+
+1. 用户查看书籍详情
+2. 如果所有副本均已借出，可点击预约按钮
+3. 系统创建预约记录，状态为 "pending"
+4. 当有副本归还时，系统通知用户
+5. 用户确认预约后，预约状态变为 "confirmed"
+6. 用户在规定时间内完成借阅
 
 ## 5. 性能优化
 

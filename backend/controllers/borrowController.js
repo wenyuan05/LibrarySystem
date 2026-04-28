@@ -8,24 +8,31 @@ exports.borrowBook = function(req, res) {
     return;
   }
   const borrow_date = new Date().toISOString().split('T')[0];
-  
-  // 计算到期日期（默认14天）
-  const due_date = new Date();
-  due_date.setDate(due_date.getDate() + 14);
-  const due_date_str = due_date.toISOString().split('T')[0];
-  
-  // 获取借阅确认时长
-  db.get('SELECT value FROM system_settings WHERE key = ?', ['borrow_confirm_minutes'], function(err, setting) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    const confirmMinutes = parseInt(setting?.value || 60);
-    
-    // 计算确认截止时间
-    const confirm_deadline = new Date();
-    confirm_deadline.setMinutes(confirm_deadline.getMinutes() + confirmMinutes);
-    const confirm_deadline_str = confirm_deadline.toISOString();
+
+  // 获取系统参数
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)',
+    ['borrow_period_days', 'borrow_confirm_minutes', 'max_borrows'],
+    function(err, settings) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      const settingsMap = {};
+      settings.forEach(s => settingsMap[s.key] = s.value);
+      const borrowPeriodDays = parseInt(settingsMap['borrow_period_days']) || 14;
+      const confirmMinutes = parseInt(settingsMap['borrow_confirm_minutes']) || 60;
+      const maxBorrows = parseInt(settingsMap['max_borrows']) || 5;
+
+      // 计算到期日期
+      const due_date = new Date();
+      due_date.setDate(due_date.getDate() + borrowPeriodDays);
+      const due_date_str = due_date.toISOString().split('T')[0];
+
+      // 计算确认截止时间
+      const confirm_deadline = new Date();
+      confirm_deadline.setMinutes(confirm_deadline.getMinutes() + confirmMinutes);
+      const confirm_deadline_str = confirm_deadline.toISOString();
     
     // 开始事务
     db.serialize(function() {
@@ -61,9 +68,23 @@ exports.borrowBook = function(req, res) {
               return;
             }
 
-            // 检查用户是否已经有该书籍的未完成借阅记录
-            db.get('SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)', 
-              [user_id, book_id, 'borrowing', 'borrowed'], function(err, existingRecord) {
+            // 检查用户当前借阅数量是否超过限制
+            db.get('SELECT COUNT(*) as cnt FROM borrow_records WHERE user_id = ? AND status IN (?, ?)',
+              [user_id, 'borrowing', 'borrowed'], function(err, row) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                if (row.cnt >= maxBorrows) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: `You have reached the maximum borrow limit (${maxBorrows})` });
+                  return;
+                }
+
+                // 检查用户是否已经有该书籍的未完成借阅记录
+                db.get('SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
+                  [user_id, book_id, 'borrowing', 'borrowed'], function(err, existingRecord) {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
@@ -153,6 +174,7 @@ exports.borrowBook = function(req, res) {
       });
     });
   });
+});
 };
 
 // 归还书籍（需要登录）
