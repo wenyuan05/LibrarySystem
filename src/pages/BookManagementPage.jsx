@@ -33,7 +33,11 @@ const BookManagementPage = () => {
 
   // Handle book addition
   const handleBookAdded = (newBook) => {
-    setBooks(prevBooks => [...prevBooks, newBook]);
+    if (newBook) {
+      setBooks(prevBooks => [...prevBooks, newBook]);
+    } else {
+      fetchBooks();
+    }
   };
 
   // Handle book update
@@ -96,9 +100,9 @@ const BookManagementPage = () => {
         <div className="action-buttons">
           <button 
             className="btn-primary"
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => setShowAddForm(true)}
           >
-            {showAddForm ? 'Cancel' : 'Add New Book'}
+            Add New Book
           </button>
           {/* 暂时隐藏导出按钮，待权限问题解决后再恢复 */}
           {/* <button 
@@ -158,12 +162,17 @@ const BookManagementPage = () => {
       
       {/* Add Book Form */}
       {showAddForm && (
-        <AddBookForm 
-          onBookAdded={(newBook) => {
-            handleBookAdded(newBook);
-            setShowAddForm(false);
-          }}
-        />
+        <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+          <div className="modal-content add-book-modal" onClick={(e) => e.stopPropagation()}>
+            <AddBookForm
+              onCancel={() => setShowAddForm(false)}
+              onBookAdded={(newBook) => {
+                handleBookAdded(newBook);
+                setShowAddForm(false);
+              }}
+            />
+          </div>
+        </div>
       )}
       
       {/* Edit Book Form */}

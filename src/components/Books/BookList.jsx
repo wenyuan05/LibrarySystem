@@ -260,6 +260,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
           // 检查书籍是否正在借阅中
           const isBorrowing = borrowRecordsMap.has(book.id);
           const borrowRecord = borrowRecordsMap.get(book.id);
+          const bookCopies = copies.get(book.id) || [];
+          const availableCount = bookCopies.filter(c => c.status === 'available').length;
+          const totalCount = bookCopies.length || Number(book.total_copies || 0);
+          const availabilityPercent = totalCount ? Math.round((availableCount / totalCount) * 100) : 0;
           
           return (
             <Motion.div 
@@ -270,17 +274,43 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
               style={{ cursor: 'pointer' }}
             >
               <div className="book-card-header">
-                <span className={`status-badge ${book.available_copies > 0 ? 'status-available' : 'status-borrowed'}`}>
-                  {book.available_copies > 0 ? 'Available' : 'Not Available'}
+                <div className="book-cover-thumb">
+                  {book.cover_image ? (
+                    <img src={book.cover_image} alt={`${book.title} cover`} />
+                  ) : (
+                    <span>{book.title.charAt(0)}</span>
+                  )}
+                </div>
+                <div className="book-card-heading">
+                  <h4 className="book-title">{book.title}</h4>
+                  <p className="book-author">by {book.author}</p>
+                </div>
+                <span className={`status-badge ${availableCount > 0 ? 'status-available' : 'status-borrowed'}`}>
+                  {availableCount > 0 ? 'Available' : 'Borrowed'}
                 </span>
-                <span className="book-id">ID: {book.id}</span>
               </div>
-              <h4 className="book-title">{book.title}</h4>
-              <p className="book-author">by {book.author}</p>
-              <p className="book-isbn">ISBN: {book.isbn}</p>
-              {book.publisher && <p className="book-publisher">Publisher: {book.publisher}</p>}
-              {book.publication_date && <p className="book-date">Published: {book.publication_date}</p>}
-              <p className="book-copies">Available: {copies.get(book.id)?.filter(c => c.status === 'available').length || 0}/{copies.get(book.id)?.length || 0}</p>
+
+              <div className="book-meta-grid">
+                <div>
+                  <span>ISBN</span>
+                  <strong>{book.isbn}</strong>
+                </div>
+                <div>
+                  <span>Publisher</span>
+                  <strong>{book.publisher || '-'}</strong>
+                </div>
+              </div>
+
+              <div className="availability-block">
+                <div className="availability-copy">
+                  <span>Availability</span>
+                  <strong>{availableCount}/{totalCount || 0}</strong>
+                </div>
+                <div className="availability-track">
+                  <span style={{ width: `${availabilityPercent}%` }}></span>
+                </div>
+              </div>
+
               <div className="book-actions">
                 {user.role === 'user' ? (
                   // 检查书籍是否真的可用：状态为available且没有未归还的借阅记录
@@ -301,7 +331,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                     >
                       Confirm Borrow
                     </button>
-                  ) : copies.get(book.id)?.filter(c => c.status === 'available').length > 0 ? (
+                  ) : availableCount > 0 ? (
                     <button 
                       className="btn-warning"
                       onClick={(e) => { e.stopPropagation(); handleBorrowBook(book.id); }}

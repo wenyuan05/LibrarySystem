@@ -731,3 +731,102 @@ This file documents all bug fixes applied to the project.
   - Added CSS styles for overdue status and count display
 - **Reason**: Implement comprehensive overdue book tracking, including automatic status updates, user notifications, and admin visibility, ensuring timely book returns and proper management of overdue items
 
+## 2026-05-06
+
+### Fix 79: Align reader and librarian borrow record layouts
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**:
+  - Unified the reader and librarian borrow record table layout.
+  - Added consistent barcode, status badge, fine, action, pagination, and sort controls.
+  - Expanded normal desktop width while keeping horizontal scrolling for small screens.
+- **Reason**: Keep historical borrow records readable and consistent across user roles.
+
+### Fix 80: Preserve fine history after payment
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/pages/ProfilePage.jsx`
+- **Changes**:
+  - Updated fine queries to return paid and unpaid historical fine records.
+  - Kept unpaid fines prioritized and calculated payable total from unpaid records only.
+  - Fixed the View Fines modal data flow so borrow records can display the fine list.
+- **Reason**: Prevent paid fines from disappearing from history while keeping payment totals accurate.
+
+### Fix 81: Correct borrow confirmation copy binding
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+- **Changes**:
+  - Changed pending borrow records to avoid binding or displaying a copy before confirmation.
+  - Added copy selection in the confirm dialog for borrow records.
+  - Fixed validation so selecting a different available copy in the confirm dialog is accepted.
+- **Reason**: Avoid incorrect preselected barcodes and prevent false "copy unavailable" errors.
+
+### Fix 82: Split book metadata management from copy management
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/Books.css`
+  - `backend/controllers/bookController.js`
+- **Changes**:
+  - Added a dedicated Manage Copies modal separate from Edit Info.
+  - Added independent copy id, barcode, status, and location editing.
+  - Added automatic copy code generation with default `Main Shelf` location.
+  - Added per-copy location confirmation and bulk location update.
+- **Reason**: Separate book metadata from physical inventory copies and make copy-level operations explicit.
+
+### Fix 83: Modernize book dashboard and Add Book workflow
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/layout/MainLayout.jsx`
+  - `src/styles/global.css`
+- **Changes**:
+  - Redesigned the reader book page as a compact enterprise dashboard with statistics, filters, card grid, and integrated right sidebar widgets.
+  - Added book cover thumbnails, compact metadata grouping, availability progress, and hover elevation to book cards.
+  - Moved Popular Books into the right dashboard sidebar and added Recently Borrowed and System Stats widgets.
+  - Added user avatar styling and reduced top navigation height.
+  - Converted Add New Book into a modal flow.
+- **Reason**: Improve layout balance, visual hierarchy, content density, and professional dashboard appearance.
+
+### Fix 84: Redesign batch import and remove copy-only fields from book metadata
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `backend/controllers/bookController.js`
+  - `API_DOC.md`
+- **Changes**:
+  - Removed `location` and `total_copies` from the single book metadata form.
+  - Added a two-panel Batch Import layout with ISBN list input, CSV/TXT upload, live preview, duplicate/invalid status, import progress, and Copy Settings.
+  - Moved default location, copies per book, and category assignment into Copy Settings.
+  - Updated backend batch import to accept `location`, `total_copies`, and `category_id`.
+- **Reason**: Keep metadata import separate from physical copy generation and support realistic library inventory workflows.
+
+### Fix 85: Fix Books page search field icon and text visibility
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+- **Changes**:
+  - Replaced the shared search input classes with `books-search-*` classes to avoid global style collisions.
+  - Replaced the image-based magnifier with a CSS-drawn absolute-positioned icon.
+  - Set search input text, caret, and placeholder colors explicitly.
+- **Reason**: Fix the misaligned search icon and invisible search text caused by shared CSS overrides and asset positioning.
+
+### Documentation: Update development documentation
+- **Files modified**:
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated the latest feature status, dashboard layout notes, Add Book modal workflow, and Batch Import Copy Settings behavior.
+  - Documented the current batch import payload fields.
+  - Added this BUGFIX_LOG section covering the prior borrow/copy-management commit and the latest dashboard/import/search fixes.
+- **Reason**: Keep development documentation synchronized with the current branch implementation.
+

@@ -884,7 +884,7 @@ exports.batchImportBooks = (req, res) => {
       }
       
       books.forEach((bookData) => {
-        const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = '' } = bookData;
+        const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id } = bookData;
         
         // 检查ISBN是否已存在
         db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
@@ -933,14 +933,26 @@ exports.batchImportBooks = (req, res) => {
                 results.errors.push({ isbn, error: err.message });
               } else {
                 const bookId = this.lastID;
+                if (category_id) {
+                  db.run(
+                    'INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)',
+                    [bookId, category_id],
+                    (err) => {
+                      if (err) {
+                        console.error('批量导入分类关联失败:', err.message);
+                      }
+                    }
+                  );
+                }
                 const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
                 let copyCount = 0;
                 const totalCopies = copies;
+                const copyLocation = (location || 'Main Shelf').trim() || 'Main Shelf';
 
                 // 创建副本记录
                 for (let i = 0; i < totalCopies; i++) {
                   const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
-                  insertCopy.run(bookId, copyCode, 'available', location, (err) => {
+                  insertCopy.run(bookId, copyCode, 'available', copyLocation, (err) => {
                     if (err) {
                       console.error('创建副本失败:', err.message);
                     }

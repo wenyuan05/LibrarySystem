@@ -524,10 +524,17 @@
 [
   {
     "title": "Book 1", "author": "Author 1", "isbn": "9780743273565",
-    "publisher": "Pub", "publish_date": "2024-01-01", "language": "English", "page_count": 200, "total_copies": 1
+    "publisher": "Pub", "publish_date": "2024-01-01", "language": "English",
+    "page_count": 200, "total_copies": 2, "location": "Main Shelf", "category_id": 1
   }
 ]
 ```
+
+**说明**：
+- `total_copies` 可选，未传时默认创建 1 个副本。
+- `location` 可选，未传时默认使用 `Main Shelf`。
+- `category_id` 可选；传入时批量导入会同步写入图书分类关联。
+- 前端 Batch Import 页面通过 Copy Settings 统一生成 `total_copies`、`location` 和 `category_id`。
 
 **响应**：
 ```json
