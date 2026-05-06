@@ -80,6 +80,7 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS book_copies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       book_id INTEGER NOT NULL,
+      copy_code TEXT UNIQUE,
       status TEXT DEFAULT 'available',
       location TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +204,24 @@ db.serialize(() => {
     // 字段已存在，忽略错误
   });
 
+  // 为现有书籍副本表添加 copy_code 字段
+  db.run('ALTER TABLE book_copies ADD COLUMN copy_code TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_book_copies_copy_code ON book_copies(copy_code)', (err) => {
+    // 索引已存在，忽略错误
+  });
+
+  // 为现有副本生成 copy_code（如果为空）
+  db.all("SELECT bc.id, bc.book_id, bc.copy_code, (SELECT COUNT(*) FROM book_copies WHERE book_id = bc.book_id AND id <= bc.id) as seq FROM book_copies bc WHERE bc.copy_code IS NULL", (err, rows) => {
+    if (!err && rows) {
+      rows.forEach(row => {
+        const copyCode = `CP-${row.book_id}-${String(row.seq).padStart(3, '0')}`;
+        db.run('UPDATE book_copies SET copy_code = ? WHERE id = ?', [copyCode, row.id]);
+      });
+    }
+  });
+
   // 为现有借阅记录表添加renew_count字段
   db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
     // 字段已存在，忽略错误
@@ -265,12 +284,13 @@ db.serialize(() => {
       
       // 只创建需要的副本
       if (currentCount < targetCount) {
-        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
-        
+        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+
         for (let i = currentCount; i < targetCount; i++) {
           // 第一本书的第一个副本设为borrowed，其他为available
           const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
-          insertCopy.run(bookId, status, null);
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          insertCopy.run(bookId, copyCode, status, null);
         }
         
         insertCopy.finalize();

@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
 import EditBookForm from '../components/Books/EditBookForm';
+import CopyManagementModal from '../components/Books/CopyManagementModal';
 import { booksAPI } from '../utils/api';
 
 const BookManagementPage = () => {
@@ -11,6 +12,7 @@ const BookManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
+  const [managingCopiesBook, setManagingCopiesBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const { showToast } = useToast();
 
@@ -176,6 +178,17 @@ const BookManagementPage = () => {
         />
       )}
 
+      {managingCopiesBook && (
+        <CopyManagementModal
+          book={managingCopiesBook}
+          onClose={() => setManagingCopiesBook(null)}
+          onBookUpdated={(updatedBook) => {
+            handleBookUpdated(updatedBook);
+            setManagingCopiesBook(updatedBook);
+          }}
+        />
+      )}
+
       {/* Book List (with edit functionality) */}
       <BookList 
         books={filteredBooks}
@@ -184,6 +197,7 @@ const BookManagementPage = () => {
         onBookDeleted={handleBookDeleted}
         showEditButton={true}
         onEditBook={setEditingBook}
+        onManageCopies={setManagingCopiesBook}
       />
     </div>
   );

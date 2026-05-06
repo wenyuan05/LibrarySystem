@@ -28,6 +28,9 @@ router.post('/batch', authenticateToken, requireRole(['admin', 'librarian']), bo
 // 获取书籍的所有副本（无需登录，公开访问）
 router.get('/:book_id/copies', bookController.getBookCopies);
 
+// 添加书籍副本（管理员或图书管理员）
+router.post('/:book_id/copies', authenticateToken, requireRole(['admin', 'librarian']), bookController.addBookCopy);
+
 // 更新副本状态（管理员或图书管理员）
 router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
 

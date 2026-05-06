@@ -162,7 +162,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
                 disabled={loading}
                 className="form-input"
               >
-                <option value="user">User</option>
+                <option value="user">Reader</option>
                 <option value="librarian">Librarian</option>
               </select>
             </div>

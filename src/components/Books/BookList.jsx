@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
+import Barcode from '../Barcode';
 import SkeletonLoader from './SkeletonLoader';
 import './Books.css';
 
-const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook }) => {
+const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, showEditButton = false, onEditBook, onManageCopies }) => {
   const [borrowRecords, setBorrowRecords] = useState([]);
   const [reservationRecords, setReservationRecords] = useState([]);
   const { user } = useAuth();
@@ -108,7 +109,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
       setCopies(prev => new Map([...prev, [bookId, copiesData]]));
       const result = await borrowAPI.borrow(user.id, bookId);
       setBorrowRecordsMap(prev => new Map([...prev, [bookId, result]]));
-      setSelectedCopyId(result.copy_id);
+      setSelectedCopyId(result.copy_id || copiesData.find(copy => copy.status === 'available')?.id || null);
       setSelectedBookId(bookId);
       setSelectedBorrowRecord(result);
       // 重新获取书籍数据，确保与后端同步
@@ -137,6 +138,9 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
     try {
       if (!selectedBorrowRecord?.id) {
         throw new Error('No borrow record found');
+      }
+      if (!selectedCopyId) {
+        throw new Error('Please select a copy before confirming');
       }
       await borrowAPI.confirmBorrow(selectedBorrowRecord.id, selectedCopyId);
       showToast('Borrow confirmed successfully', 'success');
@@ -246,7 +250,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
   return (
     <div className="book-list">
       <h3>Books</h3>
-      <motion.div
+      <Motion.div
         className="book-grid"
         variants={containerVariants}
         initial="hidden"
@@ -258,7 +262,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
           const borrowRecord = borrowRecordsMap.get(book.id);
           
           return (
-            <motion.div 
+            <Motion.div 
               key={book.id} 
               variants={itemVariants}
               className="book-card"
@@ -287,7 +291,11 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                         e.stopPropagation();
                         setSelectedBookId(book.id);
                         setSelectedBorrowRecord(borrowRecord);
-                        setSelectedCopyId(borrowRecord.copy_id);
+                        setSelectedCopyId(
+                          borrowRecord.copy_id ||
+                          copies.get(book.id)?.find(copy => copy.status === 'available')?.id ||
+                          null
+                        );
                         setShowConfirmModal(true);
                       }}
                     >
@@ -312,7 +320,11 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                               e.stopPropagation();
                               setSelectedBookId(book.id);
                               setSelectedBorrowRecord(borrowRecord);
-                              setSelectedCopyId(borrowRecord.copy_id);
+                              setSelectedCopyId(
+                                borrowRecord.copy_id ||
+                                copies.get(book.id)?.find(copy => copy.status === 'available')?.id ||
+                                null
+                              );
                               setShowConfirmModal(true);
                             }}
                           >
@@ -355,7 +367,15 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                         className="btn-info"
                         onClick={(e) => { e.stopPropagation(); onEditBook && onEditBook(book); }}
                       >
-                        Edit
+                        Edit Info
+                      </button>
+                    )}
+                    {showEditButton && (
+                      <button
+                        className="btn-secondary"
+                        onClick={(e) => { e.stopPropagation(); onManageCopies && onManageCopies(book); }}
+                      >
+                        Manage Copies
                       </button>
                     )}
                     <button 
@@ -367,10 +387,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
                   </>
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           );
         })}
-      </motion.div>
+      </Motion.div>
       
       {/* 确认借阅模态框 */}
       {showConfirmModal && selectedBorrowRecord && (
@@ -382,17 +402,29 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
               <p><strong>Book:</strong> {books.find(b => b.id === selectedBookId)?.title}</p>
               <div className="copy-selection">
                 <label>Select Copy:</label>
-                <select 
-                  value={selectedCopyId} 
+                <select
+                  value={selectedCopyId || ''}
                   onChange={(e) => setSelectedCopyId(parseInt(e.target.value))}
                 >
-                  {copies.get(selectedBookId)?.filter(c => c.status === 'borrowing' || c.status === 'available').map(copy => (
+                  {copies.get(selectedBookId)?.filter(
+                    c => c.status === 'available' || c.id === selectedBorrowRecord?.copy_id
+                  ).map(copy => (
                     <option key={copy.id} value={copy.id}>
-                      Copy ID: {copy.id} ({copy.status === 'borrowing' ? 'Selected' : 'Available'})
+                      {copy.copy_code || `Copy #${copy.id}`} ({copy.status === 'available' ? 'Available' : 'Previously selected'})
                     </option>
                   ))}
                 </select>
               </div>
+              {/* 显示选中副本的条形码 */}
+              {selectedCopyId && copies.get(selectedBookId)?.find(c => c.id === selectedCopyId)?.copy_code && (
+                <div className="selected-copy-barcode">
+                  <Barcode
+                    code={copies.get(selectedBookId).find(c => c.id === selectedCopyId).copy_code}
+                    width={2}
+                    height={50}
+                  />
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button 
@@ -404,6 +436,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
               <button 
                 className="btn-primary"
                 onClick={handleConfirmBorrow}
+                disabled={!selectedCopyId}
               >
                 Confirm
               </button>

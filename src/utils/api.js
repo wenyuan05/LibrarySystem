@@ -198,6 +198,14 @@ export const booksAPI = {
   getCopyById: async (copyId) => {
     return request(`/books/copies/${copyId}`);
   },
+
+  // 添加单个副本
+  addCopy: async (bookId, location = 'Main Shelf') => {
+    return request(`/books/${bookId}/copies`, {
+      method: 'POST',
+      body: JSON.stringify({ location }),
+    });
+  },
   
   // 更新副本状态
   updateCopyStatus: async (copyId, status) => {
@@ -500,6 +508,7 @@ export const logAPI = {
     const searchParams = new URLSearchParams();
     if (params.limit) searchParams.append('limit', params.limit);
     if (params.offset) searchParams.append('offset', params.offset);
+    if (params.order) searchParams.append('order', params.order);
     if (params.level) searchParams.append('level', params.level);
     if (params.module) searchParams.append('module', params.module);
     return request(`/logs?${searchParams.toString()}`);

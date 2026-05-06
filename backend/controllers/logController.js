@@ -2,13 +2,14 @@ const db = require('../db');
 
 // 获取系统日志（管理员）
 exports.getSystemLogs = (req, res) => {
-  const { limit = 100, offset = 0 } = req.query;
+  const { limit = 100, offset = 0, order = 'desc' } = req.query;
+  const sortDirection = order === 'asc' ? 'ASC' : 'DESC';
   
   let sql = 'SELECT * FROM system_logs';
   const params = [];
   
   // 添加排序和分页
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  sql += ` ORDER BY created_at ${sortDirection} LIMIT ? OFFSET ?`;
   params.push(parseInt(limit), parseInt(offset));
   
   // 执行查询

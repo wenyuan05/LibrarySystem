@@ -29,7 +29,9 @@ const ProfilePage = () => {
       // 只有用户角色才获取罚款信息
       if (userData.role === 'user') {
         const fines = await borrowAPI.getUserFines(user.id);
-        const total = fines.reduce((sum, fine) => sum + fine.fine, 0);
+        const total = fines
+          .filter(fine => fine.fine_status === 'unpaid')
+          .reduce((sum, fine) => sum + fine.fine, 0);
         setTotalFine(total);
       }
     } catch (err) {
@@ -64,6 +66,12 @@ const ProfilePage = () => {
     }
   };
 
+  const getRoleLabel = (role) => {
+    if (!role) return '';
+    if (role === 'user') return 'Reader';
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
   if (loading) {
     return <div className="loading">Loading profile...</div>;
   }
@@ -84,7 +92,7 @@ const ProfilePage = () => {
             <div className="profile-header-info">
               <h2 className="profile-name">{profile.name}</h2>
               <span className={`role-badge ${getRoleClass()}`}>
-                {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                {getRoleLabel(profile.role)}
               </span>
             </div>
           </div>

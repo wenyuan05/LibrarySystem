@@ -25,6 +25,17 @@
 | 后端 | jsonwebtoken | 9.0.3 | JWT认证 |
 | 后端 | cors | 2.8.6 | 跨域支持 |
 | 构建工具 | Vite | 7.3.1 | 前端构建 |
+| 前端 | JsBarcode | 3.12.3 | 副本条形码渲染 |
+
+### 1.3 最新设计状态（2026-05-06）
+
+- 数据模型仍保留 `user/librarian/admin` 三种角色值；前端展示层将 `user` 显示为 `Reader`，权限判断和接口协议不变。
+- 副本从书籍基础信息中拆分为独立管理弹窗：书籍卡片负责编辑书籍信息，`Manage Copies` 负责新增副本、状态调整、单个位置确认和批量位置更新。
+- 每个副本拥有数据库 `id`、唯一 `copy_code`、`status`、`location`；前端通过 `Barcode.jsx` 统一渲染条形码。
+- 借阅流程采用“先创建待确认记录，确认时选择副本”的设计，避免待确认阶段提前占用或展示错误副本。
+- Reader 与 librarian 的借阅记录页面复用同一套宽表格布局，包含条形码列、状态 badge、罚款列、分页和排序。
+- 历史记录默认最新优先，借阅与罚款记录优先展示待确认、待还、未支付等待处理项；记录过多时分页。
+- 罚款接口返回历史罚款记录，已支付记录不再从历史中消失，前端总额仅统计未支付罚款。
 
 ## 2. 前端设计
 
@@ -269,6 +280,7 @@ backend/
   - getPopularBooks：获取热门书籍
   - exportBooks：导出书籍信息
   - getBookCopies：获取书籍的所有副本
+  - addBookCopy：新增副本并自动生成 copy_code
   - getCopyById：获取单个副本信息
   - updateCopyStatus：更新副本状态
   - searchByISBN：通过ISBN查询书籍信息（调用OpenLibrary API）
@@ -304,7 +316,7 @@ backend/
   - getUserReservations：获取用户的预约记录
   - renewBook：续借图书
   - cancelReservation：取消预约
-  - getUserFines：获取用户未支付罚款记录
+  - getUserFines：获取用户罚款历史记录（未支付优先）
   - payFine：支付所有未支付罚款
 
 #### 3.2.4 系统模块
@@ -349,7 +361,7 @@ backend/
 | 模块 | 路由前缀 | 主要接口 |
 |------|----------|----------|
 | 用户管理 | /api/users | 登录、注册、用户CRUD、状态管理 |
-| 书籍管理 | /api/books | 书籍CRUD、副本管理、ISBN导入、批量导入、位置管理 |
+| 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN导入、批量导入、位置管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
 | 系统管理 | /api/system | 系统设置（支持部分更新） |
@@ -396,23 +408,22 @@ backend/
 4. 前端发送借阅请求到 `/api/borrow/borrow`
 5. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
 6. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
-7. 查找可用的书籍副本
-8. 更新副本状态为 "borrowing"
-9. 创建借阅记录，状态为 "borrowing"，设置确认截止时间
+7. 检查书籍是否存在可用副本，但不预先绑定副本
+8. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
 10. 返回借阅请求启动成功响应
-11. 前端显示倒计时和确认借阅按钮
-12. 用户点击确认借阅按钮
-13. 前端发送确认请求到 `/api/borrow/confirm-borrow`
-14. 后端检查是否超时
-15. 更新借阅记录状态为 "borrowed"
+11. 前端显示倒计时和确认借阅按钮，不在记录表提前显示条形码
+12. 用户点击确认借阅按钮并在弹窗中选择可用副本
+13. 前端发送 `record_id` 和 `copy_id` 到 `/api/borrow/confirm-borrow`
+14. 后端检查是否超时，并校验所选副本是否属于该书且可用
+15. 更新借阅记录状态为 "borrowed"，写入 `copy_id`
 16. 更新副本状态为 "borrowed"
 17. 返回确认成功响应
-18. 前端显示成功消息
+18. 前端刷新记录并显示条形码
 
 **超时处理**：
 - 如果用户在确认截止时间内未确认，系统会自动处理超时
 - 借阅记录状态变为 "timeout"
-- 副本状态变回 "available"
+- 因待确认阶段不绑定副本，通常无需释放副本；兼容旧数据时会释放已预选副本
 
 ### 4.3 书籍归还与罚款流程
 

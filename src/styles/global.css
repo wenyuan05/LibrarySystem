@@ -184,6 +184,41 @@ table {
   align-items: center;
 }
 
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.history-sort-button {
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.history-pagination button {
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
 @media (max-width: 768px) {
   .action-bar {
     flex-direction: column;

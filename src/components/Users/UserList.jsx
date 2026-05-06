@@ -18,6 +18,12 @@ const UserList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
+  const getRoleLabel = (role) => {
+    if (!role) return '';
+    if (role === 'user') return 'Reader';
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
   // 处理查看用户借阅记录
   const handleViewBorrowRecords = (userId) => {
     navigate(`/user-borrow-records/${userId}`);
@@ -210,7 +216,7 @@ const UserList = () => {
             <tr key={userItem.id} className="fade-in">
               <td>{userItem.id}</td>
               <td>{userItem.username}</td>
-              <td>{userItem.role}</td>
+              <td>{getRoleLabel(userItem.role)}</td>
               <td>{userItem.name}</td>
               <td>{userItem.email}</td>
               <td>

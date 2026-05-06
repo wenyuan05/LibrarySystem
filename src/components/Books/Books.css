@@ -615,6 +615,7 @@
 .copy-item {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm);
   border: 1px solid var(--border-color);
@@ -697,8 +698,165 @@
   box-shadow: var(--shadow-sm);
 }
 
+.modal-content.copy-management-modal {
+  width: min(94vw, 1280px) !important;
+  max-width: 1280px !important;
+  min-width: min(94vw, 1040px);
+  padding: var(--spacing-xl);
+  overflow-x: hidden;
+}
+
+.copy-management-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-tertiary);
+}
+
+.copy-management-summary div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.copy-management-summary span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.copy-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  white-space: nowrap;
+}
+
+.copy-add-bar,
+.copy-bulk-bar {
+  display: grid;
+  grid-template-columns: 130px minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.copy-bulk-bar {
+  margin-top: calc(var(--spacing-md) * -1);
+}
+
+.copy-add-bar label,
+.copy-bulk-bar label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.copy-add-bar input,
+.copy-bulk-bar input {
+  min-width: 0;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.copy-add-bar button,
+.copy-bulk-bar button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.copy-management-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.copy-management-table {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  border-collapse: collapse;
+  box-shadow: none;
+  table-layout: fixed;
+}
+
+.copy-management-table th:nth-child(1),
+.copy-management-table td:nth-child(1) {
+  width: 140px;
+}
+
+.copy-management-table th:nth-child(2),
+.copy-management-table td:nth-child(2) {
+  width: 250px;
+}
+
+.copy-management-table th:nth-child(3),
+.copy-management-table td:nth-child(3) {
+  width: 170px;
+}
+
+.copy-management-table th:nth-child(4),
+.copy-management-table td:nth-child(4) {
+  width: 360px;
+}
+
+.copy-management-table th,
+.copy-management-table td {
+  padding: var(--spacing-md);
+  vertical-align: middle;
+}
+
+.copy-management-table select,
+.copy-management-table input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.copy-location-editor {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) auto;
+  align-items: center;
+  gap: var(--spacing-sm);
+  justify-content: start;
+}
+
+.copy-location-editor button {
+  height: 38px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.copy-id-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.copy-id-stack span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .modal-content.copy-management-modal {
+    width: 96vw !important;
+    min-width: 0;
+    padding: var(--spacing-md);
+  }
+
   .book-detail-section {
     padding: var(--spacing-md);
   }
@@ -750,6 +908,18 @@
   
   .unavailable-copy-item button {
     width: 100%;
+  }
+
+  .copy-management-summary,
+  .copy-counts {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .copy-add-bar,
+  .copy-bulk-bar,
+  .copy-location-editor {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -865,13 +1035,75 @@
   margin-bottom: var(--spacing-xs);
 }
 
+/* 副本卡片 */
+.book-copies-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.book-copies-section h4 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+.copies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.copy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  background: var(--bg-secondary);
+  transition: var(--transition);
+}
+
+.copy-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #d0d0d0;
+}
+
+.copy-info {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  text-align: center;
+}
+
+.copy-info p {
+  margin: var(--spacing-xs) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.copy-info .status-available { color: var(--success-color); font-weight: 600; }
+.copy-info .status-borrowed { color: var(--danger-color); font-weight: 600; }
+.copy-info .status-borrowing { color: var(--warning-color); font-weight: 600; }
+.copy-info .status-reserved { color: var(--info-color); font-weight: 600; }
+.copy-info .status-unavailable { color: var(--text-light); font-weight: 600; }
+
+/* 条形码样式 */
+.barcode-cell {
+  text-align: center;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .isbn-input-group {
     flex-direction: column;
   }
-  
+
   .isbn-input-group button {
     width: 100%;
+  }
+
+  .copies-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }

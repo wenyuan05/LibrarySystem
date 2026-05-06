@@ -14,6 +14,7 @@ const LogsPage = () => {
   const [expandedMessages, setExpandedMessages] = useState(new Set());
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedDays, setSelectedDays] = useState(7);
+  const [sortOrder, setSortOrder] = useState('desc');
 
   // Fetch system logs
   const fetchLogs = async () => {
@@ -21,7 +22,8 @@ const LogsPage = () => {
       setIsLoading(true);
       const params = {
         limit,
-        offset
+        offset,
+        order: sortOrder
       };
       const data = await logAPI.getLogs(params);
       setLogs(data.logs);
@@ -95,7 +97,7 @@ const LogsPage = () => {
   // Fetch logs when pagination changes
   useEffect(() => {
     fetchLogs();
-  }, [limit, offset]);
+  }, [limit, offset, sortOrder]);
 
   if (isLoading) {
     return <div className="loading">Loading...</div>;
@@ -120,6 +122,16 @@ const LogsPage = () => {
               <option value="100">100</option>
             </select>
           </div>
+          <button
+            type="button"
+            className="btn-secondary history-sort-button"
+            onClick={() => {
+              setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+              setOffset(0);
+            }}
+          >
+            {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+          </button>
         </div>
         <button 
           className="btn-danger" 

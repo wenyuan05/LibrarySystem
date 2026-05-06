@@ -29,7 +29,7 @@ const BookDetailsPage = () => {
           const bookBorrowRecord = data.records.find(record => record.book_id === parseInt(id) && record.status === 'borrowing');
           if (bookBorrowRecord) {
             setBorrowRecord(bookBorrowRecord);
-            setSelectedCopyId(bookBorrowRecord.copy_id);
+            setSelectedCopyId(bookBorrowRecord.copy_id || null);
             // 计算倒计时
             if (bookBorrowRecord.confirm_deadline) {
               const deadline = new Date(bookBorrowRecord.confirm_deadline);
@@ -97,7 +97,9 @@ const BookDetailsPage = () => {
       
       // 检查用户是否有未结清的罚款
       const fines = await borrowAPI.getUserFines(user.id);
-      const totalFine = fines.reduce((sum, fine) => sum + fine.fine, 0);
+      const totalFine = fines
+        .filter(fine => fine.fine_status === 'unpaid')
+        .reduce((sum, fine) => sum + fine.fine, 0);
       if (totalFine > 0) {
         throw new Error('You have unpaid fines and cannot borrow books');
       }
@@ -105,7 +107,7 @@ const BookDetailsPage = () => {
       setIsBorrowing(true);
       const result = await borrowAPI.borrow(user.id, book.id);
       setBorrowRecord(result);
-      setSelectedCopyId(result.copy_id);
+      setSelectedCopyId(result.copy_id || null);
       // 计算倒计时（从 confirm_deadline 计算）
       if (result.confirm_deadline) {
         const deadline = new Date(result.confirm_deadline);
@@ -130,6 +132,9 @@ const BookDetailsPage = () => {
     try {
       if (!borrowRecord?.id) {
         throw new Error('No borrow record found');
+      }
+      if (!selectedCopyId) {
+        throw new Error('Please select a copy before confirming');
       }
       await borrowAPI.confirmBorrow(borrowRecord.id, selectedCopyId);
       showToast('Borrow confirmed successfully', 'success');
@@ -288,7 +293,13 @@ const BookDetailsPage = () => {
                   </div>
                   <button 
                     className="btn-primary confirm-button"
-                    onClick={() => setShowConfirmModal(true)}
+                    onClick={() => {
+                      const availableCopy = copies.find(
+                        copy => copy.status === 'available' || copy.id === borrowRecord.copy_id
+                      );
+                      setSelectedCopyId(selectedCopyId || availableCopy?.id || null);
+                      setShowConfirmModal(true);
+                    }}
                   >
                     Confirm Borrowing
                   </button>
@@ -318,12 +329,12 @@ const BookDetailsPage = () => {
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select 
-                  value={selectedCopyId} 
+                  value={selectedCopyId || ''}
                   onChange={(e) => setSelectedCopyId(parseInt(e.target.value))}
                 >
-                  {copies.filter(c => c.status === 'borrowing' || c.status === 'available').map(copy => (
+                  {copies.filter(c => c.status === 'available' || c.id === borrowRecord?.copy_id).map(copy => (
                     <option key={copy.id} value={copy.id}>
-                      Copy ID: {copy.id} ({copy.status === 'borrowing' ? 'Selected' : 'Available'})
+                      Copy ID: {copy.id} ({copy.status === 'available' ? 'Available' : 'Previously selected'})
                     </option>
                   ))}
                 </select>
@@ -339,6 +350,7 @@ const BookDetailsPage = () => {
               <button 
                 className="btn-primary"
                 onClick={handleConfirmBorrow}
+                disabled={!selectedCopyId}
               >
                 Confirm
               </button>

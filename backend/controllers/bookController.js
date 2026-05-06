@@ -63,13 +63,14 @@ exports.addBook = (req, res) => {
             }
             
             const bookId = this.lastID;
-            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
+            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
             let copyCount = 0;
             const totalCopies = copies;
-            
+
             // 创建副本记录
         for (let i = 0; i < totalCopies; i++) {
-          insertCopy.run(bookId, 'available', location, (err) => {
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          insertCopy.run(bookId, copyCode, 'available', location, (err) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -203,12 +204,17 @@ exports.updateBook = (req, res) => {
             
             if (currentCount < targetCount) {
               // 需要添加副本
-              const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
-              let addedCount = 0;
-              const addCount = targetCount - currentCount;
-              
-              for (let i = 0; i < addCount; i++) {
-                insertCopy.run(id, 'available', null, (err) => {
+              db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [id], (err, countResult) => {
+                if (err) { db.run('ROLLBACK'); res.status(500).json({ error: err.message }); return; }
+
+                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+                let addedCount = 0;
+                const addCount = targetCount - currentCount;
+
+                for (let i = 0; i < addCount; i++) {
+                  const seq = countResult.count + i + 1;
+                  const copyCode = `CP-${id}-${String(seq).padStart(3, '0')}`;
+                  insertCopy.run(id, copyCode, 'available', null, (err) => {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
@@ -255,7 +261,8 @@ exports.updateBook = (req, res) => {
                   }
                 });
               }
-            } else if (currentCount > targetCount) {
+            });
+          } else if (currentCount > targetCount) {
               // 需要删除副本（只删除可用状态的副本）
               db.all('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT ?', [id, 'available', currentCount - targetCount], (err, copies) => {
                 if (err) {
@@ -562,6 +569,104 @@ exports.getBookCopies = (req, res) => {
   });
 };
 
+// 添加单个书籍副本（管理员/图书管理员）
+exports.addBookCopy = (req, res) => {
+  const { book_id } = req.params;
+  const location = (req.body.location || 'Main Shelf').trim() || 'Main Shelf';
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get('SELECT id FROM books WHERE id = ?', [book_id], (err, book) => {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!book) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Book not found' });
+          return;
+        }
+
+        db.all('SELECT copy_code FROM book_copies WHERE book_id = ?', [book_id], (err, copies) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          const maxSeq = copies.reduce((max, copy) => {
+            const match = (copy.copy_code || '').match(/-(\d+)$/);
+            const seq = match ? parseInt(match[1], 10) : 0;
+            return Math.max(max, seq);
+          }, 0);
+          const copyCode = `CP-${book_id}-${String(maxSeq + 1).padStart(3, '0')}`;
+
+          db.run(
+            'INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)',
+            [book_id, copyCode, 'available', location],
+            function(err) {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              const copyId = this.lastID;
+              db.get('SELECT COUNT(*) as total_count FROM book_copies WHERE book_id = ?', [book_id], (err, totalResult) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [book_id, 'available'], (err, availableResult) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.run(
+                    'UPDATE books SET total_copies = ?, available_copies = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    [totalResult.total_count, availableResult.available_count, book_id],
+                    (err) => {
+                      if (err) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+
+                      db.run('COMMIT', (err) => {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.status(201).json({
+                          id: copyId,
+                          book_id: Number(book_id),
+                          copy_code: copyCode,
+                          status: 'available',
+                          location
+                        });
+                      });
+                    }
+                  );
+                });
+              });
+            }
+          );
+        });
+      });
+    });
+  });
+};
+
 // 获取单个副本信息（公开访问）
 exports.getCopyById = (req, res) => {
   const { id } = req.params;
@@ -828,13 +933,14 @@ exports.batchImportBooks = (req, res) => {
                 results.errors.push({ isbn, error: err.message });
               } else {
                 const bookId = this.lastID;
-                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status, location) VALUES (?, ?, ?)');
+                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
                 let copyCount = 0;
                 const totalCopies = copies;
-                
+
                 // 创建副本记录
                 for (let i = 0; i < totalCopies; i++) {
-                  insertCopy.run(bookId, 'available', location, (err) => {
+                  const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+                  insertCopy.run(bookId, copyCode, 'available', location, (err) => {
                     if (err) {
                       console.error('创建副本失败:', err.message);
                     }

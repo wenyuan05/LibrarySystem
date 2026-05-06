@@ -96,7 +96,7 @@ exports.borrowBook = function(req, res) {
                 return;
               }
 
-              // 查找可用的副本
+              // 检查是否有可用副本。借阅申请阶段不绑定具体副本，确认时再选择。
               db.get('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT 1', [book_id, 'available'], function(err, copy) {
                 if (err) {
                   db.run('ROLLBACK');
@@ -108,65 +108,38 @@ exports.borrowBook = function(req, res) {
                   res.status(400).json({ error: 'No available copies' });
                   return;
                 }
-                
-                const copy_id = copy.id;
-                
-                // 更新副本状态为borrowing
-                db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['borrowing', copy_id], function(err) {
+
+                // 创建借阅记录，状态为borrowing，copy_id暂为空
+                db.run(
+                  'INSERT INTO borrow_records (user_id, book_id, borrow_date, due_date, confirm_deadline, status) VALUES (?, ?, ?, ?, ?, ?)',
+                  [user_id, book_id, borrow_date, due_date_str, confirm_deadline_str, 'borrowing'],
+                  function(err) {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
                   }
                   
-                  // 重新计算可用副本数
-                  db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [book_id, 'available'], function(err, result) {
+                  const recordId = this.lastID;
+                  db.run('COMMIT', function(err) {
                     if (err) {
-                      db.run('ROLLBACK');
                       res.status(500).json({ error: err.message });
                       return;
                     }
-                    
-                    // 更新书籍表中的可用副本数
-                    db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, book_id], function(err) {
-                      if (err) {
-                        db.run('ROLLBACK');
-                        res.status(500).json({ error: err.message });
-                        return;
-                      }
-                      
-                      // 创建借阅记录，状态为borrowing
-                      db.run(
-                        'INSERT INTO borrow_records (user_id, book_id, copy_id, borrow_date, due_date, confirm_deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        [user_id, book_id, copy_id, borrow_date, due_date_str, confirm_deadline_str, 'borrowing'],
-                        function(err) {
-                          if (err) {
-                            db.run('ROLLBACK');
-                            res.status(500).json({ error: err.message });
-                            return;
-                          }
-                          
-                          db.run('COMMIT', function(err) {
-                            if (err) {
-                              res.status(500).json({ error: err.message });
-                              return;
-                            }
-                            res.json({ 
-                              id: this.lastID, 
-                              user_id, 
-                              book_id, 
-                              copy_id, 
-                              borrow_date, 
-                              due_date: due_date_str, 
-                              confirm_deadline: confirm_deadline_str,
-                              status: 'borrowing'
-                            });
-                          });
-                        }
-                      );
+                    res.json({
+                      id: recordId,
+                      user_id,
+                      book_id,
+                      copy_id: null,
+                      copy_code: null,
+                      borrow_date,
+                      due_date: due_date_str,
+                      confirm_deadline: confirm_deadline_str,
+                      status: 'borrowing'
                     });
                   });
-                });
+                }
+              );
               });
             });
           });
@@ -308,12 +281,14 @@ exports.getBorrowingList = function(req, res) {
         
         // 构建查询语句
         let sql = `
-          SELECT br.id, br.user_id, u.username, u.name as user_name, 
-                 br.book_id, b.title, b.author, 
-                 br.borrow_date, br.due_date, br.status, br.fine 
-          FROM borrow_records br 
-          JOIN users u ON br.user_id = u.id 
-          JOIN books b ON br.book_id = b.id 
+          SELECT br.id, br.user_id, u.username, u.name as user_name,
+                 br.book_id, b.title, b.author,
+                 br.borrow_date, br.due_date, br.status, br.fine,
+                 br.copy_id, bc.copy_code
+          FROM borrow_records br
+          JOIN users u ON br.user_id = u.id
+          JOIN books b ON br.book_id = b.id
+          LEFT JOIN book_copies bc ON br.copy_id = bc.id
           WHERE br.status = 'borrowed'
         `;
         const params = [];
@@ -702,15 +677,22 @@ exports.confirmBorrow = function(req, res) {
             return;
           }
           
-          // 如果指定了不同的副本，检查该副本是否可用
-          const targetCopyId = copy_id || record.copy_id;
+          if (!copy_id) {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Please select a copy before confirming borrow' });
+            return;
+          }
+
+          // 确认时检查所选副本是否仍可用
+          const targetCopyId = copy_id;
           db.get('SELECT id, status FROM book_copies WHERE id = ? AND book_id = ?', [targetCopyId, record.book_id], function(err, copy) {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (!copy || copy.status !== 'borrowing') {
+            const isLegacyReservedCopy = record.copy_id && Number(record.copy_id) === Number(targetCopyId) && copy?.status === 'borrowing';
+            if (!copy || (copy.status !== 'available' && !isLegacyReservedCopy)) {
               db.run('ROLLBACK');
               res.status(400).json({ error: 'Selected copy is not available' });
               return;
@@ -734,29 +716,45 @@ exports.confirmBorrow = function(req, res) {
                     res.status(500).json({ error: err.message });
                     return;
                   }
+
+                  const releaseLegacyCopy = (next) => {
+                    if (record.copy_id && Number(record.copy_id) !== Number(targetCopyId)) {
+                      db.run('UPDATE book_copies SET status = ? WHERE id = ? AND status = ?', ['available', record.copy_id, 'borrowing'], next);
+                    } else {
+                      next(null);
+                    }
+                  };
                   
-                  // 重新计算可用副本数
-                  db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [record.book_id, 'available'], function(err, result) {
+                  releaseLegacyCopy(function(err) {
                     if (err) {
                       db.run('ROLLBACK');
                       res.status(500).json({ error: err.message });
                       return;
                     }
-                    
-                    // 更新书籍表中的可用副本数
-                    db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, record.book_id], function(err) {
+
+                    // 重新计算可用副本数
+                    db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [record.book_id, 'available'], function(err, result) {
                       if (err) {
                         db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
                       }
                       
-                      db.run('COMMIT', function(err) {
+                      // 更新书籍表中的可用副本数
+                      db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, record.book_id], function(err) {
                         if (err) {
+                          db.run('ROLLBACK');
                           res.status(500).json({ error: err.message });
                           return;
                         }
-                        res.json({ message: 'Borrow confirmed successfully' });
+                        
+                        db.run('COMMIT', function(err) {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.json({ message: 'Borrow confirmed successfully' });
+                        });
                       });
                     });
                   });
@@ -1045,12 +1043,14 @@ exports.getReturningList = function(req, res) {
   }
 
   const sql = `
-    SELECT br.id, br.user_id, u.username, u.name as user_name, 
-           br.book_id, b.title, b.author, 
-           br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
-    FROM borrow_records br 
-    JOIN users u ON br.user_id = u.id 
-    JOIN books b ON br.book_id = b.id 
+    SELECT br.id, br.user_id, u.username, u.name as user_name,
+           br.book_id, b.title, b.author,
+           br.borrow_date, br.due_date, br.return_date, br.status, br.fine,
+           br.copy_id, bc.copy_code
+    FROM borrow_records br
+    JOIN users u ON br.user_id = u.id
+    JOIN books b ON br.book_id = b.id
+    LEFT JOIN book_copies bc ON br.copy_id = bc.id
     WHERE br.status = 'returning'
     ORDER BY br.return_date DESC
   `;
@@ -1138,12 +1138,14 @@ exports.getUserFines = function(req, res) {
   }
 
   const sql = `
-    SELECT br.id, br.book_id, b.title, b.author, 
-           br.borrow_date, br.due_date, br.return_date, br.fine, br.fine_status 
-    FROM borrow_records br 
-    JOIN books b ON br.book_id = b.id 
-    WHERE br.user_id = ? AND br.fine > 0 AND br.fine_status = 'unpaid'
-    ORDER BY br.return_date DESC
+    SELECT br.id, br.book_id, b.title, b.author,
+           br.borrow_date, br.due_date, br.return_date, br.fine, br.fine_status,
+           br.copy_id, bc.copy_code
+    FROM borrow_records br
+    JOIN books b ON br.book_id = b.id
+    LEFT JOIN book_copies bc ON br.copy_id = bc.id
+    WHERE br.user_id = ? AND br.fine > 0
+    ORDER BY br.fine_status = 'unpaid' DESC, br.return_date DESC
   `;
 
   db.all(sql, [user_id], function(err, fines) {

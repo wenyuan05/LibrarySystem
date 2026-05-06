@@ -2,8 +2,26 @@
 @import '../../styles/variables.css';
 
 /* 借阅记录 */
+.content:has(.borrow-records-page) {
+  max-width: 1500px;
+  align-items: stretch;
+}
+
+.borrow-records-page {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
 .borrow-records {
-  margin-top: var(--spacing-lg);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 /* 借阅记录头部 */
@@ -11,7 +29,23 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.borrow-records-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-2xl);
+  line-height: 1.2;
+}
+
+.borrow-records-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-left: auto;
 }
 
 /* 用户信息头部 */
@@ -26,7 +60,12 @@
 .overdue-count {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
+  min-height: 36px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--border-radius);
+  background: #FEF2F2;
+  white-space: nowrap;
 }
 
 .overdue-badge {
@@ -44,7 +83,70 @@
 
 .overdue-count .overdue-text {
   color: var(--danger-color);
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.view-fines-button {
+  height: 36px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.history-sort-button {
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.history-pagination button {
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.borrow-user-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-tertiary);
+}
+
+.borrow-user-summary span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 /* 空状态 */
@@ -55,6 +157,158 @@
   border-radius: var(--border-radius);
   color: var(--text-secondary);
   margin-top: var(--spacing-lg);
+}
+
+.borrow-records-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.borrow-records-table {
+  width: 100%;
+  min-width: 1190px;
+  max-width: none;
+  margin: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--bg-secondary);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.borrow-records-table .col-id {
+  width: 60px;
+}
+
+.borrow-records-table .col-title {
+  width: 170px;
+}
+
+.borrow-records-table .col-barcode {
+  width: 240px;
+}
+
+.borrow-records-table .col-date {
+  width: 110px;
+}
+
+.borrow-records-table .col-status {
+  width: 120px;
+}
+
+.borrow-records-table .col-fine {
+  width: 100px;
+}
+
+.borrow-records-table .col-action {
+  width: 170px;
+}
+
+.borrow-records-table th,
+.borrow-records-table td {
+  height: 76px;
+  padding: 16px 20px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.borrow-records-table th {
+  background: #F8FAFC;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.borrow-records-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.borrow-records-table tbody tr:hover {
+  background: #F9FAFB;
+}
+
+.borrow-records-table .title-cell {
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.borrow-records-table .date-cell {
+  white-space: nowrap;
+}
+
+.borrow-records-table .barcode-cell {
+  text-align: left;
+}
+
+.borrow-records-table .barcode-container {
+  width: 200px;
+  min-height: 54px;
+  margin: 0;
+  padding: 4px 0 !important;
+  justify-content: center;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.borrow-records-table .barcode-container svg {
+  display: block;
+  width: 200px;
+  max-width: 100%;
+  height: 54px;
+}
+
+.borrow-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 82px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.borrow-status-badge.status-returned {
+  color: var(--info-color);
+  background: #EFF6FF;
+}
+
+.borrow-status-badge.status-borrowed,
+.borrow-status-badge.status-borrowing {
+  color: #B45309;
+  background: #FFFBEB;
+}
+
+.borrow-status-badge.status-overdue {
+  color: var(--danger-color);
+  background: #FEF2F2;
+}
+
+.borrow-status-badge.status-returning {
+  color: var(--primary-color);
+  background: #EEF2FF;
+}
+
+.borrow-records-table .fine-amount {
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.borrow-action-cell {
+  min-width: 170px;
 }
 
 /* 响应式设计 */
@@ -92,7 +346,10 @@
 
 .status-pending {
   color: var(--warning-color);
-  font-style: italic;
+  font-size: var(--font-size-sm);
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .status-overdue {
@@ -103,15 +360,21 @@
 /* 操作按钮样式 */
 .action-buttons {
   display: flex;
-  gap: var(--spacing-xs);
+  align-items: center;
+  gap: var(--spacing-sm);
+  white-space: nowrap;
 }
 
 .action-buttons button {
-  padding: var(--spacing-xs) var(--spacing-sm);
+  height: 34px;
+  min-width: 68px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
   font-size: var(--font-size-sm);
+  line-height: 1;
   transition: background-color 0.2s ease;
 }
 
@@ -273,19 +536,67 @@
   }
 }
 
+.selected-copy-barcode {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-md);
+}
+
+/* 条形码单元格 */
+.barcode-cell img {
+  display: block;
+  max-width: 140px;
+}
+
+/* 罚款金额 */
+.fine-amount {
+  color: var(--danger-color);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .borrow-records-page {
+    padding: var(--spacing-md);
+  }
+
+  .borrow-records {
+    padding: var(--spacing-md);
+  }
+
+  .borrow-records-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .borrow-records-header-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+
+  .borrow-records-header h3 {
+    font-size: var(--font-size-xl);
+  }
+
+  .borrow-user-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .modal-content {
     width: 95%;
     padding: var(--spacing-md);
   }
-  
+
   .fines-table th,
   .fines-table td {
     padding: var(--spacing-xs);
     font-size: var(--font-size-sm);
   }
-  
+
   .total-fine {
     font-size: var(--font-size-md);
   }

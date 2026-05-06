@@ -20,7 +20,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         <h4>{user?.name || 'User'}</h4>
         <p>
           {user?.role === 'admin' ? 'Administrator' : 
-           user?.role === 'librarian' ? 'Librarian' : 'User'}
+           user?.role === 'librarian' ? 'Librarian' : 'Reader'}
         </p>
         <p>{user?.email || ''}</p>
       </div>

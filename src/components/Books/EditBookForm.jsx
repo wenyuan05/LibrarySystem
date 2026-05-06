@@ -10,8 +10,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [copies, setCopies] = useState([]);
-  const [copiesLoading, setCopiesLoading] = useState(false);
   const { showToast } = useToast();
   const titleInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -37,20 +35,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       }
     };
 
-    const fetchCopies = async () => {
-      if (book) {
-        try {
-          setCopiesLoading(true);
-          const bookCopies = await booksAPI.getCopies(book.id);
-          setCopies(bookCopies);
-        } catch (error) {
-          console.error('Error fetching copies:', error);
-        } finally {
-          setCopiesLoading(false);
-        }
-      }
-    };
-
     if (book) {
       setFormData({
         title: book.title || '',
@@ -70,8 +54,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       
       // 获取分类数据
       fetchBookCategories();
-      // 获取副本数据
-      fetchCopies();
     }
   }, [book]);
 
@@ -120,54 +102,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         return [...prev, categoryId];
       }
     });
-  };
-
-  // 处理副本状态更新
-  const handleCopyStatusChange = async (copyId, newStatus) => {
-    try {
-      await booksAPI.updateCopyStatus(copyId, newStatus);
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      showToast('Copy status updated successfully', 'success');
-    } catch (error) {
-      console.error('Error updating copy status:', error);
-      showToast('Failed to update copy status', 'error');
-    }
-  };
-
-  // 处理副本位置更新
-  const handleCopyLocationChange = async (copyId, newLocation) => {
-    try {
-      await booksAPI.updateCopyLocation(copyId, newLocation);
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      showToast('Copy location updated successfully', 'success');
-    } catch (error) {
-      console.error('Error updating copy location:', error);
-      showToast('Failed to update copy location', 'error');
-    }
-  };
-
-  // 处理添加副本
-  const handleAddCopy = async () => {
-    try {
-      // 调用update接口，增加total_copies
-      await booksAPI.update(book.id, { total_copies: book.total_copies + 1 });
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      showToast('Copy added successfully', 'success');
-      // 更新书籍信息
-      if (onEditComplete) {
-        const updatedBook = await booksAPI.getById(book.id);
-        onEditComplete(updatedBook);
-      }
-    } catch (error) {
-      console.error('Error adding copy:', error);
-      showToast('Failed to add copy', 'error');
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -220,10 +154,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         }
       }
       
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      
       showToast('Book updated successfully!', 'success');
       // 通知父组件编辑完成
       if (onEditComplete) {
@@ -247,9 +177,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   if (!book) {
     return null;
   }
-
-  // 过滤出不可用的副本
-  const unavailableCopies = copies.filter(copy => copy.status === 'unavailable');
 
   return (
     <div className="modal-overlay" onClick={handleModalClose}>
@@ -417,89 +344,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               </div>
             )}
           </div>
-          
-          {/* 副本管理 */}
-          <div className="form-group">
-            <label>Book Copies:</label>
-            {copiesLoading ? (
-              <p>Loading copies...</p>
-            ) : copies.length === 0 ? (
-              <p>No copies available</p>
-            ) : (
-              <div className="copies-management">
-                <div className="copies-list">
-                  {copies.map(copy => (
-                    <div key={copy.id} className="copy-item">
-                      <span className="copy-id">Copy ID: {copy.id}</span>
-                      <div className="copy-status-control">
-                        <select
-                          value={copy.status}
-                          onChange={(e) => {
-                            e.preventDefault();
-                            handleCopyStatusChange(copy.id, e.target.value);
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          <option value="available">Available</option>
-                          <option value="unavailable">Unavailable</option>
-                          <option value="borrowing">Borrowing</option>
-                          <option value="borrowed">Borrowed</option>
-                          <option value="reserved">Reserved</option>
-                        </select>
-                      </div>
-                      <div className="copy-location-control">
-                        <input
-                          type="text"
-                          placeholder="Location"
-                          value={copy.location || ''}
-                          onChange={(e) => {
-                            e.preventDefault();
-                            handleCopyLocationChange(copy.id, e.target.value);
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* 不可用副本列表和添加按钮 */}
-                {unavailableCopies.length > 0 && (
-                  <div className="unavailable-copies-section">
-                    <h4>Unavailable Copies</h4>
-                    <div className="unavailable-copies-list">
-                      {unavailableCopies.map(copy => (
-                        <div key={copy.id} className="unavailable-copy-item">
-                          <span>Copy ID: {copy.id}</span>
-                          <button
-                            type="button"
-                            className="btn-small"
-                            onClick={() => handleCopyStatusChange(copy.id, 'available')}
-                            disabled={isSubmitting}
-                          >
-                            Make Available
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* 添加副本按钮 */}
-                <div className="add-copy-section">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleAddCopy}
-                    disabled={isSubmitting}
-                  >
-                    Add Copy
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          
           <div className="form-actions">
             <button 
               type="submit" 

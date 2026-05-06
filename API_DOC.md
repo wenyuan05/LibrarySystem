@@ -5,7 +5,7 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理、ISBN导入 | 18 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 19 |
 | 借阅管理 | 借阅、归还、预约、续借、罚款管理 | 14 |
 | 系统管理 | 系统设置、公告、日志 | 8 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
@@ -189,7 +189,10 @@
     "due_date": "2024-01-15",
     "return_date": "2024-01-10",
     "status": "returned",
-    "fine": 0
+    "fine": 0,
+    "fine_status": "paid",
+    "copy_id": 1,
+    "copy_code": "CP-1-001"
   }
 ]
 ```
@@ -418,12 +421,49 @@
   {
     "id": 1,
     "book_id": 1,
-    "status": "available"
+    "copy_code": "CP-1-001",
+    "status": "available",
+    "location": "Main Shelf"
   }
 ]
 ```
 
-#### 3.2.10 GET /api/books/copies/:id
+#### 3.2.10 POST /api/books/:book_id/copies
+**功能**：为指定书籍新增一个副本，并自动生成 `copy_code`
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "location": "Main Shelf"
+}
+```
+
+**说明**：
+- `location` 可选，未传时默认使用 `Main Shelf`
+- `copy_code` 按当前书籍已有副本编号递增生成，例如 `CP-1-001`
+- 新增成功后会同步更新 `books.total_copies` 与 `books.available_copies`
+
+**响应**：
+```json
+{
+  "message": "Copy added successfully",
+  "copy": {
+    "id": 4,
+    "book_id": 1,
+    "copy_code": "CP-1-004",
+    "status": "available",
+    "location": "Main Shelf"
+  },
+  "book": {
+    "id": 1,
+    "total_copies": 4,
+    "available_copies": 3
+  }
+}
+```
+
+#### 3.2.11 GET /api/books/copies/:id
 **功能**：获取单个副本信息
 
 **响应**：
@@ -431,11 +471,13 @@
 {
   "id": 1,
   "book_id": 1,
-  "status": "available"
+  "copy_code": "CP-1-001",
+  "status": "available",
+  "location": "Main Shelf"
 }
 ```
 
-#### 3.2.11 PUT /api/books/copies/:id/status
+#### 3.2.12 PUT /api/books/copies/:id/status
 **功能**：更新副本状态
 **权限**：admin/librarian
 
@@ -450,11 +492,13 @@
 ```json
 {
   "id": 1,
-  "status": "available"
+  "copy_code": "CP-1-001",
+  "status": "available",
+  "location": "Main Shelf"
 }
 ```
 
-#### 3.2.12 GET /api/books/isbn/:isbn
+#### 3.2.13 GET /api/books/isbn/:isbn
 **功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
 **权限**：admin/librarian
 
@@ -471,7 +515,7 @@
 }
 ```
 
-#### 3.2.13 POST /api/books/batch
+#### 3.2.14 POST /api/books/batch
 **功能**：批量导入书籍
 **权限**：admin/librarian
 
@@ -495,7 +539,7 @@
 }
 ```
 
-#### 3.2.14 PUT /api/books/copies/:id/location
+#### 3.2.15 PUT /api/books/copies/:id/location
 **功能**：更新副本位置
 **权限**：admin/librarian
 
@@ -532,13 +576,16 @@
   "id": 10,
   "user_id": 2,
   "book_id": 1,
-  "copy_id": 1,
+  "copy_id": null,
+  "copy_code": null,
   "borrow_date": "2024-01-01",
   "due_date": "2024-01-15",
   "confirm_deadline": "2024-01-01T10:00:00Z",
   "status": "borrowing"
 }
 ```
+
+**说明**：发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
 
 #### 3.3.2 POST /api/borrow/return
 **功能**：归还书籍
@@ -578,6 +625,8 @@
   "message": "Borrow confirmed successfully"
 }
 ```
+
+**说明**：`copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
 
 #### 3.3.4 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
@@ -708,8 +757,10 @@
 ```
 
 #### 3.3.11 GET /api/borrow/fines/:user_id
-**功能**：获取用户的未支付罚款记录
+**功能**：获取用户罚款历史记录
 **权限**：本人或admin/librarian
+
+**说明**：返回 `fine > 0` 的罚款历史，包含未支付和已支付记录；未支付记录优先，再按记录 ID 倒序。前端总额只统计 `fine_status = "unpaid"`。
 
 **响应**：
 ```json
@@ -723,7 +774,9 @@
     "due_date": "2024-01-15",
     "return_date": "2024-01-20",
     "fine": 2.5,
-    "fine_status": "unpaid"
+    "fine_status": "unpaid",
+    "copy_id": 1,
+    "copy_code": "CP-1-001"
   }
 ]
 ```
@@ -1003,6 +1056,11 @@
 #### 3.5.8 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
+
+**查询参数**：
+- `limit`：返回数量，默认 50
+- `offset`：分页偏移，默认 0
+- `order`：时间排序，`desc` 为最新优先，`asc` 为最旧优先
 
 **响应**：
 ```json
