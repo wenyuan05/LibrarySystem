@@ -854,3 +854,12 @@ This file documents all bug fixes applied to the project.
   - Documented the actual flat copy object response instead of a wrapped `{ message, copy, book }` payload.
 - **Reason**: Keep the API contract documentation aligned with the current endpoint implementation and frontend usage.
 
+### Fix 88: Correct batch import API request and response documentation
+- **Files modified**:
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `POST /api/books/batch` request documentation from a raw JSON array to `{ "books": [...] }`.
+  - Removed the undocumented `message` field from the documented response shape.
+- **Reason**: Align API documentation with `bookController.batchImportBooks` and the frontend `booksAPI.batchImport` request contract.
+

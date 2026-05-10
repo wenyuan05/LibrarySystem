@@ -513,13 +513,15 @@
 
 **请求体**：
 ```json
-[
-  {
-    "title": "Book 1", "author": "Author 1", "isbn": "9780743273565",
-    "publisher": "Pub", "publish_date": "2024-01-01", "language": "English",
-    "page_count": 200, "total_copies": 2, "location": "Main Shelf", "category_id": 1
-  }
-]
+{
+  "books": [
+    {
+      "title": "Book 1", "author": "Author 1", "isbn": "9780743273565",
+      "publisher": "Pub", "publish_date": "2024-01-01", "language": "English",
+      "page_count": 200, "total_copies": 2, "location": "Main Shelf", "category_id": 1
+    }
+  ]
+}
 ```
 
 **说明**：
@@ -532,7 +534,6 @@
 **响应**：
 ```json
 {
-  "message": "Batch import completed",
   "success": 2,
   "failed": 0,
   "errors": []
