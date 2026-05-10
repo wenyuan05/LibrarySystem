@@ -494,6 +494,10 @@
 **功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
 **权限**：admin/librarian
 
+**说明**：
+- `cover_image` 优先使用 OpenLibrary 返回的 `cover.large`、`cover.medium`、`cover.small` URL。
+- 如仅返回旧式 `cover.id`，会回退为 OpenLibrary cover id URL；没有封面时返回空字符串。
+
 **响应**：
 ```json
 {

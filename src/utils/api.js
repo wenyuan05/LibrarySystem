@@ -122,6 +122,10 @@ export const booksAPI = {
       
       if (data[bookKey]) {
         const bookData = data[bookKey];
+        const coverImage = bookData.cover?.large
+          || bookData.cover?.medium
+          || bookData.cover?.small
+          || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
         
         // 清洗数据，只返回需要的信息
         const cleanedData = {
@@ -131,7 +135,7 @@ export const booksAPI = {
           publish_date: bookData.publish_date || '',
           isbn: isbn,
           description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
-          cover_image: bookData.cover ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '',
+          cover_image: coverImage,
           language: 'Chinese',
           page_count: bookData.number_of_pages || 0
         };

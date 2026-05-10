@@ -890,3 +890,16 @@ This file documents all bug fixes applied to the project.
   - Documented that cross-page shared UI styles belong in `global.css`.
 - **Reason**: Avoid global class style conflicts caused by duplicate definitions and CSS load order.
 
+### Fix 91: Use OpenLibrary cover URL fallbacks
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated ISBN metadata cleanup to prefer `bookData.cover.large`, then `medium`, then `small`.
+  - Kept a fallback for legacy `cover.id` values.
+  - Returned an empty cover URL when OpenLibrary does not provide cover data.
+  - Documented the cover image fallback behavior for `GET /api/books/isbn/:isbn`.
+- **Reason**: Prevent broken cover image URLs when OpenLibrary returns cover URLs instead of `cover.id`.
+
