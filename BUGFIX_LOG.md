@@ -845,3 +845,12 @@ This file documents all bug fixes applied to the project.
   - Added rollback handling for unexpected transaction-level failures.
 - **Reason**: Prevent incorrect success counts and avoid copy inserts running outside the intended batch import transaction lifecycle.
 
+### Fix 87: Correct add copy API response documentation
+- **Files modified**:
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `POST /api/books/:book_id/copies` response documentation to match `bookController.addBookCopy`.
+  - Documented the actual flat copy object response instead of a wrapped `{ message, copy, book }` payload.
+- **Reason**: Keep the API contract documentation aligned with the current endpoint implementation and frontend usage.
+

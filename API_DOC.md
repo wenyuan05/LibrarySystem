@@ -447,19 +447,11 @@
 **响应**：
 ```json
 {
-  "message": "Copy added successfully",
-  "copy": {
-    "id": 4,
-    "book_id": 1,
-    "copy_code": "CP-1-004",
-    "status": "available",
-    "location": "Main Shelf"
-  },
-  "book": {
-    "id": 1,
-    "total_copies": 4,
-    "available_copies": 3
-  }
+  "id": 4,
+  "book_id": 1,
+  "copy_code": "CP-1-004",
+  "status": "available",
+  "location": "Main Shelf"
 }
 ```
 
