@@ -368,7 +368,7 @@ backend/
 | 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN导入、批量导入、位置管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
-| 系统管理 | /api/system | 系统设置（支持部分更新） |
+| 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert） |
 | 公告管理 | /api/announcements | 公告CRUD |
 | 日志管理 | /api/logs | 系统日志 |
 | 统计分析 | /api/stats | 各种统计数据 |

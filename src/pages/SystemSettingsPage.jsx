@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import { systemAPI } from '../utils/api';
 import './SystemSettingsPage.css';
 
 const settingDefinitions = [
-  { key: 'system_name', label: 'System Name', type: 'text' },
-  { key: 'system_version', label: 'System Version', type: 'text' },
+  { key: 'system_name', label: 'System Name', type: 'text', default: 'Library Management System' },
+  { key: 'system_version', label: 'System Version', type: 'text', default: '1.0.0' },
   { key: 'borrow_period_days', label: 'Borrow Days', type: 'number', min: 1, max: 365, default: 14 },
   { key: 'fine_per_day', label: 'Fine Per Day', type: 'number', min: 0, step: 0.1, default: 0.5 },
   { key: 'max_borrows', label: 'Max Books Per User', type: 'number', min: 1, max: 50, default: 5 },
@@ -16,6 +16,13 @@ const settingDefinitions = [
   { key: 'max_reservations', label: 'Max Reservations Per User', type: 'number', min: 1, max: 20, default: 3 },
 ];
 
+const defaultSettings = settingDefinitions.reduce((acc, setting) => {
+  if (setting.default !== undefined) {
+    acc[setting.key] = String(setting.default);
+  }
+  return acc;
+}, {});
+
 const SystemSettingsPage = () => {
   const [settings, setSettings] = useState({});
   const [editingKey, setEditingKey] = useState(null);
@@ -24,26 +31,26 @@ const SystemSettingsPage = () => {
   const [saving, setSaving] = useState(null); // key being saved
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
       const data = await systemAPI.getSettings();
-      setSettings(data);
+      setSettings({ ...defaultSettings, ...data });
     } catch (err) {
       showToast('Failed to load system settings', 'error');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const startEdit = (key) => {
     setEditingKey(key);
-    setEditValue(settings[key]);
+    setEditValue(settings[key] ?? defaultSettings[key] ?? '');
   };
 
   const cancelEdit = () => {
@@ -93,7 +100,7 @@ const SystemSettingsPage = () => {
         {settingDefinitions.map(({ key, label, type, min, max, step, default: defVal }) => {
           const isEditing = editingKey === key;
           const isSaving = saving === key;
-          const currentValue = settings[key];
+          const currentValue = settings[key] ?? defaultSettings[key] ?? '';
 
           return (
             <div key={key} className={`setting-item ${isEditing ? 'editing' : ''}`}>

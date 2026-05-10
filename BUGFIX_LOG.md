@@ -863,3 +863,19 @@ This file documents all bug fixes applied to the project.
   - Removed the undocumented `message` field from the documented response shape.
 - **Reason**: Align API documentation with `bookController.batchImportBooks` and the frontend `booksAPI.batchImport` request contract.
 
+### Fix 89: Upsert missing system settings and provide UI defaults
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added seed rows for all keys used by `SystemSettingsPage`, including `system_name`, `system_version`, `max_renew_times`, and `renew_days`.
+  - Changed `updateSystemSettings` from `UPDATE ... WHERE key = ?` to an upsert so missing keys are created instead of silently affecting 0 rows.
+  - Added frontend default-setting merge so absent values render editable defaults instead of `undefined`.
+  - Updated system settings API documentation to describe object responses and upsert behavior.
+- **Reason**: Ensure fresh databases can display and save every documented system setting reliably.
+

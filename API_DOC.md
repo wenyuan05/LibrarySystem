@@ -933,19 +933,27 @@
 
 **响应**：
 ```json
-[
-  {
-    "id": 1,
-    "key": "borrow_period_days",
-    "value": "14",
-    "description": "借阅期限（天）"
-  }
-]
+{
+  "system_name": "Library Management System",
+  "system_version": "1.0.0",
+  "borrow_period_days": "14",
+  "fine_per_day": "0.5",
+  "max_borrows": "5",
+  "borrow_confirm_minutes": "60",
+  "max_renew_times": "3",
+  "renew_days": "7",
+  "blacklist_days": "30",
+  "max_reservations": "3"
+}
 ```
 
 #### 3.5.2 PUT /api/system/settings
 **功能**：更新系统设置（支持部分更新）
 **权限**：admin
+
+**说明**：
+- 更新接口使用 upsert 语义；当某个 key 在 `system_settings` 中不存在时会自动创建。
+- 前端系统设置页会对缺失 key 使用默认值兜底显示。
 
 **请求体**（支持单项或多项更新）：
 ```json

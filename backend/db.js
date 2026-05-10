@@ -246,12 +246,16 @@ db.serialize(() => {
 
   // 插入系统参数默认值
   const insertSetting = db.prepare('INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)');
+  insertSetting.run('system_name', 'Library Management System', '系统名称');
+  insertSetting.run('system_version', '1.0.0', '系统版本');
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
   insertSetting.run('max_borrows', '5', '最大借阅数量');
   insertSetting.run('max_reservations', '3', '最大预约数量');
   insertSetting.run('blacklist_days', '30', '拉黑天数');
   insertSetting.run('borrow_confirm_minutes', '60', '借阅确认时长（分钟）');
+  insertSetting.run('max_renew_times', '3', '最大续借次数');
+  insertSetting.run('renew_days', '7', '续借天数');
   insertSetting.finalize();
 
   // 插入图书分类示例数据

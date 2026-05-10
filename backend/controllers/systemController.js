@@ -48,8 +48,8 @@ exports.updateSystemSettings = (req, res) => {
 
       Object.entries(settings).forEach(([key, value]) => {
         db.run(
-          'UPDATE system_settings SET value = ? WHERE key = ?',
-          [value, key],
+          'INSERT INTO system_settings (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP',
+          [key, value, ''],
           function(err) {
             if (hasFailed) return;
             
