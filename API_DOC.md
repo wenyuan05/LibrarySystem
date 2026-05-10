@@ -535,6 +535,7 @@
 - `location` 可选，未传时默认使用 `Main Shelf`。
 - `category_id` 可选；传入时批量导入会同步写入图书分类关联。
 - 前端 Batch Import 页面通过 Copy Settings 统一生成 `total_copies`、`location` 和 `category_id`。
+- 接口会等待书籍、分类关联、副本插入和 statement finalize 完成后再提交事务并返回统计结果。
 
 **响应**：
 ```json

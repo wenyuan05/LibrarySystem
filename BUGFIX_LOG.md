@@ -830,3 +830,18 @@ This file documents all bug fixes applied to the project.
   - Added this BUGFIX_LOG section covering the prior borrow/copy-management commit and the latest dashboard/import/search fixes.
 - **Reason**: Keep development documentation synchronized with the current branch implementation.
 
+## 2026-05-10
+
+### Fix 86: Wait for batch import copy inserts before commit
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Refactored `batchImportBooks` to use awaitable SQLite helpers for `db.run`, `db.get`, prepared statement `run`, and `finalize`.
+  - Ensured category inserts, all copy inserts, and `insertCopy.finalize()` complete before incrementing `results.success`.
+  - Moved `COMMIT` and response sending after all books finish processing.
+  - Added rollback handling for unexpected transaction-level failures.
+- **Reason**: Prevent incorrect success counts and avoid copy inserts running outside the intended batch import transaction lifecycle.
+

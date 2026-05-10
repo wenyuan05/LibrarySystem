@@ -855,133 +855,118 @@ exports.batchImportBooks = (req, res) => {
     res.status(400).json({ error: 'Invalid request data' });
     return;
   }
-  
-  // 开始事务
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION', (err) => {
+
+  const runAsync = (sql, params = []) => new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
       if (err) {
-        res.status(500).json({ error: err.message });
+        reject(err);
         return;
       }
-      
-      let processedCount = 0;
-      const totalCount = books.length;
+      resolve(this);
+    });
+  });
+
+  const getAsync = (sql, params = []) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(row);
+    });
+  });
+
+  const finalizeAsync = (statement) => new Promise((resolve, reject) => {
+    statement.finalize((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+
+  const runStatementAsync = (statement, params = []) => new Promise((resolve, reject) => {
+    statement.run(params, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+
+  const importBook = async (bookData, results) => {
+    const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id } = bookData;
+
+    try {
+      const existingBook = await getAsync('SELECT id FROM books WHERE isbn = ?', [isbn]);
+      if (existingBook) {
+        results.failed++;
+        results.errors.push({ isbn, error: 'Book with this ISBN already exists' });
+        return;
+      }
+
+      const copies = total_copies || 1;
+      const insertResult = await runAsync(
+        'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, 'Chinese', 0]
+      );
+      const bookId = insertResult.lastID;
+
+      if (category_id) {
+        try {
+          await runAsync(
+            'INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)',
+            [bookId, category_id]
+          );
+        } catch (err) {
+          console.error('批量导入分类关联失败:', err.message);
+        }
+      }
+
+      const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+      const totalCopies = copies;
+      const copyLocation = (location || 'Main Shelf').trim() || 'Main Shelf';
+
+      try {
+        for (let i = 0; i < totalCopies; i++) {
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          await runStatementAsync(insertCopy, [bookId, copyCode, 'available', copyLocation]);
+        }
+      } finally {
+        await finalizeAsync(insertCopy);
+      }
+
+      results.success++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push({ isbn, error: err.message });
+    }
+  };
+
+  db.serialize(() => {
+    (async () => {
       const results = {
         success: 0,
         failed: 0,
         errors: []
       };
-      
-      if (totalCount === 0) {
-        db.run('COMMIT', (err) => {
-          if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-          }
-          res.json(results);
-        });
-        return;
-      }
-      
-      books.forEach((bookData) => {
-        const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id } = bookData;
-        
-        // 检查ISBN是否已存在
-        db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
-          if (err) {
-            results.failed++;
-            results.errors.push({ isbn, error: err.message });
-            processedCount++;
-            
-            if (processedCount === totalCount) {
-              db.run('COMMIT', (err) => {
-                if (err) {
-                  res.status(500).json({ error: err.message });
-                  return;
-                }
-                res.json(results);
-              });
-            }
-            return;
-          }
-          
-          if (existingBook) {
-            results.failed++;
-            results.errors.push({ isbn, error: 'Book with this ISBN already exists' });
-            processedCount++;
-            
-            if (processedCount === totalCount) {
-              db.run('COMMIT', (err) => {
-                if (err) {
-                  res.status(500).json({ error: err.message });
-                  return;
-                }
-                res.json(results);
-              });
-            }
-            return;
-          }
-          
-          // 插入书籍信息
-          const copies = total_copies || 1;
-          db.run(
-            'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, 'Chinese', 0],
-            function(err) {
-              if (err) {
-                results.failed++;
-                results.errors.push({ isbn, error: err.message });
-              } else {
-                const bookId = this.lastID;
-                if (category_id) {
-                  db.run(
-                    'INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)',
-                    [bookId, category_id],
-                    (err) => {
-                      if (err) {
-                        console.error('批量导入分类关联失败:', err.message);
-                      }
-                    }
-                  );
-                }
-                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
-                let copyCount = 0;
-                const totalCopies = copies;
-                const copyLocation = (location || 'Main Shelf').trim() || 'Main Shelf';
 
-                // 创建副本记录
-                for (let i = 0; i < totalCopies; i++) {
-                  const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
-                  insertCopy.run(bookId, copyCode, 'available', copyLocation, (err) => {
-                    if (err) {
-                      console.error('创建副本失败:', err.message);
-                    }
-                    
-                    copyCount++;
-                    if (copyCount === totalCopies) {
-                      insertCopy.finalize(() => {
-                        results.success++;
-                      });
-                    }
-                  });
-                }
-              }
-              
-              processedCount++;
-              
-              if (processedCount === totalCount) {
-                db.run('COMMIT', (err) => {
-                  if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                  }
-                  res.json(results);
-                });
-              }
-            }
-          );
+      try {
+        await runAsync('BEGIN TRANSACTION');
+
+        for (const bookData of books) {
+          await importBook(bookData, results);
+        }
+
+        await runAsync('COMMIT');
+        res.json(results);
+      } catch (err) {
+        db.run('ROLLBACK', () => {
+          res.status(500).json({ error: err.message });
         });
-      });
-    });
+      }
+    })();
   });
 };
