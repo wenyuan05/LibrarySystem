@@ -189,7 +189,7 @@ src/
 
 **CSS变量 + 模块化样式**
 - **variables.css**：定义全局CSS变量
-- **global.css**：全局样式和重置
+- **global.css**：全局样式、重置和跨页面共享 UI 样式（如 history toolbar/pagination）
 - **组件样式**：每个组件独立的CSS文件
 - **响应式设计**：使用媒体查询适配不同屏幕尺寸
 

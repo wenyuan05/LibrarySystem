@@ -879,3 +879,14 @@ This file documents all bug fixes applied to the project.
   - Updated system settings API documentation to describe object responses and upsert behavior.
 - **Reason**: Ensure fresh databases can display and save every documented system setting reliably.
 
+### Fix 90: Remove duplicate history UI styles from Borrow CSS
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed duplicate `.history-toolbar`, `.history-sort-button`, and `.history-pagination` definitions from `Borrow.css`.
+  - Kept the shared history UI styles in `src/styles/global.css`.
+  - Documented that cross-page shared UI styles belong in `global.css`.
+- **Reason**: Avoid global class style conflicts caused by duplicate definitions and CSS load order.
+
