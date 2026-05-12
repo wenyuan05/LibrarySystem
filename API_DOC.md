@@ -497,6 +497,7 @@
 **说明**：
 - `cover_image` 优先使用 OpenLibrary 返回的 `cover.large`、`cover.medium`、`cover.small` URL。
 - 如仅返回旧式 `cover.id`，会回退为 OpenLibrary cover id URL；没有封面时返回空字符串。
+- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留 OpenLibrary 原始返回值。
 
 **响应**：
 ```json

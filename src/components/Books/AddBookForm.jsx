@@ -470,11 +470,12 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
         <div className="form-group">
           <label htmlFor="publish_date">Publish Date:</label>
           <input
-            type="date"
+            type="text"
             id="publish_date"
             name="publish_date"
             value={formData.publish_date}
             onChange={handleChange}
+            placeholder="YYYY-MM-DD, YYYY-MM, YYYY, or original value"
             disabled={isSubmitting}
           />
         </div>

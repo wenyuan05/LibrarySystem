@@ -903,3 +903,18 @@ This file documents all bug fixes applied to the project.
   - Documented the cover image fallback behavior for `GET /api/books/isbn/:isbn`.
 - **Reason**: Prevent broken cover image URLs when OpenLibrary returns cover URLs instead of `cover.id`.
 
+### Fix 92: Normalize ISBN import publish date display
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added OpenLibrary publish date normalization for common formats.
+  - Normalizes full dates to `YYYY-MM-DD`, month/year values to `YYYY-MM`, and year-only values to `YYYY`.
+  - Preserves the original OpenLibrary value when it cannot be parsed cleanly.
+  - Changed the single-book Add Book publish date field from a native date input to a text input so partial dates can be displayed and edited.
+- **Reason**: Prevent OpenLibrary values such as `July 2008` from disappearing in the Add Book form.
+

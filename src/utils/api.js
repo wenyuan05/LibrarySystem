@@ -1,6 +1,45 @@
 // API基础URL
 const API_BASE_URL = 'http://localhost:3001/api';
 
+const monthLookup = {
+  january: '01',
+  february: '02',
+  march: '03',
+  april: '04',
+  may: '05',
+  june: '06',
+  july: '07',
+  august: '08',
+  september: '09',
+  october: '10',
+  november: '11',
+  december: '12'
+};
+
+const normalizePublishDate = (value) => {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue) || /^\d{4}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const monthYear = rawValue.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (monthYear) {
+    const month = monthLookup[monthYear[1].toLowerCase()];
+    return month ? `${monthYear[2]}-${month}` : rawValue;
+  }
+
+  const monthDayYear = rawValue.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (monthDayYear) {
+    const month = monthLookup[monthDayYear[1].toLowerCase()];
+    const day = monthDayYear[2].padStart(2, '0');
+    return month ? `${monthDayYear[3]}-${month}-${day}` : rawValue;
+  }
+
+  return rawValue;
+};
+
 // 从本地存储读取 token
 const getAuthToken = () => {
   try {
@@ -132,7 +171,7 @@ export const booksAPI = {
           title: bookData.title || '',
           author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
           publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
-          publish_date: bookData.publish_date || '',
+          publish_date: normalizePublishDate(bookData.publish_date),
           isbn: isbn,
           description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
           cover_image: coverImage,
