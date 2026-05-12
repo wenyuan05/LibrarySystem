@@ -43,6 +43,7 @@
 - Release 2 站内通知由后端持久化：预约书籍在归还审批后恢复可借时写入 `notifications`，侧边栏显示未读数量，通知中心支持单条/全部已读。
 - 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
+- System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 
 ## 2. 前端设计
@@ -180,7 +181,7 @@ src/
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
 | 预约管理 | /reservations | user | 管理书籍预约 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
-| 系统设置 | /system-settings | admin | 管理系统参数（逐项编辑，显示默认值） |
+| 系统设置 | /system-settings | admin | 管理已实现的借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
 | 系统日志 | /logs | admin | 查看系统操作日志 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 

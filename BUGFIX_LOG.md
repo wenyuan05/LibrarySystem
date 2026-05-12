@@ -1130,3 +1130,19 @@ This file documents all bug fixes applied to the project.
   - Documented the modal layering behavior and sort-label regression checks.
 - **Reason**: Keep the Add New Book modal independent from book page container stacking/clipping and make list sort controls simpler.
 
+### Fix 103: Redesign System Settings with implemented options only
+- **Files modified**:
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the raw single-list settings form with a modern dashboard layout using grouped cards, search, Editable mode, top actions, and a sticky pending-changes save bar.
+  - Removed settings from the UI that are not currently consumed by backend business logic.
+  - Kept only implemented borrow, renewal, and fine settings in the admin settings interface.
+  - Documented the supported settings surface and regression checks.
+- **Reason**: Avoid exposing configuration fields that can be saved but do not affect system behavior, while improving settings page density, hierarchy, and usability.
+

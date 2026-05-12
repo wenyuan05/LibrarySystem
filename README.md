@@ -367,6 +367,7 @@ npm run dev
 - Release 2 新增站内通知：预约书籍在归还审批后变为可借时，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
 - 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
 - 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
+- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
 - 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
 - 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
@@ -483,6 +484,11 @@ npm run dev
     - 权限控制展示
     - 受保护路由，未登录用户自动跳转到登录页
     - 管理员/图书管理员用户访问普通用户路径时自动重定向到管理员页面
+16. **系统设置**：
+    - 管理员通过 `/system-settings` 管理全局配置
+    - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
+    - 仅展示已被后端业务逻辑读取的设置项：`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
 
 ### 后端功能
 

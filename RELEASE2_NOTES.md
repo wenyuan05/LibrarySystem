@@ -26,6 +26,7 @@
 - Converted announcement create/edit into a portal modal and refreshed the announcement management list layout.
 - Lifted the Add New Book modal into a portal layer above the book management container.
 - Renamed list sort toggles from oldest/newest wording to `Ascending` / `Descending`.
+- Redesigned System Settings into grouped dashboard cards and removed settings that are not wired to backend behavior.
 - Strengthened batch ISBN import validation and error reporting for invalid, duplicate, and metadata lookup failures.
 - Confirmed fine calculation reads `fine_per_day` from system settings.
 - Isolated borrow-record fine cell styling from global fine-detail/profile styles and normalized fine amount formatting.
@@ -38,6 +39,7 @@
 - Open `/announcement-management`, create and edit announcements through the modal without clipping.
 - Open `/book-management`, launch Add New Book, and confirm the modal is above the page container without clipping.
 - Confirm borrow, fine, reservation, and log list sort toggles show `Ascending` / `Descending`.
+- Open `/system-settings`, confirm only implemented borrow/renew/fine settings are shown, edit a value, and save via Save Changes.
 - Import ISBNs with a mixed list of valid, duplicate, invalid, and unknown records and confirm all failures are shown.
 - Confirm overdue return fines follow the configured `fine_per_day` value.
 - Confirm borrow-record Fine cells show either `-` or `¥0.00` without stray borders or layout artifacts.

@@ -340,3 +340,16 @@
   - 排序按钮显示 `Ascending` 或 `Descending`
   - 不再显示 `Oldest First` 或 `Newest First`
   - 点击后列表顺序正常切换
+
+### 测试用例 8.9：系统设置分组与可用项
+- **测试场景**：管理员查看和编辑系统设置
+- **操作步骤**：
+  1. 登录管理员账号
+  2. 打开 `/system-settings`
+  3. 查看设置分组和字段
+  4. 开启 Editable mode，修改一个已实现设置并保存
+- **预期结果**：
+  - 页面以 Borrow Rules 和 Fine Rules 分组卡片展示
+  - 仅显示 `borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day` 对应设置
+  - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
+  - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
