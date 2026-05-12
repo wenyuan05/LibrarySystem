@@ -940,7 +940,7 @@ exports.batchImportBooks = (req, res) => {
   });
 
   const importBook = async (bookData, results) => {
-    const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id } = bookData;
+    const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id, language, page_count } = bookData;
 
     try {
       const existingBook = await getAsync('SELECT id FROM books WHERE isbn = ?', [isbn]);
@@ -951,9 +951,12 @@ exports.batchImportBooks = (req, res) => {
       }
 
       const copies = total_copies || 1;
+      const normalizedLanguage = (language || 'Chinese').trim() || 'Chinese';
+      const parsedPageCount = parseInt(page_count, 10);
+      const normalizedPageCount = Number.isFinite(parsedPageCount) && parsedPageCount > 0 ? parsedPageCount : 0;
       const insertResult = await runAsync(
         'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, 'Chinese', 0]
+        [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, normalizedLanguage, normalizedPageCount]
       );
       const bookId = insertResult.lastID;
 

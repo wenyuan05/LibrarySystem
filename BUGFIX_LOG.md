@@ -942,3 +942,15 @@ This file documents all bug fixes applied to the project.
   - Scoped the layout away from shared `.search-bar` styles.
 - **Reason**: Prevent librarian/admin user management search buttons from dropping below the input.
 
+### Fix 95: Preserve batch import language and page count
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `batchImportBooks` to persist incoming `language` and `page_count` metadata.
+  - Added defaults of `Chinese` and `0` only when those fields are missing or invalid.
+  - Documented the batch import metadata persistence behavior.
+- **Reason**: Prevent imported ISBN metadata from being overwritten by hardcoded language and page count values.
+
