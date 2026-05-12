@@ -86,7 +86,9 @@ const CopyManagementModal = ({ book, onClose, onBookUpdated }) => {
 
     try {
       setIsBulkSaving(true);
-      await Promise.all(copies.map(copy => booksAPI.updateCopyLocation(copy.id, location)));
+      for (const copy of copies) {
+        await booksAPI.updateCopyLocation(copy.id, location);
+      }
       setCopies(prevCopies => prevCopies.map(copy => ({ ...copy, location })));
       showToast('Locations updated successfully', 'success');
     } catch (error) {

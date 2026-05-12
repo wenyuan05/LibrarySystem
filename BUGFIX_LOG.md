@@ -978,3 +978,14 @@ This file documents all bug fixes applied to the project.
   - Documented that administrators and librarians can view and process user fines.
 - **Reason**: Align fines endpoint authorization with the UI and API documentation.
 
+### Fix 98: Serialize bulk copy location updates
+- **Files modified**:
+  - `src/components/Books/CopyManagementModal.jsx`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced parallel `Promise.all` copy location updates with sequential requests.
+  - Kept the existing single-copy location endpoint unchanged.
+  - Documented that bulk location updates are submitted sequentially.
+- **Reason**: Prevent SQLite `cannot start a transaction within a transaction` errors caused by concurrent location update requests.
+
