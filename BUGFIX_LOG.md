@@ -1110,3 +1110,23 @@ This file documents all bug fixes applied to the project.
   - Documented the styling isolation and visual regression check.
 - **Reason**: Prevent global fine amount styles from creating stray borders/layout artifacts in the borrow-record Fine column and avoid formatting errors when fine values are returned as strings.
 
+### Fix 102: Lift Add Book modal and simplify sort labels
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/LogsPage.jsx`
+  - `src/pages/ReservationsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Rendered the Add New Book modal with `createPortal(document.body)` and added a dedicated high-z-index overlay class.
+  - Updated list sort toggle labels from `Oldest First` / `Newest First` to `Ascending` / `Descending`.
+  - Documented the modal layering behavior and sort-label regression checks.
+- **Reason**: Keep the Add New Book modal independent from book page container stacking/clipping and make list sort controls simpler.
+

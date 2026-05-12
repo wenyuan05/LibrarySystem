@@ -229,7 +229,7 @@ const BorrowRecords = () => {
                 setRecordPage(1);
               }}
             >
-              {recordSortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+              {recordSortOrder === 'desc' ? 'Ascending' : 'Descending'}
             </button>
           </div>
           <div className="borrow-records-table-wrap">
@@ -438,7 +438,7 @@ const BorrowRecords = () => {
                         setFinePage(1);
                       }}
                     >
-                      {fineSortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+                      {fineSortOrder === 'desc' ? 'Ascending' : 'Descending'}
                     </button>
                   </div>
                   <table className="fines-table">

@@ -173,7 +173,7 @@ const UserBorrowRecords = () => {
                   setPage(1);
                 }}
               >
-                {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+                {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
               </button>
             </div>
             <div className="borrow-records-table-wrap">

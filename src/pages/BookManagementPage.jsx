@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
@@ -161,8 +162,8 @@ const BookManagementPage = () => {
       </div>
       
       {/* Add Book Form */}
-      {showAddForm && (
-        <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+      {showAddForm && createPortal(
+        <div className="modal-overlay add-book-modal-overlay" onClick={() => setShowAddForm(false)}>
           <div className="modal-content add-book-modal" onClick={(e) => e.stopPropagation()}>
             <AddBookForm
               onCancel={() => setShowAddForm(false)}
@@ -172,7 +173,8 @@ const BookManagementPage = () => {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       {/* Edit Book Form */}

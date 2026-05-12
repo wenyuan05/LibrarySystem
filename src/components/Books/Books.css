@@ -870,6 +870,12 @@
   overflow: hidden;
 }
 
+.add-book-modal-overlay {
+  z-index: 2500;
+  padding: var(--spacing-lg);
+  box-sizing: border-box;
+}
+
 .modal-content.add-book-modal .add-book-form {
   max-height: 88vh;
   overflow-y: auto;

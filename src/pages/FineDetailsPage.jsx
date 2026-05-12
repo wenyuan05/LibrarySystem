@@ -119,7 +119,7 @@ const FineDetailsPage = () => {
                   setPage(1);
                 }}
               >
-                {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+                {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
               </button>
             </div>
             {visibleFines.map(fine => (
