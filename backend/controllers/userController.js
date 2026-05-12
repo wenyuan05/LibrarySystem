@@ -370,7 +370,8 @@ exports.getUserBorrowRecords = (req, res) => {
           
           // 获取每日罚款金额
           db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], (err, settingRow) => {
-            const finePerDay = (!err && settingRow) ? (parseFloat(settingRow.value) || 0.5) : 0.5;
+            const parsedFinePerDay = (!err && settingRow) ? parseFloat(settingRow.value) : NaN;
+            const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
             const today = new Date().toISOString().split('T')[0];
 
             // 获取用户借阅记录

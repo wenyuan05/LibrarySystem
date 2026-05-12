@@ -161,7 +161,8 @@ exports.returnBook = function(req, res) {
 
   // 从系统设置获取每日罚款金额
   db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], function(err, row) {
-    const finePerDay = (!err && row) ? (parseFloat(row.value) || 0.5) : 0.5;
+    const parsedFinePerDay = (!err && row) ? parseFloat(row.value) : NaN;
+    const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
 
     // 开始事务
     db.serialize(function() {

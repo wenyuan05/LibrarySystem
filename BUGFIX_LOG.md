@@ -954,3 +954,16 @@ This file documents all bug fixes applied to the project.
   - Documented the batch import metadata persistence behavior.
 - **Reason**: Prevent imported ISBN metadata from being overwritten by hardcoded language and page count values.
 
+### Fix 96: Respect zero fine-per-day setting
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced `parseFloat(value) || 0.5` fine setting parsing with an explicit `Number.isNaN` fallback.
+  - Preserved configured `fine_per_day = 0` for both return-time fine calculation and overdue fine previews.
+  - Documented that setting `fine_per_day` to `0` disables overdue fines.
+- **Reason**: Allow administrators to intentionally disable overdue fines without the backend falling back to the default value.
+
