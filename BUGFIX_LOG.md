@@ -1146,3 +1146,20 @@ This file documents all bug fixes applied to the project.
   - Documented the supported settings surface and regression checks.
 - **Reason**: Avoid exposing configuration fields that can be saved but do not affect system behavior, while improving settings page density, hierarchy, and usability.
 
+### Fix 104: Add validation to all login page auth forms
+- **Files modified**:
+  - `src/components/Login/Login.jsx`
+  - `src/components/Login/Login.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added field-level validation for login, registration, forgot-password, and reset-password forms.
+  - Aligned frontend rules with backend constraints for username, password, name, and email.
+  - Added phone/contact validation for password reset requests and password confirmation/token validation for reset submission.
+  - Added inline field errors and error input styling.
+  - Documented auth-form validation behavior and regression cases.
+- **Reason**: Prevent invalid auth form submissions earlier and give users clear field-level feedback before API requests.
+

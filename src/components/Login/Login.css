@@ -39,6 +39,44 @@
   font-weight: normal;
 }
 
+.login-form .form-group {
+  text-align: left;
+}
+
+.login-form input.input-error {
+  border-color: var(--danger-color);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.14);
+}
+
+.login-form .field-helper,
+.login-form .field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.login-form .field-helper {
+  color: var(--text-secondary);
+}
+
+.login-form .field-error {
+  color: var(--danger-color);
+  font-weight: 600;
+}
+
+.auth-error {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: var(--border-radius);
+  background: #FEF2F2;
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: left;
+}
+
 /* 登录信息 */
 .login-info {
   margin-top: var(--spacing-lg);
