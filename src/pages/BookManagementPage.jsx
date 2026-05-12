@@ -144,7 +144,7 @@ const BookManagementPage = () => {
             Export Books
           </button> */}
         </div>
-        <div className="search-bar">
+        <div className="management-search-bar">
           <div className="search-input-container">
             <input
               type="text"

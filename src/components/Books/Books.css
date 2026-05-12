@@ -118,6 +118,30 @@
   transform: scale(0.98);
 }
 
+.management-search-bar {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto var(--spacing-lg);
+}
+
+.management-search-bar .search-input-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.management-search-bar .search-input {
+  height: 44px;
+}
+
+.management-search-bar .search-button {
+  flex: 0 0 82px;
+  height: 44px;
+  padding: 0;
+}
+
 .category-filter {
   flex: 0 0 auto;
   width: auto;

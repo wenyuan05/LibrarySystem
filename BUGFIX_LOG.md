@@ -918,3 +918,15 @@ This file documents all bug fixes applied to the project.
   - Changed the single-book Add Book publish date field from a native date input to a text input so partial dates can be displayed and edited.
 - **Reason**: Prevent OpenLibrary values such as `July 2008` from disappearing in the Add Book form.
 
+### Fix 93: Align book management search button
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a management-specific search bar class.
+  - Fixed the search input and icon button into one horizontal row with consistent height.
+  - Kept the change scoped away from shared `.search-bar` styles.
+- **Reason**: Prevent the admin book management search button from dropping below the input due to global search bar styles.
+
