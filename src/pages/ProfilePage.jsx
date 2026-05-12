@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Link } from 'react-router-dom';
 import { usersAPI, borrowAPI } from '../utils/api';
-import EditUserForm from '../components/Users/EditUserForm';
 import './ProfilePage.css';
 
 const ProfilePage = () => {
@@ -11,7 +10,6 @@ const ProfilePage = () => {
   const { showToast } = useToast();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
   const [totalFine, setTotalFine] = useState(0);
 
   useEffect(() => {
@@ -40,11 +38,6 @@ const ProfilePage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleProfileUpdated = (updatedProfile) => {
-    setProfile(updatedProfile);
-    setIsEditing(false);
   };
 
   // Generate avatar text (first letter of username)
@@ -82,93 +75,73 @@ const ProfilePage = () => {
 
   return (
     <div className="profile-page card fade-in">
-      {!isEditing ? (
-        <>
-          {/* Header Section */}
-          <div className="profile-header">
-            <div className="profile-avatar">
-              {getAvatarText()}
+      {/* Header Section */}
+      <div className="profile-header">
+        <div className="profile-avatar">
+          {getAvatarText()}
+        </div>
+        <div className="profile-header-info">
+          <h2 className="profile-name">{profile.name}</h2>
+          <span className={`role-badge ${getRoleClass()}`}>
+            {getRoleLabel(profile.role)}
+          </span>
+        </div>
+      </div>
+
+      {/* Two-column Layout */}
+      <div className="profile-content">
+        {/* Account Information */}
+        <div className="profile-section">
+          <h3 className="section-title">Account Information</h3>
+          <div className="info-grid">
+            <div className="info-item">
+              <span className="info-label">Username</span>
+              <span className="info-value">{profile.username}</span>
             </div>
-            <div className="profile-header-info">
-              <h2 className="profile-name">{profile.name}</h2>
-              <span className={`role-badge ${getRoleClass()}`}>
-                {getRoleLabel(profile.role)}
-              </span>
+            <div className="info-item">
+              <span className="info-label">Email</span>
+              <span className="info-value">{profile.email}</span>
             </div>
           </div>
+        </div>
 
-          {/* Two-column Layout */}
-          <div className="profile-content">
-            {/* Account Information */}
-            <div className="profile-section">
-              <h3 className="section-title">Account Information</h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">Username</span>
-                  <span className="info-value">{profile.username}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Email</span>
-                  <span className="info-value">{profile.email}</span>
-                </div>
+        {/* Personal Profile */}
+        <div className="profile-section">
+          <h3 className="section-title">Personal Profile</h3>
+          <div className="info-grid">
+            <div className="info-item">
+              <span className="info-label">Name</span>
+              <span className="info-value">{profile.name}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Phone</span>
+              <span className="info-value">{profile.phone || 'Not provided'}</span>
+            </div>
+            <div className="info-item full-width">
+              <span className="info-label">Address</span>
+              <span className="info-value">{profile.address || 'Not provided'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fine Information - Only for user role */}
+        {profile.role === 'user' && (
+          <div className="profile-section">
+            <h3 className="section-title">Fine Information</h3>
+            <div className="info-grid">
+              <div className="info-item full-width">
+                <span className="info-label">Total Fine</span>
+                <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
+              </div>
+              <div className="info-item full-width">
+                <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
+                  View Fine Details
+                </Link>
               </div>
             </div>
-
-            {/* Personal Profile */}
-            <div className="profile-section">
-              <h3 className="section-title">Personal Profile</h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">Name</span>
-                  <span className="info-value">{profile.name}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Phone</span>
-                  <span className="info-value">{profile.phone || 'Not provided'}</span>
-                </div>
-                <div className="info-item full-width">
-                  <span className="info-label">Address</span>
-                  <span className="info-value">{profile.address || 'Not provided'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Fine Information - Only for user role */}
-            {profile.role === 'user' && (
-              <div className="profile-section">
-                <h3 className="section-title">Fine Information</h3>
-                <div className="info-grid">
-                  <div className="info-item full-width">
-                    <span className="info-label">Total Fine</span>
-                    <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
-                  </div>
-                  <div className="info-item full-width">
-                    <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
-                      View Fine Details
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* Bottom Action Buttons */}
-          <div className="profile-actions">
-            <button 
-              className="btn-primary profile-btn"
-              onClick={() => setIsEditing(true)}
-            >
-              Edit Profile
-            </button>
-          </div>
-        </>
-      ) : (
-        <EditUserForm 
-          user={profile}
-          onUserUpdated={handleProfileUpdated}
-          onCancel={() => setIsEditing(false)}
-        />
-      )}
+        )}
+      </div>
     </div>
   );
 };

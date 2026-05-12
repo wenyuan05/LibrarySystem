@@ -15,8 +15,6 @@ import SystemSettingsPage from './pages/SystemSettingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import AnnouncementManagementPage from './pages/AnnouncementManagementPage';
 import CategoryManagementPage from './pages/CategoryManagementPage';
-import StatsPage from './pages/StatsPage';
-import LogsPage from './pages/LogsPage';
 import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import ReturnApprovalPage from './pages/ReturnApprovalPage';
 import ReservationsPage from './pages/ReservationsPage';
@@ -50,9 +48,7 @@ function App() {
               <Route path="/announcements" element={<ProtectedRoute><MainLayout><AnnouncementsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/announcement-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><AnnouncementManagementPage /></MainLayout></ProtectedRoute>} />
               <Route path="/category-management" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><CategoryManagementPage /></MainLayout></ProtectedRoute>} />
-              <Route path="/stats" element={<ProtectedRoute><MainLayout><StatsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/return-approval" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><ReturnApprovalPage /></MainLayout></ProtectedRoute>} />
-              <Route path="/logs" element={<ProtectedRoute requiredRole="admin"><MainLayout><LogsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/system-settings" element={<ProtectedRoute requiredRole="admin"><MainLayout><SystemSettingsPage /></MainLayout></ProtectedRoute>} />
               </Routes>
             </Router>

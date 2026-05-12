@@ -87,14 +87,6 @@ const Sidebar = ({ isOpen, onClose }) => {
           {(user.role === 'admin' || user.role === 'librarian') && (
             <>
               {user.role !== 'admin' && (
-                <li className={location.pathname === '/stats' ? 'active' : ''}>
-                  <Link to="/stats" onClick={onClose}>
-                <span className="nav-icon"><img src="/统计.svg" alt="Statistics" /></span>
-                <span className="nav-text">Statistics</span>
-              </Link>
-                </li>
-              )}
-              {user.role !== 'admin' && (
                 <li className={location.pathname === '/book-management' ? 'active' : ''}>
                   <Link to="/book-management" onClick={onClose}>
                 <span className="nav-icon"><img src="/图书 (1).svg" alt="Book Management" /></span>
@@ -130,12 +122,6 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <Link to="/announcement-management" onClick={onClose}>
                     <span className="nav-icon"><img src="/公告.svg" alt="Announcement Management" /></span>
                     <span className="nav-text">Announcement Management</span>
-                  </Link>
-                  </li>
-                  <li className={location.pathname === '/logs' ? 'active' : ''}>
-                    <Link to="/logs" onClick={onClose}>
-                    <span className="nav-icon"><img src="/日志.svg" alt="System Logs" /></span>
-                    <span className="nav-text">System Logs</span>
                   </Link>
                   </li>
                   <li className={location.pathname === '/system-settings' ? 'active' : ''}>

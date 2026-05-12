@@ -111,7 +111,7 @@ const BookManagementPage = () => {
             onClick={async () => {
               try {
                 // 使用booksAPI.export()方法来调用导出接口
-                const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+                const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
                 const token = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).token : '';
                 
                 const response = await fetch(`${API_BASE_URL}/books/export`, {
