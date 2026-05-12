@@ -16,13 +16,22 @@
 }
 
 /* 搜索栏 */
-.user-list .search-bar {
+.user-list .user-management-search-bar {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
   flex: 1;
-  max-width: 400px;
+  max-width: 520px;
+}
+
+.user-list .search-input-container {
+  flex: 1;
+  min-width: 0;
 }
 
 .user-list .search-input {
   width: 100%;
+  height: 44px;
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -49,8 +58,9 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  min-width: 60px;
-  height: 100%;
+  flex: 0 0 82px;
+  min-width: 82px;
+  height: 44px;
 }
 
 .user-list .search-button img {

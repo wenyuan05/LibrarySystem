@@ -164,7 +164,7 @@ const UserList = () => {
             {showAddForm ? 'Cancel' : 'Add User'}
           </button>
         )}
-        <div className="search-bar">
+        <div className="user-management-search-bar">
           <div className="search-input-container">
             <input
               type="text"

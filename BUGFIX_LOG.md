@@ -930,3 +930,15 @@ This file documents all bug fixes applied to the project.
   - Kept the change scoped away from shared `.search-bar` styles.
 - **Reason**: Prevent the admin book management search button from dropping below the input due to global search bar styles.
 
+### Fix 94: Align user management search button
+- **Files modified**:
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Users/Users.css`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a user-management-specific search bar class.
+  - Fixed the user search input and icon button into one horizontal row with consistent height.
+  - Scoped the layout away from shared `.search-bar` styles.
+- **Reason**: Prevent librarian/admin user management search buttons from dropping below the input.
+
