@@ -20,8 +20,8 @@
 
 ## Completed In This Branch
 - Added an in-app notifications table, API, route registration, and notification list page.
-- Trigger reservation notifications when a returned copy becomes available during return approval.
-- Added unread notification counts in the sidebar.
+- Trigger reservation notifications when inventory becomes available through return approval, new copies, or copy status changes.
+- Added unread notification counts in the sidebar with immediate sync after mark-read actions.
 - Added announcement read tracking and one-time unread announcement popup reminders.
 - Converted announcement create/edit into a portal modal and refreshed the announcement management list layout.
 - Lifted the Add New Book modal into a portal layer above the book management container.
@@ -35,7 +35,8 @@
 
 ## Validation Checklist
 - Borrow and return a reserved book, approve return, then confirm the reserving user receives a notification.
-- Open `/notifications`, mark one notification read, then mark all notifications read.
+- Add a copy or set a copy to available for a fully reserved book, then confirm the reserving user receives a notification.
+- Open `/notifications`, mark one notification read, then mark all notifications read and confirm the sidebar badge updates immediately.
 - Create a published announcement, log in as a reader, confirm the popup appears once, then verify it does not repeat after marking read.
 - Open `/announcement-management`, create and edit announcements through the modal without clipping.
 - Open `/book-management`, launch Add New Book, and confirm the modal is above the page container without clipping.

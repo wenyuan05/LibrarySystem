@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/notificationHooks';
 import { useToast } from '../context/ToastContext';
 import { notificationAPI } from '../utils/api';
 import './NotificationsPage.css';
@@ -9,6 +10,7 @@ const NotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
+  const { clearUnreadCount, decrementUnreadCount, refreshUnreadCount } = useNotifications();
   const { showToast } = useToast();
 
   const fetchNotifications = useCallback(async () => {
@@ -18,13 +20,14 @@ const NotificationsPage = () => {
       setLoading(true);
       const data = await notificationAPI.getAll(user.id);
       setNotifications(data);
+      refreshUnreadCount();
     } catch (err) {
       showToast(err.message || 'Failed to load notifications', 'error');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [showToast, user?.id]);
+  }, [refreshUnreadCount, showToast, user?.id]);
 
   useEffect(() => {
     if (user?.id) {
@@ -40,6 +43,7 @@ const NotificationsPage = () => {
       setNotifications(prev => prev.map(item => (
         item.id === notification.id ? { ...item, is_read: 1 } : item
       )));
+      decrementUnreadCount(1);
     } catch (err) {
       showToast(err.message || 'Failed to update notification', 'error');
     }
@@ -50,6 +54,7 @@ const NotificationsPage = () => {
       setUpdating(true);
       await notificationAPI.markAllAsRead(user.id);
       setNotifications(prev => prev.map(item => ({ ...item, is_read: 1 })));
+      clearUnreadCount();
       showToast('All notifications marked as read', 'success');
     } catch (err) {
       showToast(err.message || 'Failed to update notifications', 'error');

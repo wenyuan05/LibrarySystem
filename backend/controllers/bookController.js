@@ -1,4 +1,5 @@
 const db = require('../db');
+const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
 
 const monthLookup = {
   january: '01',
@@ -683,17 +684,26 @@ exports.addBookCopy = (req, res) => {
                         return;
                       }
 
-                      db.run('COMMIT', (err) => {
-                        if (err) {
-                          res.status(500).json({ error: err.message });
+                      notifyReservationsForAvailableBook(book_id, (notifyErr, notifiedCount) => {
+                        if (notifyErr) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: notifyErr.message });
                           return;
                         }
-                        res.status(201).json({
-                          id: copyId,
-                          book_id: Number(book_id),
-                          copy_code: copyCode,
-                          status: 'available',
-                          location
+
+                        db.run('COMMIT', (err) => {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.status(201).json({
+                            id: copyId,
+                            book_id: Number(book_id),
+                            copy_code: copyCode,
+                            status: 'available',
+                            location,
+                            notifications_sent: notifiedCount || 0
+                          });
                         });
                       });
                     }
@@ -784,13 +794,31 @@ exports.updateCopyStatus = (req, res) => {
                 return;
               }
 
-              // 提交事务
-              db.run('COMMIT', (err) => {
-                if (err) {
-                  res.status(500).json({ error: err.message });
+              const commitStatusUpdate = (notificationsSent = 0) => {
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({
+                    message: 'Copy status updated successfully',
+                    notifications_sent: notificationsSent
+                  });
+                });
+              };
+
+              if (status !== 'available') {
+                commitStatusUpdate();
+                return;
+              }
+
+              notifyReservationsForAvailableBook(copy.book_id, (notifyErr, notifiedCount) => {
+                if (notifyErr) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: notifyErr.message });
                   return;
                 }
-                res.json({ message: 'Copy status updated successfully' });
+                commitStatusUpdate(notifiedCount || 0);
               });
             });
           });

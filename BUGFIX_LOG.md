@@ -1163,3 +1163,27 @@ This file documents all bug fixes applied to the project.
   - Documented auth-form validation behavior and regression cases.
 - **Reason**: Prevent invalid auth form submissions earlier and give users clear field-level feedback before API requests.
 
+### Fix 105: Sync notification badges and notify reservations on new availability
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/utils/notificationUtils.js`
+  - `src/App.jsx`
+  - `src/context/NotificationContext.jsx`
+  - `src/context/notificationContext.js`
+  - `src/context/notificationHooks.js`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/pages/NotificationsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Extracted reservation availability notification creation into a shared backend utility.
+  - Triggered reservation notifications after adding a new available copy or changing a copy status to `available`.
+  - Added shared frontend notification state so Sidebar unread badges update immediately after mark-read actions.
+  - Added a compatibility re-export for the notification hook module to avoid stale Vite HMR requests.
+  - Documented the expanded notification trigger paths and badge sync behavior.
+- **Reason**: Ensure reservations do not become stale when inventory is restored outside return approval, and keep unread notification badges synchronized without navigation or refresh.
+

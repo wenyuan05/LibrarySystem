@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { NotificationProvider } from './context/NotificationContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login/Login';
 import MainLayout from './components/layout/MainLayout';
@@ -30,9 +31,10 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <div className="app-container">
-          <Router>
-            <Routes>
+        <NotificationProvider>
+          <div className="app-container">
+            <Router>
+              <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
               <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
@@ -52,19 +54,20 @@ function App() {
               <Route path="/return-approval" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><ReturnApprovalPage /></MainLayout></ProtectedRoute>} />
               <Route path="/logs" element={<ProtectedRoute requiredRole="admin"><MainLayout><LogsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/system-settings" element={<ProtectedRoute requiredRole="admin"><MainLayout><SystemSettingsPage /></MainLayout></ProtectedRoute>} />
-            </Routes>
-          </Router>
-          <footer className="app-footer">
-            <div className="footer-content">
-              <p>{privacyConfig.website.copyright}</p>
-              <p>
-                <a href={privacyConfig.icp.url} target="_blank" rel="noopener noreferrer">
-                  {privacyConfig.icp.number}
-                </a>
-              </p>
-            </div>
-          </footer>
-        </div>
+              </Routes>
+            </Router>
+            <footer className="app-footer">
+              <div className="footer-content">
+                <p>{privacyConfig.website.copyright}</p>
+                <p>
+                  <a href={privacyConfig.icp.url} target="_blank" rel="noopener noreferrer">
+                    {privacyConfig.icp.number}
+                  </a>
+                </p>
+              </div>
+            </footer>
+          </div>
+        </NotificationProvider>
       </ToastProvider>
     </AuthProvider>
   );

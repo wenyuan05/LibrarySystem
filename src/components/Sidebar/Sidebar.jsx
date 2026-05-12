@@ -1,28 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { notificationAPI } from '../../utils/api';
+import { useNotifications } from '../../context/notificationHooks';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const data = await notificationAPI.getUnreadCount(user.id);
-        setUnreadCount(data.count || 0);
-      } catch (err) {
-        console.error('Failed to load notification count:', err);
-      }
-    };
-
-    fetchUnreadCount();
-  }, [user?.id, location.pathname]);
 
   if (!user) return null;
 

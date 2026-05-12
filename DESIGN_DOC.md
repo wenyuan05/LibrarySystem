@@ -40,7 +40,7 @@
 - 书籍卡片增加封面缩略图、状态 badge、紧凑元数据、可用率进度条和 hover elevation，提升库存浏览密度。
 - Add New Book 采用 portal 弹窗承载，挂载到 `document.body` 以脱离书籍页面容器层级；单本添加只维护书籍元数据，批量导入通过 Copy Settings 统一生成副本位置、数量和分类。
 - Batch Import 页面使用左侧 ISBN 输入/CSV 上传、右侧实时预览、底部 Copy Settings 和导入进度，清晰分离“元数据导入”和“副本生成”。
-- Release 2 站内通知由后端持久化：预约书籍在归还审批后恢复可借时写入 `notifications`，侧边栏显示未读数量，通知中心支持单条/全部已读。
+- Release 2 站内通知由后端持久化：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后写入 `notifications`，侧边栏通过共享通知状态即时显示未读数量，通知中心支持单条/全部已读。
 - 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
 - System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
@@ -480,10 +480,10 @@ backend/
 1. 用户查看书籍详情
 2. 如果所有副本均已借出，可点击预约按钮
 3. 系统创建预约记录，状态为 `active`，并将 `notification_sent` 置为 `0`
-4. 用户提交归还，管理员/图书管理员审批归还
-5. 审批释放副本并重新计算可用副本数
-6. 如果该书存在未通知的有效预约，系统写入 `notifications` 并更新 `notification_sent = 1`
-7. Reader 侧边栏显示未读通知数量，用户进入 `/notifications` 查看并标记已读
+4. 当归还审批、新增副本或副本状态恢复 available 使该书存在可用副本时，后端重新计算 `available_copies`
+5. 如果该书存在未通知的有效预约，系统写入 `notifications` 并更新 `notification_sent = 1`
+6. Reader 侧边栏通过 NotificationContext 显示未读通知数量，用户进入 `/notifications` 查看并标记已读
+7. 单条/全部已读操作会更新共享 unread count，使侧边栏 badge 立即同步
 
 ### 4.5 公告提醒流程
 
