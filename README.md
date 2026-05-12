@@ -57,6 +57,7 @@ LibrarySystem/
 │   │   └── useApiRequest.jsx  # API请求处理钩子
 │   ├── pages/          # 页面组件
 │   │   ├── AnnouncementManagementPage.jsx  # 公告管理页面
+│   │   ├── AnnouncementManagementPage.css  # 公告管理样式
 │   │   ├── AnnouncementsPage.jsx           # 公告页面
 │   │   ├── BookDetailsPage.jsx             # 书籍详情页面
 │   │   ├── BookManagementPage.jsx          # 书籍管理页面
@@ -64,6 +65,8 @@ LibrarySystem/
 │   │   ├── BorrowRecordsPage.jsx           # 借阅记录页面
 │   │   ├── CategoryManagementPage.jsx      # 分类管理页面
 │   │   ├── LogsPage.jsx                    # 日志页面
+│   │   ├── NotificationsPage.jsx           # 站内通知页面
+│   │   ├── NotificationsPage.css           # 站内通知样式
 │   │   ├── ProfilePage.jsx                 # 个人资料页面
 │   │   ├── ReservationsPage.jsx            # 预约页面
 │   │   ├── ReturnApprovalPage.jsx          # 归还审批页面
@@ -86,6 +89,7 @@ LibrarySystem/
 ├── backend/            # 后端代码
 │   ├── controllers/    # 控制器
 │   │   ├── announcementController.js  # 公告控制器
+│   │   ├── notificationController.js  # 站内通知控制器
 │   │   ├── bookController.js          # 书籍控制器
 │   │   ├── borrowController.js        # 借阅控制器
 │   │   ├── categoryController.js      # 分类控制器
@@ -99,6 +103,7 @@ LibrarySystem/
 │   │   └── validation.js  # 验证中间件
 │   ├── routes/         # 路由
 │   │   ├── announcementRoutes.js  # 公告路由
+│   │   ├── notificationRoutes.js  # 站内通知路由
 │   │   ├── bookRoutes.js          # 书籍路由
 │   │   ├── borrowRoutes.js        # 借阅路由
 │   │   ├── categoryRoutes.js      # 分类路由
@@ -117,7 +122,6 @@ LibrarySystem/
 │   ├── fix_book_status.js # 书籍状态修复工具
 │   ├── fix_borrow_records.js # 修复借阅记录工具
 │   ├── fix_borrow_records_direct.js # 直接修复借阅记录工具
-│   ├── test_constraints.js # 约束测试工具
 │   ├── update_book_data.js # 书籍数据更新工具
 │   ├── package.json    # 后端依赖
 │   ├── package-lock.json # 后端依赖锁文件
@@ -347,23 +351,32 @@ npm run dev
 
 ## 功能说明
 
-### 最新功能状态（2026-05-06）
+### 最新功能状态（2026-05-12）
 
 - 角色数据值仍使用 `user/librarian/admin`，前端展示层将普通用户显示为 `Reader`，不改变后端权限与接口逻辑。
 - 借阅确认改为确认时选择副本：用户发起借阅后记录状态为 `borrowing`，不会提前占用或展示某个副本条形码；确认弹窗中选择可用副本后才绑定 `copy_id` 并显示 `copy_code`。
 - 书籍信息管理与副本管理拆分：书籍卡片提供 `Edit Info` 与 `Manage Copies`，副本管理弹窗支持新增副本、状态修改、单个位置确认、批量位置更新。
 - 每个副本拥有独立数据库 `id`、自动生成的 `copy_code` 条形码编号和 `location`；新增副本默认位置为 `Main Shelf`。
-- Reader 与 librarian 的借阅记录页面使用统一表格布局，展示 ID、Title、Barcode、日期、Status badge、Fine、Action，宽屏完整展示，小屏横向滚动。
-- 借阅记录、罚款记录、预约记录和日志支持最新/最旧顺序切换；借阅和罚款记录优先展示待处理记录，记录过多时分页。
+- Reader 与 librarian 的借阅记录页面使用统一表格布局，展示 ID、Title、Barcode、日期、Status badge、Fine、Action，宽屏完整展示，小屏横向滚动；Fine 单元格使用借阅模块专用样式，避免被罚款详情页样式影响。
+- 借阅记录、罚款记录、预约记录和日志支持 `Ascending` / `Descending` 顺序切换；借阅和罚款记录优先展示待处理记录，记录过多时分页。
 - 罚款接口保留已支付历史记录，页面总额只统计 `fine_status='unpaid'` 的未支付罚款。
 - 系统日志接口支持按时间正序/倒序查询。
 - Reader 书籍页升级为仪表盘布局：顶部统计卡、紧凑书籍卡片、搜索/分类/快捷状态筛选、右侧热门书籍/最近借阅/系统统计侧栏。
-- 书籍管理的 Add New Book 改为弹窗；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
+- 书籍管理的 Add New Book 改为 portal 弹窗，脱离书籍页面容器层级；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
 - Batch Import 使用现代双栏导入界面：左侧 ISBN 列表与 CSV/TXT 上传，右侧实时预览成功/重复/无效 ISBN，下方 Copy Settings 统一生成副本位置、数量和分类。
+- Release 2 新增站内通知：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
+- 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
+- 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
+- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
+- 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
+- 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
 ### 前端功能
 
 1. **用户认证**：登录界面，支持管理员、图书管理员和 Reader 登录
+   - 登录、注册、找回密码和重置密码表单均提供字段级前端校验
+   - 校验规则与后端保持一致：用户名 3-20 字符、密码至少 6 字符、姓名 2-50 字符、邮箱格式校验
+   - 找回密码要求邮箱或手机号至少填写一项，重置密码校验确认密码一致性和 reset token
 2. **侧边栏**：折叠式侧边栏，显示用户个人信息和导航菜单
    - 根据用户角色显示不同的导航选项
    - Reader：Books、My Borrows、Profile
@@ -381,6 +394,7 @@ npm run dev
    - `/profile` - 个人资料
    - `/announcements` - 公告
    - `/announcement-management` - 公告管理（管理员）
+   - `/notifications` - 站内通知
    - `/category-management` - 分类管理（管理员/图书管理员）
    - `/stats` - 统计分析
    - `/return-approval` - 归还审批（管理员/图书管理员）
@@ -400,7 +414,7 @@ npm run dev
    - ISBN导入：通过OpenLibrary API查询ISBN自动填充书籍信息（管理员/图书管理员）
    - 右侧侧栏展示热门书籍 Top 10、最近借阅和系统统计
 6. **书籍管理专门板块**（管理员/图书管理员）：
-   - 通过 Add New Book 弹窗添加新书籍（包含ISBN格式验证和重复检查）
+   - 通过 Add New Book portal 弹窗添加新书籍（包含ISBN格式验证和重复检查），避免被书籍页面容器裁切或遮挡
    - 编辑书籍基础信息（与副本管理分离）
    - 批量管理书籍
    - 实时状态更新
@@ -409,6 +423,7 @@ npm run dev
    - 新增副本时自动生成副本编号和条形码编号，并填充默认位置
    - 副本位置支持单个确认保存和批量应用到全部副本；批量位置保存会按顺序提交，避免 SQLite 并发事务冲突
    - ISBN单个/批量导入；批量导入支持 ISBN 实时预览、CSV/TXT 上传、导入进度和 Copy Settings
+   - 批量导入会在前端和后端同时报告无效 ISBN、重复 ISBN、元数据查询失败和写入失败原因
 7. **书籍详情页**：
    - 显示书籍详细信息
    - 显示所有副本信息（ID、条形码、状态、位置）
@@ -431,8 +446,9 @@ npm run dev
    - 个人借阅记录查询
    - 借阅历史查看
    - 条形码展示、状态 badge、罚款列和统一操作按钮
+   - 罚款金额使用借阅记录专用显示样式，支持数字/字符串金额统一格式化为 `¥0.00`
    - 默认优先显示待确认、待还等待处理记录，再按 ID 展示最新记录
-   - 支持最新/最旧顺序切换和分页
+   - 支持 `Ascending` / `Descending` 顺序切换和分页
    - 罚款历史记录查看与未支付罚款支付
    - 管理员/图书管理员查看和管理用户借阅记录，布局与 Reader 借阅记录保持一致
    - 管理员/图书管理员手动归还书籍
@@ -451,21 +467,32 @@ npm run dev
     - 每个toast独立倒计时，按照创建顺序消失
     - 当一个toast消失时，其他toast会平滑上移
     - 手动关闭toast时也会有平滑的消失动画
-12. **加载状态**：使用 SkeletonLoader 组件显示加载状态
+12. **站内通知与公告提醒**：
+    - 预约书籍归还审批、新增可用副本或副本状态改为 available 后，自动生成站内通知
+    - 侧边栏显示未读通知数量，Reader 可进入通知中心查看、单条已读或全部已读；已读操作会即时同步侧边栏 badge
+    - 已发布公告按用户记录已读状态；存在未读公告时，全局弹窗提醒一次
+    - 公告管理使用弹窗创建/编辑公告，发布开关和列表状态清晰分离
+13. **加载状态**：使用 SkeletonLoader 组件显示加载状态
     - 书籍列表加载时显示骨架屏
     - 提升用户体验，减少加载等待感
     - 响应式设计，适配不同屏幕尺寸
-13. **数据验证**：
+14. **数据验证**：
     - 表单字段验证
     - 数据格式检查
     - 重复数据提示
-14. **安全性**：
+15. **安全性**：
     - 前端输入验证
     - 密码强度检查
+    - 登录页所有认证表单提供 inline 错误提示和提交前拦截
     - 实时错误提示
     - 权限控制展示
     - 受保护路由，未登录用户自动跳转到登录页
     - 管理员/图书管理员用户访问普通用户路径时自动重定向到管理员页面
+16. **系统设置**：
+    - 管理员通过 `/system-settings` 管理全局配置
+    - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
+    - 仅展示已被后端业务逻辑读取的设置项：`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
 
 ### 后端功能
 
@@ -499,29 +526,34 @@ npm run dev
    - 支持单个和批量 ISBN 导入
    - 批量导入时通过 Copy Settings 指定默认位置、每本副本数和分类，后端自动生成副本编号与条形码编号
    - 批量导入会保留 ISBN 元数据中的语言和页数，缺省时使用默认值
+   - 批量导入会返回每个失败 ISBN 的具体原因，包含格式错误、重复、元数据缺失和数据库写入错误
    - 批量导入事务会等待书籍、分类关联和所有副本写入完成后再提交并返回成功/失败统计
-8. **用户管理**：处理用户信息的增删改查
-9. **数据去重**：
+8. **站内通知与公告已读**：
+   - `notifications` 表保存预约可借通知，支持未读数量、单条已读和全部已读
+   - 预约可借通知触发逻辑复用在归还审批、新增副本和副本状态恢复 available 场景
+   - `announcement_reads` 表按用户保存公告已读状态，避免已读公告重复弹窗
+   - 公告创建/编辑采用弹窗表单，保存后刷新公告列表
+9. **用户管理**：处理用户信息的增删改查
+10. **数据去重**：
    - 书籍ISBN唯一检查
    - 用户名唯一检查
    - 数据库唯一索引约束
-10. **数据验证**：
+11. **数据验证**：
    - API请求参数验证
    - 数据完整性检查
    - 错误处理和提示
-11. **安全性**：
+12. **安全性**：
    - 密码加密存储（使用bcrypt）
    - JWT token认证
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
-12. **数据库工具**：
+13. **数据库工具**：
     - `check_db.js` - 检查数据库中的书籍和借阅记录
     - `check_indexes.js` - 检查数据库索引状态和数据
     - `cleanup.js` - 清理数据库重复数据并添加唯一约束
     - `fix_book_status.js` - 修复书籍状态
-    - `test_constraints.js` - 测试数据库唯一约束
     - 其他数据修复和管理工具
 
 ## 开发指南

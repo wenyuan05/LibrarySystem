@@ -1,4 +1,5 @@
 const db = require('../db');
+const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
 
 const monthLookup = {
   january: '01',
@@ -38,6 +39,8 @@ const normalizePublishDate = (value) => {
 
   return rawValue;
 };
+
+const ISBN_PATTERN = /^\d{10}(?:\d{3})?$/;
 
 // 获取所有书籍（无需登录，公开访问）
 exports.getAllBooks = (req, res) => {
@@ -681,17 +684,26 @@ exports.addBookCopy = (req, res) => {
                         return;
                       }
 
-                      db.run('COMMIT', (err) => {
-                        if (err) {
-                          res.status(500).json({ error: err.message });
+                      notifyReservationsForAvailableBook(book_id, (notifyErr, notifiedCount) => {
+                        if (notifyErr) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: notifyErr.message });
                           return;
                         }
-                        res.status(201).json({
-                          id: copyId,
-                          book_id: Number(book_id),
-                          copy_code: copyCode,
-                          status: 'available',
-                          location
+
+                        db.run('COMMIT', (err) => {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.status(201).json({
+                            id: copyId,
+                            book_id: Number(book_id),
+                            copy_code: copyCode,
+                            status: 'available',
+                            location,
+                            notifications_sent: notifiedCount || 0
+                          });
                         });
                       });
                     }
@@ -782,13 +794,31 @@ exports.updateCopyStatus = (req, res) => {
                 return;
               }
 
-              // 提交事务
-              db.run('COMMIT', (err) => {
-                if (err) {
-                  res.status(500).json({ error: err.message });
+              const commitStatusUpdate = (notificationsSent = 0) => {
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+                  res.json({
+                    message: 'Copy status updated successfully',
+                    notifications_sent: notificationsSent
+                  });
+                });
+              };
+
+              if (status !== 'available') {
+                commitStatusUpdate();
+                return;
+              }
+
+              notifyReservationsForAvailableBook(copy.book_id, (notifyErr, notifiedCount) => {
+                if (notifyErr) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: notifyErr.message });
                   return;
                 }
-                res.json({ message: 'Copy status updated successfully' });
+                commitStatusUpdate(notifiedCount || 0);
               });
             });
           });
@@ -943,20 +973,40 @@ exports.batchImportBooks = (req, res) => {
     const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id, language, page_count } = bookData;
 
     try {
-      const existingBook = await getAsync('SELECT id FROM books WHERE isbn = ?', [isbn]);
-      if (existingBook) {
+      const normalizedIsbn = String(isbn || '').trim().replace(/[-\s]/g, '');
+      if (!ISBN_PATTERN.test(normalizedIsbn)) {
         results.failed++;
-        results.errors.push({ isbn, error: 'Book with this ISBN already exists' });
+        results.errors.push({ isbn: isbn || 'unknown', error: 'ISBN must be 10 or 13 digits' });
         return;
       }
 
-      const copies = total_copies || 1;
+      if (!title || !String(title).trim()) {
+        results.failed++;
+        results.errors.push({ isbn: normalizedIsbn, error: 'Title is required' });
+        return;
+      }
+
+      if (!author || !String(author).trim()) {
+        results.failed++;
+        results.errors.push({ isbn: normalizedIsbn, error: 'Author is required' });
+        return;
+      }
+
+      const existingBook = await getAsync('SELECT id FROM books WHERE isbn = ?', [normalizedIsbn]);
+      if (existingBook) {
+        results.failed++;
+        results.errors.push({ isbn: normalizedIsbn, error: 'Book with this ISBN already exists' });
+        return;
+      }
+
+      const parsedCopies = parseInt(total_copies, 10);
+      const copies = Number.isFinite(parsedCopies) && parsedCopies > 0 ? Math.min(parsedCopies, 100) : 1;
       const normalizedLanguage = (language || 'Chinese').trim() || 'Chinese';
       const parsedPageCount = parseInt(page_count, 10);
       const normalizedPageCount = Number.isFinite(parsedPageCount) && parsedPageCount > 0 ? parsedPageCount : 0;
       const insertResult = await runAsync(
         'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, normalizedLanguage, normalizedPageCount]
+        [String(title).trim(), String(author).trim(), normalizedIsbn, description, cover_image, copies, copies, publisher, publish_date, normalizedLanguage, normalizedPageCount]
       );
       const bookId = insertResult.lastID;
 
@@ -987,7 +1037,7 @@ exports.batchImportBooks = (req, res) => {
       results.success++;
     } catch (err) {
       results.failed++;
-      results.errors.push({ isbn, error: err.message });
+      results.errors.push({ isbn: isbn || 'unknown', error: err.message });
     }
   };
 

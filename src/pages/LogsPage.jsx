@@ -130,7 +130,7 @@ const LogsPage = () => {
               setOffset(0);
             }}
           >
-            {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+            {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
           </button>
         </div>
         <button 

@@ -15,8 +15,10 @@
 | users | 用户信息 |
 | borrow_records | 借阅记录 |
 | reservation_records | 预约记录 |
+| notifications | 站内通知 |
 | system_logs | 系统日志 |
 | announcements | 公告信息 |
+| announcement_reads | 公告已读记录 |
 
 ## 2. 表结构详情
 
@@ -184,7 +186,22 @@
 | ip_address | TEXT | | 操作IP地址 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 操作时间 |
 
-### 2.11 announcements 表
+### 2.11 notifications 表
+
+**功能**：存储站内通知，当前用于预约书籍可借提醒
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | NOT NULL | 接收用户ID，外键关联users表 |
+| title | TEXT | NOT NULL | 通知标题 |
+| message | TEXT | NOT NULL | 通知内容 |
+| type | TEXT | DEFAULT 'reservation' | 通知类型 |
+| is_read | INTEGER | DEFAULT 0 | 是否已读 |
+| related_id | INTEGER | | 关联业务记录ID，如 reservation_records.id |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+### 2.12 announcements 表
 
 **功能**：存储系统公告
 
@@ -197,6 +214,18 @@
 | is_published | INTEGER | DEFAULT 1 | 是否发布 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+### 2.13 announcement_reads 表
+
+**功能**：按用户记录已读公告，避免已读公告重复触发弹窗提醒
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | NOT NULL | 用户ID，外键关联users表 |
+| announcement_id | INTEGER | NOT NULL | 公告ID，外键关联announcements表 |
+| read_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 已读时间 |
+| UNIQUE(user_id, announcement_id) | | | 同一用户对同一公告只记录一次 |
 
 ## 3. 索引设计
 
@@ -218,38 +247,26 @@
 | idx_user_status_status | user_status | status | | 加速状态统计 |
 | idx_system_logs_user_id | system_logs | user_id | | 加速用户操作日志查询 |
 | idx_system_logs_created_at | system_logs | created_at | | 加速时间范围查询 |
+| idx_notifications_user_id | notifications | user_id | | 加速用户通知查询 |
+| idx_notifications_is_read | notifications | is_read | | 加速未读通知统计 |
+| idx_notifications_created_at | notifications | created_at | | 加速通知时间排序 |
 | idx_announcements_is_published | announcements | is_published | | 加速已发布公告查询 |
 | idx_announcements_created_at | announcements | created_at | | 加速最新公告查询 |
+| idx_announcement_reads_user_id | announcement_reads | user_id | | 加速用户已读公告查询 |
+| idx_announcement_reads_announcement_id | announcement_reads | announcement_id | | 加速公告已读关联查询 |
 
 ## 4. 数据关系图
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    users        │─────┤ user_status     │     │ system_logs     │
-├─────────────────┤     └─────────────────┘     └─────────────────┘
-│ id (PK)         │
-│ username        │
-│ password        │     ┌─────────────────┐     ┌─────────────────┐
-│ role            │─────┤ borrow_records  │─────┤ books           │
-└─────────────────┘     └─────────────────┘     ├─────────────────┤
-                                                │ id (PK)         │
-                                                │ title           │
-                                                │ author          │
-┌─────────────────┐     ┌─────────────────┐     │ isbn            │
-│ announcements   │─────┤ reservation_records │  └─────────────────┘
-└─────────────────┘     └─────────────────┘          │
-                                                      │
-┌─────────────────┐     ┌─────────────────┐          │     ┌─────────────────┐
-│ categories      │─────┤ book_categories │──────────┘     │ book_copies     │
-└─────────────────┘     └─────────────────┘                ├─────────────────┤
-                                                         │ id (PK)         │
-                                                         │ book_id (FK)    │
-                                                         │ status          │
-                                                         └─────────────────┘
-
-┌─────────────────┐
-│ system_settings │
-└─────────────────┘
+users ── user_status
+users ── borrow_records ── books ── book_copies
+users ── reservation_records ── books
+users ── notifications
+reservation_records ── notifications.related_id
+announcements ── announcement_reads ── users
+books ── book_categories ── categories
+users ── system_logs
+system_settings
 ```
 
 ## 5. 数据初始化

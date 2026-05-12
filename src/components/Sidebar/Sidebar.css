@@ -132,6 +132,27 @@
   justify-content: center;
 }
 
+.nav-icon-badge {
+  position: relative;
+}
+
+.unread-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid #FFFDF5;
+  border-radius: 999px;
+  background: var(--danger-color);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+}
+
 .nav-icon img {
   width: 20px;
   height: 20px;

@@ -21,23 +21,23 @@ Release 3 需求（3.1-3.6）不纳入 Release 2 范围。已在 Fix 分支上�
 |------|------|------|
 | 2.1 密码重置 | ✅ 完成 | 后端 JWT 重置 + 前端忘记密码流程 |
 | 2.2 续借 | ✅ 完成 | `/api/borrow/renew` + 续借按钮，支持次数/天数配置 |
-| 2.3 预约（部分） | ⚠️ 预约完成 | 预约/取消 API + ReservationsPage，但 **通知未实现** |
+| 2.3 预约与通知 | ✅ 完成 | 预约/取消 API + ReservationsPage + 预约可借站内通知 |
 | 2.4 编辑/删除图书 | ✅ 完成 | PUT/DELETE API + EditBookForm |
 | 2.5 分类管理 | ✅ 完成 | CRUD + CategoryManagementPage |
 | 2.6 封禁读者 | ✅ 完成 | block/unblock API + 用户管理页面操作 |
 | 2.7 系统参数 | ✅ 完成 | SystemSettingsPage，配置借阅天数/罚款金额等 |
-| 2.8 公告管理 | ✅ 完成 | CRUD + AnnouncementManagementPage |
+| 2.8 公告管理 | ✅ 完成 | CRUD + AnnouncementManagementPage，新增/编辑弹窗，未读公告弹窗提醒 |
 | ISBN 导入（单本） | ✅ 完成 | OpenLibrary API 查询，填充表单 |
-| ISBN 导入（批量） | ⚠️ 测试中 | 批量查询 + `POST /api/books/batch`，需完善错误处理 |
-| 罚款管理 | ✅ 完成 | 计算/支付/拦截 + FineDetailsPage，**但 fine_per_day 未从系统设置读取** |
+| ISBN 导入（批量） | ✅ 完成 | 批量查询 + `POST /api/books/batch`，返回每项失败原因 |
+| 罚款管理 | ✅ 完成 | 计算/支付/拦截 + FineDetailsPage，`fine_per_day` 从系统设置读取 |
 | 副本位置管理 | ✅ 完成 | location 字段 + 管理界面 |
 | 批量归还审批 | ✅ 完成 | 一键审批全部/按日期审批 |
 
 ---
 
-## 待完成工作
+## 已完成收尾工作
 
-### 1. 预约通知功能（2.3 缺失部分）
+### 1. 预约通知功能（2.3 补充部分）
 
 **需求**：当预约的书籍变为可借时，通知用户。
 
@@ -78,7 +78,8 @@ CREATE TABLE notifications (
 **涉及文件**：
 - `backend/db.js` — 新增 notifications 表
 - `backend/controllers/borrowController.js` — approveReturn 中触发通知
-- `backend/routes/borrowRoutes.js` — 通知相关路由（或在新建通知路由文件中）
+- `backend/controllers/notificationController.js` — 通知列表、未读数、标记已读
+- `backend/routes/notificationRoutes.js` — 通知相关路由
 - `src/components/Sidebar/Sidebar.jsx` — 添加通知入口
 - `src/pages/NotificationsPage.jsx` — 新建通知页面
 - `src/utils/api.js` — 添加通知 API 方法
@@ -86,14 +87,15 @@ CREATE TABLE notifications (
 
 ### 2. 修复 fine_per_day 硬编码问题
 
-**问题**：`borrowController.js:183` 使用硬编码 `0.5` 而非读取 `system_settings` 中的 `fine_per_day`。
+**状态**：已完成。`returnBook` 会读取 `system_settings.fine_per_day`，并保留 `0` 作为有效配置值。
 
 **修改**：在 `returnBook` 函数中查询 `fine_per_day` 设置值替换硬编码。
 
 ```javascript
 // 改为从系统设置读取
 const setting = db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day']);
-const fine_per_day = setting ? parseFloat(setting.value) : 0.5;
+const parsedFinePerDay = setting ? parseFloat(setting.value) : NaN;
+const fine_per_day = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
 fine = days_overdue * fine_per_day;
 ```
 
@@ -108,14 +110,32 @@ fine = days_overdue * fine_per_day;
 - 前端在批量导入时添加 ISBN 格式预校验（10位或13位数字）
 - 后端批量接口增强错误报告，返回每项失败原因
 - 避免重复调用 OpenLibrary 查询已存在于本地数据库的 ISBN
+- 前端合并展示预检失败、元数据查询失败和后端导入失败项
 
 **涉及文件**：
 - `src/components/Books/AddBookForm.jsx` — 增强批量导入 UI 和错误展示
 - `backend/controllers/bookController.js` — batchImportBooks 增强错误返回
 
-### 4. 系统参数增加 fine_per_day 实际使用
+### 4. 公告提醒与公告管理弹窗
 
-确认 SystemSettingsPage 中 `fine_per_day` 参数可以被正确读取和使用（与第2项关联）。
+**实现内容**：
+- 新增 `announcement_reads` 表记录用户已读公告
+- 新增 `/api/announcements/unread/mine` 和公告已读接口
+- `MainLayout` 对未读已发布公告触发弹窗提醒，确认后不重复提醒
+- `AnnouncementManagementPage` 新增/编辑表单改为 portal 弹窗，避免被内容层裁切
+
+**涉及文件**：
+- `backend/db.js`
+- `backend/controllers/announcementController.js`
+- `backend/routes/announcementRoutes.js`
+- `src/components/layout/MainLayout.jsx`
+- `src/pages/AnnouncementManagementPage.jsx`
+- `src/pages/AnnouncementManagementPage.css`
+- `src/utils/api.js`
+
+### 5. 系统参数增加 fine_per_day 实际使用
+
+**状态**：已完成。SystemSettingsPage 中的 `fine_per_day` 参数可保存，归还罚款计算会读取该参数。
 
 ---
 

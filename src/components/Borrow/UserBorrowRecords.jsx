@@ -6,6 +6,8 @@ import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '.
 import Barcode from '../Barcode';
 import './Borrow.css';
 
+const getFineAmount = (fine) => Number(fine) || 0;
+
 const UserBorrowRecords = () => {
   const { userId } = useParams();
   const [records, setRecords] = useState([]);
@@ -171,7 +173,7 @@ const UserBorrowRecords = () => {
                   setPage(1);
                 }}
               >
-                {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+                {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
               </button>
             </div>
             <div className="borrow-records-table-wrap">
@@ -228,8 +230,8 @@ const UserBorrowRecords = () => {
                            record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                         </span>
                       </td>
-                      <td className={record.fine > 0 ? 'fine-amount' : ''}>
-                        {record.fine > 0 ? `¥${record.fine.toFixed(2)}` : '-'}
+                      <td className={getFineAmount(record.fine) > 0 ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
+                        {getFineAmount(record.fine) > 0 ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
                       </td>
                       <td className="borrow-action-cell">
                         {(record.status === 'borrowed' || record.status === 'overdue') && (

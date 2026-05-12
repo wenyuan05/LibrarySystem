@@ -989,3 +989,201 @@ This file documents all bug fixes applied to the project.
   - Documented that bulk location updates are submitted sequentially.
 - **Reason**: Prevent SQLite `cannot start a transaction within a transaction` errors caused by concurrent location update requests.
 
+## 2026-05-12
+
+### Feature: Complete Release 2 reservation notifications
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/notificationController.js`
+  - `backend/routes/notificationRoutes.js`
+  - `backend/server.js`
+  - `src/App.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/components/Sidebar/Sidebar.css`
+  - `src/pages/NotificationsPage.jsx`
+  - `src/pages/NotificationsPage.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `DATABASE_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added the `notifications` table and indexes.
+  - Added notification APIs for list, unread count, single read, and read-all.
+  - Triggered reservation availability notifications during return approval after available copies are recalculated.
+  - Added the `/notifications` page and sidebar unread badge.
+  - Documented notification schema, API contract, UI flow, and test cases.
+- **Reason**: Finish Release 2 reservation notification requirements and make availability notices visible and trackable for readers.
+
+### Feature: Add unread announcement reminders
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/announcementController.js`
+  - `backend/routes/announcementRoutes.js`
+  - `src/components/layout/MainLayout.jsx`
+  - `src/styles/global.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `DATABASE_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `announcement_reads` to record announcement read state per user.
+  - Added endpoints for current-user unread announcements and marking announcements read.
+  - Added a global popup reminder for unread published announcements in `MainLayout`.
+  - Marked announcements as read when users acknowledge the reminder so read announcements do not repeat.
+  - Documented the database table, API endpoints, UI behavior, and regression cases.
+- **Reason**: Ensure important published announcements proactively reach users while preventing repeated reminders after acknowledgement.
+
+### Fix 99: Convert announcement management form to an unclipped modal
+- **Files modified**:
+  - `src/pages/AnnouncementManagementPage.jsx`
+  - `src/pages/AnnouncementManagementPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the inline add/edit announcement form with a modal.
+  - Rendered the modal with `createPortal(document.body)` so it is not constrained by page content layers.
+  - Improved the announcement management list with content preview, published/draft status badges, and compact row actions.
+  - Added modal-specific responsive sizing and internal scrolling.
+- **Reason**: Prevent the announcement form from being clipped by parent layout/content layers and improve the management page usability.
+
+### Fix 100: Improve batch ISBN import error reporting
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend validation for ISBN format, title, author, duplicate ISBNs, and copy count bounds.
+  - Returned per-ISBN backend errors in the batch import result.
+  - Merged frontend precheck and metadata lookup failures into the final import result display.
+  - Documented the request/response behavior and mixed-success validation scenarios.
+- **Reason**: Make batch import failures actionable instead of silently dropping failed ISBNs.
+
+### Maintenance: Remove unused backend test scripts
+- **Files modified**:
+  - `backend/test_blocked_user.js`
+  - `backend/test_constraints.js`
+  - `backend/test_db.js`
+  - `backend/test_renew_book.js`
+  - `backend/test_reserve.js`
+  - `backend/test_server.js`
+  - `backend/test_simple.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Deleted unused `backend/test*.js` ad hoc scripts that were not referenced by npm scripts or active workflows.
+  - Removed stale documentation references to `test_constraints.js`.
+- **Reason**: Reduce lint noise and keep the backend utility surface focused on maintained check/fix scripts.
+
+### Fix 101: Isolate borrow-record fine display styling
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the borrow-record table cell class `fine-amount` with borrow-specific `borrow-fine-amount` and `borrow-fine-empty` classes.
+  - Removed the generic `.fine-amount` rule from `Borrow.css` so borrow table cells are not affected by fine detail or profile page styles.
+  - Normalized borrow-record fine rendering through numeric conversion before formatting amounts.
+  - Documented the styling isolation and visual regression check.
+- **Reason**: Prevent global fine amount styles from creating stray borders/layout artifacts in the borrow-record Fine column and avoid formatting errors when fine values are returned as strings.
+
+### Fix 102: Lift Add Book modal and simplify sort labels
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/LogsPage.jsx`
+  - `src/pages/ReservationsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Rendered the Add New Book modal with `createPortal(document.body)` and added a dedicated high-z-index overlay class.
+  - Updated list sort toggle labels from `Oldest First` / `Newest First` to `Ascending` / `Descending`.
+  - Documented the modal layering behavior and sort-label regression checks.
+- **Reason**: Keep the Add New Book modal independent from book page container stacking/clipping and make list sort controls simpler.
+
+### Fix 103: Redesign System Settings with implemented options only
+- **Files modified**:
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the raw single-list settings form with a modern dashboard layout using grouped cards, search, Editable mode, top actions, and a sticky pending-changes save bar.
+  - Removed settings from the UI that are not currently consumed by backend business logic.
+  - Kept only implemented borrow, renewal, and fine settings in the admin settings interface.
+  - Documented the supported settings surface and regression checks.
+- **Reason**: Avoid exposing configuration fields that can be saved but do not affect system behavior, while improving settings page density, hierarchy, and usability.
+
+### Fix 104: Add validation to all login page auth forms
+- **Files modified**:
+  - `src/components/Login/Login.jsx`
+  - `src/components/Login/Login.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added field-level validation for login, registration, forgot-password, and reset-password forms.
+  - Aligned frontend rules with backend constraints for username, password, name, and email.
+  - Added phone/contact validation for password reset requests and password confirmation/token validation for reset submission.
+  - Added inline field errors and error input styling.
+  - Documented auth-form validation behavior and regression cases.
+- **Reason**: Prevent invalid auth form submissions earlier and give users clear field-level feedback before API requests.
+
+### Fix 105: Sync notification badges and notify reservations on new availability
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/utils/notificationUtils.js`
+  - `src/App.jsx`
+  - `src/context/NotificationContext.jsx`
+  - `src/context/notificationContext.js`
+  - `src/context/notificationHooks.js`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/pages/NotificationsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Extracted reservation availability notification creation into a shared backend utility.
+  - Triggered reservation notifications after adding a new available copy or changing a copy status to `available`.
+  - Added shared frontend notification state so Sidebar unread badges update immediately after mark-read actions.
+  - Added a compatibility re-export for the notification hook module to avoid stale Vite HMR requests.
+  - Documented the expanded notification trigger paths and badge sync behavior.
+- **Reason**: Ensure reservations do not become stale when inventory is restored outside return approval, and keep unread notification badges synchronized without navigation or refresh.
+

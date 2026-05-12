@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../context/ToastContext';
 import { announcementAPI } from '../utils/api';
+import './AnnouncementManagementPage.css';
 
 const AnnouncementManagementPage = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -15,12 +17,7 @@ const AnnouncementManagementPage = () => {
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
-  // Load announcements list
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
-
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       setLoading(true);
       const data = await announcementAPI.getAll();
@@ -31,7 +28,12 @@ const AnnouncementManagementPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Load announcements list
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -63,6 +65,16 @@ const AnnouncementManagementPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreate = () => {
+    setEditingAnnouncement(null);
+    setFormData({
+      title: '',
+      content: '',
+      is_published: true
+    });
+    setShowAddForm(true);
   };
 
   const handleEdit = (announcement) => {
@@ -103,131 +115,179 @@ const AnnouncementManagementPage = () => {
   }
 
   return (
-    <div className="announcement-management-page card fade-in">
-      <h2>Announcement Management</h2>
-      
-      {/* 操作栏 */}
-      <div className="action-bar">
-        <button 
-          className="btn-primary"
-          onClick={() => setShowAddForm(!showAddForm)}
+    <div className="announcement-management-page fade-in">
+      <div className="announcement-management-header">
+        <div>
+          <h2>Announcement Management</h2>
+          <p>Create, publish, and maintain library notices.</p>
+        </div>
+        <button
+          type="button"
+          className="btn-primary announcement-add-button"
+          onClick={handleCreate}
         >
-          {showAddForm ? 'Cancel' : 'Add New Announcement'}
+          Add Announcement
         </button>
       </div>
-      
-      {/* 添加/编辑公告表单 */}
-      {showAddForm && (
-        <div className="announcement-form card">
-          <h3>{editingAnnouncement ? 'Edit Announcement' : 'Add New Announcement'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="title">Title</label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="form-input"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="content">Content</label>
-              <textarea
-                id="content"
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                rows="6"
-                required
-                className="form-input"
-              />
-            </div>
-            
-            <div className="form-group checkbox-group">
-              <input
-                type="checkbox"
-                id="is_published"
-                name="is_published"
-                checked={formData.is_published}
-                onChange={handleChange}
-              />
-              <label htmlFor="is_published">Publish Announcement</label>
-            </div>
-            
-            <div className="form-actions">
-              <button 
-                type="submit" 
-                className="btn-primary"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Announcement'}
-              </button>
-              <button 
-                type="button" 
-                className="btn-secondary"
-                onClick={resetForm}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      
+
       {/* 公告列表 */}
-      <div className="announcement-list">
-        <h3>Announcements</h3>
+      <section className="announcement-management-list">
+        <div className="announcement-list-heading">
+          <div>
+            <h3>Announcements</h3>
+            <span>{announcements.length} total</span>
+          </div>
+        </div>
+
         {announcements.length === 0 ? (
           <div className="empty-state">
             <p>No announcements found</p>
           </div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Published</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {announcements.map(announcement => (
-                <tr key={announcement.id} className="fade-in">
-                  <td>{announcement.id}</td>
-                  <td>{announcement.title}</td>
-                  <td>
-                    <span className={`status-badge status-${announcement.is_published ? 'active' : 'inactive'}`}>
-                      {announcement.is_published ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td>{announcement.created_at}</td>
-                  <td>
-                    <button 
-                      className="btn-primary"
-                      onClick={() => handleEdit(announcement)}
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      className="btn-danger"
-                      onClick={() => handleDelete(announcement.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="announcement-table-wrap">
+            <table className="announcement-management-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Announcement</th>
+                  <th>Published</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {announcements.map(announcement => (
+                  <tr key={announcement.id} className="fade-in">
+                    <td>{announcement.id}</td>
+                    <td>
+                      <div className="announcement-title-cell">
+                        <strong>{announcement.title}</strong>
+                        <span>{announcement.content}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`announcement-status ${announcement.is_published ? 'published' : 'draft'}`}>
+                        {announcement.is_published ? 'Published' : 'Draft'}
+                      </span>
+                    </td>
+                    <td>{announcement.created_at}</td>
+                    <td>
+                      <div className="announcement-row-actions">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleEdit(announcement)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => handleDelete(announcement.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
+
+      {showAddForm && createPortal(
+        <div className="announcement-modal-overlay" onClick={resetForm}>
+          <div
+            className="announcement-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="announcement-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="announcement-modal-header">
+              <div>
+                <span>{editingAnnouncement ? 'Edit Notice' : 'New Notice'}</span>
+                <h3 id="announcement-modal-title">
+                  {editingAnnouncement ? 'Edit Announcement' : 'Add Announcement'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="announcement-modal-close"
+                onClick={resetForm}
+                aria-label="Close announcement form"
+                disabled={saving}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="announcement-modal-form" onSubmit={handleSubmit}>
+              <div className="announcement-field">
+                <label htmlFor="title">Title</label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  disabled={saving}
+                  placeholder="Enter announcement title"
+                />
+              </div>
+
+              <div className="announcement-field">
+                <label htmlFor="content">Content</label>
+                <textarea
+                  id="content"
+                  name="content"
+                  value={formData.content}
+                  onChange={handleChange}
+                  rows="8"
+                  required
+                  disabled={saving}
+                  placeholder="Write the announcement content"
+                />
+              </div>
+
+              <label className="announcement-publish-toggle" htmlFor="is_published">
+                <input
+                  type="checkbox"
+                  id="is_published"
+                  name="is_published"
+                  checked={formData.is_published}
+                  onChange={handleChange}
+                  disabled={saving}
+                />
+                <span aria-hidden="true"></span>
+                <strong>Publish Announcement</strong>
+              </label>
+
+              <div className="announcement-modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={resetForm}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Announcement'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

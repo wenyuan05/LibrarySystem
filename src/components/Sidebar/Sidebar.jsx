@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/notificationHooks';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
 
   if (!user) return null;
@@ -58,6 +60,15 @@ const Sidebar = ({ isOpen, onClose }) => {
           
           {user.role === 'user' && (
             <>
+              <li className={location.pathname === '/notifications' ? 'active' : ''}>
+                <Link to="/notifications" onClick={onClose}>
+                <span className="nav-icon nav-icon-badge">
+                  <img src="/公告.svg" alt="Notifications" />
+                  {unreadCount > 0 && <span className="unread-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                </span>
+                <span className="nav-text">Notifications</span>
+              </Link>
+              </li>
               <li className={location.pathname === '/borrow-records' ? 'active' : ''}>
                 <Link to="/borrow-records" onClick={onClose}>
                 <span className="nav-icon"><img src="/书.svg" alt="Borrows" /></span>

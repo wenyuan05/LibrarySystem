@@ -1,4 +1,5 @@
 const db = require('../db');
+const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
 
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
@@ -950,23 +951,39 @@ exports.approveReturn = function(req, res) {
                             return;
                           }
                           
-                          db.run('COMMIT', function(err) {
-                            if (err) {
-                              res.status(500).json({ error: err.message });
+                          notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                            if (notifyErr) {
+                              db.run('ROLLBACK');
+                              res.status(500).json({ error: notifyErr.message });
                               return;
                             }
-                            res.json({ message: 'Return approved successfully' });
+
+                            db.run('COMMIT', function(err) {
+                              if (err) {
+                                res.status(500).json({ error: err.message });
+                                return;
+                              }
+                              res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
+                            });
                           });
                         });
                       });
                     });
                   } else {
-                    db.run('COMMIT', function(err) {
-                      if (err) {
-                        res.status(500).json({ error: err.message });
+                    notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                      if (notifyErr) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: notifyErr.message });
                         return;
                       }
-                      res.json({ message: 'Return approved successfully' });
+
+                      db.run('COMMIT', function(err) {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
+                      });
                     });
                   }
                 });
@@ -1008,23 +1025,39 @@ exports.approveReturn = function(req, res) {
                             return;
                           }
                           
-                          db.run('COMMIT', function(err) {
-                            if (err) {
-                              res.status(500).json({ error: err.message });
+                          notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                            if (notifyErr) {
+                              db.run('ROLLBACK');
+                              res.status(500).json({ error: notifyErr.message });
                               return;
                             }
-                            res.json({ message: 'Return approved successfully' });
+
+                            db.run('COMMIT', function(err) {
+                              if (err) {
+                                res.status(500).json({ error: err.message });
+                                return;
+                              }
+                              res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
+                            });
                           });
                         });
                       });
                     });
                   } else {
-                    db.run('COMMIT', function(err) {
-                      if (err) {
-                        res.status(500).json({ error: err.message });
+                    notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                      if (notifyErr) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: notifyErr.message });
                         return;
                       }
-                      res.json({ message: 'Return approved successfully' });
+
+                      db.run('COMMIT', function(err) {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
+                      });
                     });
                   }
                 }

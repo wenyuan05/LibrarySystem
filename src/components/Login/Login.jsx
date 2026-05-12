@@ -6,6 +6,43 @@ import { authAPI } from '../../utils/api';
 import privacyConfig from '../../config/privacy';
 import './Login.css';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[+\d][+\d\s().-]{5,19}$/;
+
+const getUsernameError = (username) => {
+  const value = username.trim();
+  if (!value) return 'Username is required';
+  if (value.length < 3 || value.length > 20) return 'Username must be between 3 and 20 characters';
+  return '';
+};
+
+const getPasswordError = (password, label = 'Password') => {
+  if (!password) return `${label} is required`;
+  if (password.length < 6) return `${label} must be at least 6 characters`;
+  return '';
+};
+
+const getNameError = (name) => {
+  const value = name.trim();
+  if (!value) return 'Name is required';
+  if (value.length < 2 || value.length > 50) return 'Name must be between 2 and 50 characters';
+  return '';
+};
+
+const getEmailError = (email, required = true) => {
+  const value = email.trim();
+  if (!value) return required ? 'Email is required' : '';
+  if (!EMAIL_REGEX.test(value)) return 'Enter a valid email address';
+  return '';
+};
+
+const getPhoneError = (phone) => {
+  const value = phone.trim();
+  if (!value) return '';
+  if (!PHONE_REGEX.test(value)) return 'Enter a valid phone number';
+  return '';
+};
+
 const Login = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '', name: '', email: '' });
@@ -19,6 +56,10 @@ const Login = () => {
   const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
   const [isResetPasswordMode, setIsResetPasswordMode] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [registerErrors, setRegisterErrors] = useState({});
+  const [resetErrors, setResetErrors] = useState({});
+  const [newPasswordErrors, setNewPasswordErrors] = useState({});
   const { login, register } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -39,6 +80,8 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
+    setFormErrors(prev => ({ ...prev, [name]: '' }));
+    setLoginError('');
   };
 
   const handleRegisterChange = (e) => {
@@ -47,33 +90,26 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
+    setRegisterErrors(prev => ({ ...prev, [name]: '' }));
+    setLoginError('');
   };
 
   const validateLoginForm = () => {
-    if (!formData.username.trim()) {
-      showToast('Username is required', 'error');
-      return false;
-    }
-    if (formData.username.length < 3 || formData.username.length > 20) {
-      showToast('Username must be between 3 and 20 characters', 'error');
-      return false;
-    }
-    if (!formData.password) {
-      showToast('Password is required', 'error');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
-      return false;
-    }
-    return true;
+    const errors = {
+      username: getUsernameError(formData.username),
+      password: getPasswordError(formData.password)
+    };
+    const nextErrors = Object.fromEntries(Object.entries(errors).filter(([, value]) => value));
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     if (!validateLoginForm()) {
+      showToast('Please fix the highlighted fields', 'error');
       setIsSubmitting(false);
       return;
     }
@@ -90,40 +126,15 @@ const Login = () => {
   };
 
   const validateRegisterForm = () => {
-    if (!registerData.username.trim()) {
-      showToast('Username is required', 'error');
-      return false;
-    }
-    if (registerData.username.length < 3 || registerData.username.length > 20) {
-      showToast('Username must be between 3 and 20 characters', 'error');
-      return false;
-    }
-    if (!registerData.password) {
-      showToast('Password is required', 'error');
-      return false;
-    }
-    if (registerData.password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
-      return false;
-    }
-    if (!registerData.name.trim()) {
-      showToast('Name is required', 'error');
-      return false;
-    }
-    if (registerData.name.length < 2 || registerData.name.length > 50) {
-      showToast('Name must be between 2 and 50 characters', 'error');
-      return false;
-    }
-    if (!registerData.email.trim()) {
-      showToast('Email is required', 'error');
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(registerData.email)) {
-      showToast('Invalid email format', 'error');
-      return false;
-    }
-    return true;
+    const errors = {
+      username: getUsernameError(registerData.username),
+      password: getPasswordError(registerData.password),
+      name: getNameError(registerData.name),
+      email: getEmailError(registerData.email)
+    };
+    const nextErrors = Object.fromEntries(Object.entries(errors).filter(([, value]) => value));
+    setRegisterErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleResetChange = (e) => {
@@ -132,6 +143,7 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
+    setResetErrors(prev => ({ ...prev, [name]: '', contact: '' }));
   };
 
   const handleNewPasswordChange = (e) => {
@@ -140,44 +152,111 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
+    setNewPasswordErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const validateResetForm = () => {
-    if (!resetData.email.trim() && !resetData.phone.trim()) {
-      showToast('Email or phone is required', 'error');
-      return false;
+    const email = resetData.email.trim();
+    const phone = resetData.phone.trim();
+    const errors = {
+      email: getEmailError(resetData.email, false),
+      phone: getPhoneError(resetData.phone)
+    };
+
+    if (!email && !phone) {
+      errors.contact = 'Enter either your email address or phone number';
     }
-    if (resetData.email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(resetData.email)) {
-        showToast('Invalid email format', 'error');
-        return false;
-      }
-    }
-    return true;
+
+    const nextErrors = Object.fromEntries(Object.entries(errors).filter(([, value]) => value));
+    setResetErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const validateNewPasswordForm = () => {
-    if (!newPasswordData.newPassword) {
-      showToast('New password is required', 'error');
-      return false;
+    const errors = {
+      newPassword: getPasswordError(newPasswordData.newPassword, 'New password')
+    };
+
+    if (!newPasswordData.confirmPassword) {
+      errors.confirmPassword = 'Confirm password is required';
+    } else if (newPasswordData.newPassword !== newPasswordData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
-    if (newPasswordData.newPassword.length < 6) {
-      showToast('New password must be at least 6 characters', 'error');
-      return false;
+
+    const token = resetToken || searchParams.get('token');
+    if (!token) {
+      errors.token = 'Reset token is missing. Please request password reset again.';
     }
-    if (newPasswordData.newPassword !== newPasswordData.confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      return false;
-    }
-    return true;
+
+    const nextErrors = Object.fromEntries(Object.entries(errors).filter(([, value]) => value));
+    setNewPasswordErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
+
+  const validateLoginField = (name) => {
+    const error = name === 'username'
+      ? getUsernameError(formData.username)
+      : getPasswordError(formData.password);
+    setFormErrors(prev => ({ ...prev, [name]: error }));
+  };
+
+  const validateRegisterField = (name) => {
+    const validators = {
+      username: () => getUsernameError(registerData.username),
+      password: () => getPasswordError(registerData.password),
+      name: () => getNameError(registerData.name),
+      email: () => getEmailError(registerData.email)
+    };
+    setRegisterErrors(prev => ({ ...prev, [name]: validators[name]?.() || '' }));
+  };
+
+  const validateResetField = (name) => {
+    const error = name === 'email'
+      ? getEmailError(resetData.email, false)
+      : getPhoneError(resetData.phone);
+    setResetErrors(prev => ({ ...prev, [name]: error }));
+  };
+
+  const validateNewPasswordField = (name) => {
+    if (name === 'newPassword') {
+      setNewPasswordErrors(prev => ({
+        ...prev,
+        newPassword: getPasswordError(newPasswordData.newPassword, 'New password'),
+        confirmPassword: newPasswordData.confirmPassword && newPasswordData.newPassword !== newPasswordData.confirmPassword
+          ? 'Passwords do not match'
+          : prev.confirmPassword
+      }));
+      return;
+    }
+
+    setNewPasswordErrors(prev => ({
+      ...prev,
+      confirmPassword: !newPasswordData.confirmPassword
+        ? 'Confirm password is required'
+        : newPasswordData.newPassword !== newPasswordData.confirmPassword
+          ? 'Passwords do not match'
+          : ''
+    }));
+  };
+
+  const resetAuthValidation = () => {
+    setFormErrors({});
+    setRegisterErrors({});
+    setResetErrors({});
+    setNewPasswordErrors({});
+    setLoginError('');
+  };
+
+  const renderFieldError = (errors, key) => (
+    errors[key] ? <span className="field-error">{errors[key]}</span> : null
+  );
 
   const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     if (!validateResetForm()) {
+      showToast('Please fix the highlighted fields', 'error');
       setIsSubmitting(false);
       return;
     }
@@ -200,6 +279,7 @@ const Login = () => {
     setIsSubmitting(true);
     
     if (!validateNewPasswordForm()) {
+      showToast('Please fix the highlighted fields', 'error');
       setIsSubmitting(false);
       return;
     }
@@ -232,8 +312,9 @@ const Login = () => {
         <h2>{isRegisterMode ? 'Register' : 'Login'}</h2>
         
         {!isRegisterMode && !isForgotPasswordMode && !isResetPasswordMode && (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
+          <form onSubmit={handleSubmit} noValidate>
+            {loginError && <div className="auth-error">{loginError}</div>}
+            <div className={`form-group ${formErrors.username ? 'has-error' : ''}`}>
               <label htmlFor="username">Username:</label>
               <input
                 type="text"
@@ -241,11 +322,16 @@ const Login = () => {
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                required
+                onBlur={() => validateLoginField('username')}
+                className={formErrors.username ? 'input-error' : ''}
+                aria-invalid={!!formErrors.username}
+                aria-describedby={formErrors.username ? 'username-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span className="field-helper">3-20 characters.</span>
+              <span id="username-error">{renderFieldError(formErrors, 'username')}</span>
             </div>
-            <div className="form-group">
+            <div className={`form-group ${formErrors.password ? 'has-error' : ''}`}>
               <label htmlFor="password">Password:</label>
               <input
                 type="password"
@@ -253,13 +339,20 @@ const Login = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                required
+                onBlur={() => validateLoginField('password')}
+                className={formErrors.password ? 'input-error' : ''}
+                aria-invalid={!!formErrors.password}
+                aria-describedby={formErrors.password ? 'password-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span id="password-error">{renderFieldError(formErrors, 'password')}</span>
               <button
                 type="button"
                 className="btn-link forgot-password"
-                onClick={() => setIsForgotPasswordMode(true)}
+                onClick={() => {
+                  resetAuthValidation();
+                  setIsForgotPasswordMode(true);
+                }}
                 disabled={isSubmitting}
               >
                 Forgot password?
@@ -276,10 +369,11 @@ const Login = () => {
         )}
 
         {isForgotPasswordMode && (
-          <form onSubmit={handleForgotPasswordSubmit}>
+          <form onSubmit={handleForgotPasswordSubmit} noValidate>
             <h3>Forgot Password</h3>
             <p>Enter your email or phone number to find your account</p>
-            <div className="form-group">
+            {resetErrors.contact && <div className="auth-error">{resetErrors.contact}</div>}
+            <div className={`form-group ${resetErrors.email ? 'has-error' : ''}`}>
               <label htmlFor="email">Email (optional):</label>
               <input
                 type="email"
@@ -287,11 +381,16 @@ const Login = () => {
                 name="email"
                 value={resetData.email}
                 onChange={handleResetChange}
+                onBlur={() => validateResetField('email')}
+                className={resetErrors.email ? 'input-error' : ''}
+                aria-invalid={!!resetErrors.email}
+                aria-describedby={resetErrors.email ? 'email-error' : undefined}
                 disabled={isSubmitting}
                 placeholder="Enter your email"
               />
+              <span id="email-error">{renderFieldError(resetErrors, 'email')}</span>
             </div>
-            <div className="form-group">
+            <div className={`form-group ${resetErrors.phone ? 'has-error' : ''}`}>
               <label htmlFor="phone">Phone (optional):</label>
               <input
                 type="tel"
@@ -299,9 +398,15 @@ const Login = () => {
                 name="phone"
                 value={resetData.phone}
                 onChange={handleResetChange}
+                onBlur={() => validateResetField('phone')}
+                className={resetErrors.phone ? 'input-error' : ''}
+                aria-invalid={!!resetErrors.phone}
+                aria-describedby={resetErrors.phone ? 'phone-error' : undefined}
                 disabled={isSubmitting}
                 placeholder="Enter your phone number"
               />
+              <span className="field-helper">Use digits, spaces, +, -, or parentheses.</span>
+              <span id="phone-error">{renderFieldError(resetErrors, 'phone')}</span>
             </div>
             <button 
               type="submit" 
@@ -316,6 +421,7 @@ const Login = () => {
               onClick={() => {
                 setIsForgotPasswordMode(false);
                 setResetData({ email: '', phone: '' });
+                resetAuthValidation();
               }}
               disabled={isSubmitting}
             >
@@ -325,7 +431,7 @@ const Login = () => {
         )}
 
         {isResetPasswordMode && (
-          <form onSubmit={handleResetPasswordSubmit}>
+          <form onSubmit={handleResetPasswordSubmit} noValidate>
             <h3>Reset Password</h3>
             {resetSuccess ? (
               <div className="success-message">
@@ -341,7 +447,8 @@ const Login = () => {
                     <p><strong>Name:</strong> {foundUser.name}</p>
                   </div>
                 )}
-                <div className="form-group">
+                {newPasswordErrors.token && <div className="auth-error">{newPasswordErrors.token}</div>}
+                <div className={`form-group ${newPasswordErrors.newPassword ? 'has-error' : ''}`}>
                   <label htmlFor="newPassword">New Password:</label>
                   <input
                     type="password"
@@ -349,12 +456,17 @@ const Login = () => {
                     name="newPassword"
                     value={newPasswordData.newPassword}
                     onChange={handleNewPasswordChange}
-                    required
+                    onBlur={() => validateNewPasswordField('newPassword')}
+                    className={newPasswordErrors.newPassword ? 'input-error' : ''}
+                    aria-invalid={!!newPasswordErrors.newPassword}
+                    aria-describedby={newPasswordErrors.newPassword ? 'new-password-error' : undefined}
                     disabled={isSubmitting}
                     placeholder="Enter your new password"
                   />
+                  <span className="field-helper">At least 6 characters.</span>
+                  <span id="new-password-error">{renderFieldError(newPasswordErrors, 'newPassword')}</span>
                 </div>
-                <div className="form-group">
+                <div className={`form-group ${newPasswordErrors.confirmPassword ? 'has-error' : ''}`}>
                   <label htmlFor="confirmPassword">Confirm Password:</label>
                   <input
                     type="password"
@@ -362,10 +474,14 @@ const Login = () => {
                     name="confirmPassword"
                     value={newPasswordData.confirmPassword}
                     onChange={handleNewPasswordChange}
-                    required
+                    onBlur={() => validateNewPasswordField('confirmPassword')}
+                    className={newPasswordErrors.confirmPassword ? 'input-error' : ''}
+                    aria-invalid={!!newPasswordErrors.confirmPassword}
+                    aria-describedby={newPasswordErrors.confirmPassword ? 'confirm-password-error' : undefined}
                     disabled={isSubmitting}
                     placeholder="Confirm your new password"
                   />
+                  <span id="confirm-password-error">{renderFieldError(newPasswordErrors, 'confirmPassword')}</span>
                 </div>
                 <button 
                   type="submit" 
@@ -382,6 +498,7 @@ const Login = () => {
                     setResetToken('');
                     setFoundUser(null);
                     setNewPasswordData({ newPassword: '', confirmPassword: '' });
+                    resetAuthValidation();
                   }}
                   disabled={isSubmitting}
                 >
@@ -398,8 +515,9 @@ const Login = () => {
               e.preventDefault();
               setIsSubmitting(true);
               setLoginError('');
-              
+
               if (!validateRegisterForm()) {
+                showToast('Please fix the highlighted fields', 'error');
                 setIsSubmitting(false);
                 return;
               }
@@ -414,8 +532,10 @@ const Login = () => {
                 setIsSubmitting(false);
               }
             }}
+            noValidate
           >
-            <div className="form-group">
+            {loginError && <div className="auth-error">{loginError}</div>}
+            <div className={`form-group ${registerErrors.username ? 'has-error' : ''}`}>
               <label htmlFor="reg-username">Username:</label>
               <input
                 type="text"
@@ -423,11 +543,16 @@ const Login = () => {
                 name="username"
                 value={registerData.username}
                 onChange={handleRegisterChange}
-                required
+                onBlur={() => validateRegisterField('username')}
+                className={registerErrors.username ? 'input-error' : ''}
+                aria-invalid={!!registerErrors.username}
+                aria-describedby={registerErrors.username ? 'reg-username-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span className="field-helper">3-20 characters.</span>
+              <span id="reg-username-error">{renderFieldError(registerErrors, 'username')}</span>
             </div>
-            <div className="form-group">
+            <div className={`form-group ${registerErrors.password ? 'has-error' : ''}`}>
               <label htmlFor="reg-password">Password:</label>
               <input
                 type="password"
@@ -435,11 +560,16 @@ const Login = () => {
                 name="password"
                 value={registerData.password}
                 onChange={handleRegisterChange}
-                required
+                onBlur={() => validateRegisterField('password')}
+                className={registerErrors.password ? 'input-error' : ''}
+                aria-invalid={!!registerErrors.password}
+                aria-describedby={registerErrors.password ? 'reg-password-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span className="field-helper">At least 6 characters.</span>
+              <span id="reg-password-error">{renderFieldError(registerErrors, 'password')}</span>
             </div>
-            <div className="form-group">
+            <div className={`form-group ${registerErrors.name ? 'has-error' : ''}`}>
               <label htmlFor="reg-name">Name:</label>
               <input
                 type="text"
@@ -447,11 +577,16 @@ const Login = () => {
                 name="name"
                 value={registerData.name}
                 onChange={handleRegisterChange}
-                required
+                onBlur={() => validateRegisterField('name')}
+                className={registerErrors.name ? 'input-error' : ''}
+                aria-invalid={!!registerErrors.name}
+                aria-describedby={registerErrors.name ? 'reg-name-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span className="field-helper">2-50 characters.</span>
+              <span id="reg-name-error">{renderFieldError(registerErrors, 'name')}</span>
             </div>
-            <div className="form-group">
+            <div className={`form-group ${registerErrors.email ? 'has-error' : ''}`}>
               <label htmlFor="reg-email">Email:</label>
               <input
                 type="email"
@@ -459,9 +594,13 @@ const Login = () => {
                 name="email"
                 value={registerData.email}
                 onChange={handleRegisterChange}
-                required
+                onBlur={() => validateRegisterField('email')}
+                className={registerErrors.email ? 'input-error' : ''}
+                aria-invalid={!!registerErrors.email}
+                aria-describedby={registerErrors.email ? 'reg-email-error' : undefined}
                 disabled={isSubmitting}
               />
+              <span id="reg-email-error">{renderFieldError(registerErrors, 'email')}</span>
             </div>
             <button 
               type="submit" 
@@ -480,8 +619,10 @@ const Login = () => {
               type="button"
               className="btn-link"
               onClick={() => {
-                setLoginError('');
+                resetAuthValidation();
                 setIsRegisterMode(!isRegisterMode);
+                setIsForgotPasswordMode(false);
+                setIsResetPasswordMode(false);
                 // 重置 registerData 状态，避免在切换模式时保留数据
                 setRegisterData({ username: '', password: '', name: '', email: '' });
               }}
