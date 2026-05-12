@@ -265,10 +265,15 @@
   background: #EEF2FF;
 }
 
-.borrow-records-table .fine-amount {
+.borrow-records-table .borrow-fine-amount {
   color: var(--danger-color);
   font-size: var(--font-size-sm);
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.borrow-records-table .borrow-fine-empty {
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -511,13 +516,6 @@
 .barcode-cell img {
   display: block;
   max-width: 140px;
-}
-
-/* 罚款金额 */
-.fine-amount {
-  color: var(--danger-color);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
 }
 
 /* 响应式设计 */

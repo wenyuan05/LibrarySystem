@@ -26,6 +26,7 @@
 - Converted announcement create/edit into a portal modal and refreshed the announcement management list layout.
 - Strengthened batch ISBN import validation and error reporting for invalid, duplicate, and metadata lookup failures.
 - Confirmed fine calculation reads `fine_per_day` from system settings.
+- Isolated borrow-record fine cell styling from global fine-detail/profile styles and normalized fine amount formatting.
 - Removed unused backend `test*.js` scripts and updated documentation references.
 
 ## Validation Checklist
@@ -35,4 +36,5 @@
 - Open `/announcement-management`, create and edit announcements through the modal without clipping.
 - Import ISBNs with a mixed list of valid, duplicate, invalid, and unknown records and confirm all failures are shown.
 - Confirm overdue return fines follow the configured `fine_per_day` value.
+- Confirm borrow-record Fine cells show either `-` or `¥0.00` without stray borders or layout artifacts.
 - Run frontend build and backend syntax checks before tagging `v2.0.0`.

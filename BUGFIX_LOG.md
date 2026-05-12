@@ -1094,3 +1094,19 @@ This file documents all bug fixes applied to the project.
   - Removed stale documentation references to `test_constraints.js`.
 - **Reason**: Reduce lint noise and keep the backend utility surface focused on maintained check/fix scripts.
 
+### Fix 101: Isolate borrow-record fine display styling
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the borrow-record table cell class `fine-amount` with borrow-specific `borrow-fine-amount` and `borrow-fine-empty` classes.
+  - Removed the generic `.fine-amount` rule from `Borrow.css` so borrow table cells are not affected by fine detail or profile page styles.
+  - Normalized borrow-record fine rendering through numeric conversion before formatting amounts.
+  - Documented the styling isolation and visual regression check.
+- **Reason**: Prevent global fine amount styles from creating stray borders/layout artifacts in the borrow-record Fine column and avoid formatting errors when fine values are returned as strings.
+
