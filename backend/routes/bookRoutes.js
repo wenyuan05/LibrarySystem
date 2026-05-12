@@ -19,14 +19,26 @@ router.get('/export', authenticateToken, requireRole(['admin', 'librarian']), bo
 // 添加书籍（管理员或图书管理员）
 router.post('/', authenticateToken, requireRole(['admin', 'librarian']), validateBookBody, bookController.addBook);
 
-// 更新副本状态（管理员或图书管理员）
-router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
+// 通过 ISBN 查询书籍信息（管理员或图书管理员）
+router.get('/isbn/:isbn', authenticateToken, requireRole(['admin', 'librarian']), bookController.searchByISBN);
 
-// 获取单个副本信息（无需登录，公开访问）
-router.get('/copies/:id', bookController.getCopyById);
+// 批量导入书籍（管理员或图书管理员）
+router.post('/batch', authenticateToken, requireRole(['admin', 'librarian']), bookController.batchImportBooks);
 
 // 获取书籍的所有副本（无需登录，公开访问）
 router.get('/:book_id/copies', bookController.getBookCopies);
+
+// 添加书籍副本（管理员或图书管理员）
+router.post('/:book_id/copies', authenticateToken, requireRole(['admin', 'librarian']), bookController.addBookCopy);
+
+// 更新副本状态（管理员或图书管理员）
+router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyStatus);
+
+// 更新副本位置（管理员或图书管理员）
+router.put('/copies/:id/location', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyLocation);
+
+// 获取单个副本信息（无需登录，公开访问）
+router.get('/copies/:id', bookController.getCopyById);
 
 // 更新书籍信息（管理员或图书管理员）
 router.put('/:id', authenticateToken, requireRole(['admin', 'librarian']), validateBookUpdateBody, bookController.updateBook);

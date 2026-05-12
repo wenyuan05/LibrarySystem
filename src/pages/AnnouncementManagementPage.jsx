@@ -5,7 +5,6 @@ import { announcementAPI } from '../utils/api';
 const AnnouncementManagementPage = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [formData, setFormData] = useState({
@@ -24,11 +23,9 @@ const AnnouncementManagementPage = () => {
   const fetchAnnouncements = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await announcementAPI.getAll();
       setAnnouncements(data);
     } catch (err) {
-      setError('Failed to load announcements');
       showToast('Failed to load announcements', 'error');
       console.error(err);
     } finally {
@@ -47,7 +44,6 @@ const AnnouncementManagementPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError(null);
 
     try {
       if (editingAnnouncement) {
@@ -62,7 +58,6 @@ const AnnouncementManagementPage = () => {
       fetchAnnouncements();
       resetForm();
     } catch (err) {
-      setError('Failed to save announcement');
       showToast('Failed to save announcement', 'error');
       console.error(err);
     } finally {
@@ -107,15 +102,6 @@ const AnnouncementManagementPage = () => {
     return <div className="loading">Loading announcements...</div>;
   }
 
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchAnnouncements} className="btn-primary">Retry</button>
-      </div>
-    );
-  }
-
   return (
     <div className="announcement-management-page card fade-in">
       <h2>Announcement Management</h2>
@@ -134,7 +120,6 @@ const AnnouncementManagementPage = () => {
       {showAddForm && (
         <div className="announcement-form card">
           <h3>{editingAnnouncement ? 'Edit Announcement' : 'Add New Announcement'}</h3>
-          {error && <div className="error-message">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="title">Title</label>

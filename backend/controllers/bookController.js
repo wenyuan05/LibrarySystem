@@ -1,5 +1,44 @@
 const db = require('../db');
 
+const monthLookup = {
+  january: '01',
+  february: '02',
+  march: '03',
+  april: '04',
+  may: '05',
+  june: '06',
+  july: '07',
+  august: '08',
+  september: '09',
+  october: '10',
+  november: '11',
+  december: '12'
+};
+
+const normalizePublishDate = (value) => {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue) || /^\d{4}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const monthYear = rawValue.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (monthYear) {
+    const month = monthLookup[monthYear[1].toLowerCase()];
+    return month ? `${monthYear[2]}-${month}` : rawValue;
+  }
+
+  const monthDayYear = rawValue.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (monthDayYear) {
+    const month = monthLookup[monthDayYear[1].toLowerCase()];
+    const day = monthDayYear[2].padStart(2, '0');
+    return month ? `${monthDayYear[3]}-${month}-${day}` : rawValue;
+  }
+
+  return rawValue;
+};
+
 // 获取所有书籍（无需登录，公开访问）
 exports.getAllBooks = (req, res) => {
   db.all('SELECT id, title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count, created_at, updated_at FROM books', (err, rows) => {
@@ -29,7 +68,7 @@ exports.getBookById = (req, res) => {
 
 // 添加书籍（管理员）
 exports.addBook = (req, res) => {
-  const { title, author, isbn, description, cover_image, total_copies, publisher, publish_date, language, page_count } = req.body;
+  const { title, author, isbn, description, cover_image, total_copies, publisher, publish_date, language, page_count, location } = req.body;
   
   // 检查ISBN是否已存在
   db.get('SELECT id FROM books WHERE isbn = ?', [isbn], (err, existingBook) => {
@@ -63,13 +102,14 @@ exports.addBook = (req, res) => {
             }
             
             const bookId = this.lastID;
-            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
+            const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
             let copyCount = 0;
             const totalCopies = copies;
-            
+
             // 创建副本记录
-            for (let i = 0; i < totalCopies; i++) {
-              insertCopy.run(bookId, 'available', (err) => {
+        for (let i = 0; i < totalCopies; i++) {
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          insertCopy.run(bookId, copyCode, 'available', location, (err) => {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -203,12 +243,17 @@ exports.updateBook = (req, res) => {
             
             if (currentCount < targetCount) {
               // 需要添加副本
-              const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
-              let addedCount = 0;
-              const addCount = targetCount - currentCount;
-              
-              for (let i = 0; i < addCount; i++) {
-                insertCopy.run(id, 'available', (err) => {
+              db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [id], (err, countResult) => {
+                if (err) { db.run('ROLLBACK'); res.status(500).json({ error: err.message }); return; }
+
+                const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+                let addedCount = 0;
+                const addCount = targetCount - currentCount;
+
+                for (let i = 0; i < addCount; i++) {
+                  const seq = countResult.count + i + 1;
+                  const copyCode = `CP-${id}-${String(seq).padStart(3, '0')}`;
+                  insertCopy.run(id, copyCode, 'available', null, (err) => {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
@@ -255,7 +300,8 @@ exports.updateBook = (req, res) => {
                   }
                 });
               }
-            } else if (currentCount > targetCount) {
+            });
+          } else if (currentCount > targetCount) {
               // 需要删除副本（只删除可用状态的副本）
               db.all('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT ?', [id, 'available', currentCount - targetCount], (err, copies) => {
                 if (err) {
@@ -562,6 +608,104 @@ exports.getBookCopies = (req, res) => {
   });
 };
 
+// 添加单个书籍副本（管理员/图书管理员）
+exports.addBookCopy = (req, res) => {
+  const { book_id } = req.params;
+  const location = (req.body.location || 'Main Shelf').trim() || 'Main Shelf';
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get('SELECT id FROM books WHERE id = ?', [book_id], (err, book) => {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!book) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Book not found' });
+          return;
+        }
+
+        db.all('SELECT copy_code FROM book_copies WHERE book_id = ?', [book_id], (err, copies) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          const maxSeq = copies.reduce((max, copy) => {
+            const match = (copy.copy_code || '').match(/-(\d+)$/);
+            const seq = match ? parseInt(match[1], 10) : 0;
+            return Math.max(max, seq);
+          }, 0);
+          const copyCode = `CP-${book_id}-${String(maxSeq + 1).padStart(3, '0')}`;
+
+          db.run(
+            'INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)',
+            [book_id, copyCode, 'available', location],
+            function(err) {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              const copyId = this.lastID;
+              db.get('SELECT COUNT(*) as total_count FROM book_copies WHERE book_id = ?', [book_id], (err, totalResult) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [book_id, 'available'], (err, availableResult) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.run(
+                    'UPDATE books SET total_copies = ?, available_copies = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    [totalResult.total_count, availableResult.available_count, book_id],
+                    (err) => {
+                      if (err) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+
+                      db.run('COMMIT', (err) => {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.status(201).json({
+                          id: copyId,
+                          book_id: Number(book_id),
+                          copy_code: copyCode,
+                          status: 'available',
+                          location
+                        });
+                      });
+                    }
+                  );
+                });
+              });
+            }
+          );
+        });
+      });
+    });
+  });
+};
+
 // 获取单个副本信息（公开访问）
 exports.getCopyById = (req, res) => {
   const { id } = req.params;
@@ -651,5 +795,224 @@ exports.updateCopyStatus = (req, res) => {
         });
       });
     });
+  });
+};
+
+// 更新副本位置（管理员/图书管理员）
+exports.updateCopyLocation = (req, res) => {
+  const { id } = req.params;
+  const { location } = req.body;
+  
+  // 开始事务
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 更新副本位置
+      db.run('UPDATE book_copies SET location = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [location, id], function(err) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Copy not found' });
+          return;
+        }
+
+        // 提交事务
+        db.run('COMMIT', (err) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json({ message: 'Copy location updated successfully' });
+        });
+      });
+    });
+  });
+};
+
+// 通过 ISBN 查询书籍信息
+exports.searchByISBN = (req, res) => {
+  const { isbn } = req.params;
+  const https = require('https');
+  
+  // 构建 OpenLibrary API URL
+  const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+  
+  https.get(url, (apiRes) => {
+    let data = '';
+    
+    apiRes.on('data', (chunk) => {
+      data += chunk;
+    });
+    
+    apiRes.on('end', () => {
+      try {
+        const response = JSON.parse(data);
+        const bookKey = `ISBN:${isbn}`;
+        
+        if (response[bookKey]) {
+          const bookData = response[bookKey];
+          const coverImage = bookData.cover?.large
+            || bookData.cover?.medium
+            || bookData.cover?.small
+            || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
+          
+          // 清洗数据，只返回需要的信息
+          const cleanedData = {
+            title: bookData.title || '',
+            author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
+            publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
+            publish_date: normalizePublishDate(bookData.publish_date),
+            isbn: isbn,
+            description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
+            cover_image: coverImage,
+            language: 'Chinese',
+            page_count: bookData.number_of_pages || 0
+          };
+          
+          res.json(cleanedData);
+        } else {
+          res.status(404).json({ error: 'Book not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to parse API response' });
+      }
+    });
+  }).on('error', (error) => {
+    res.status(500).json({ error: 'Failed to fetch book information' });
+  });
+};
+
+// 批量导入书籍
+exports.batchImportBooks = (req, res) => {
+  const { books } = req.body;
+  
+  if (!books || !Array.isArray(books)) {
+    res.status(400).json({ error: 'Invalid request data' });
+    return;
+  }
+
+  const runAsync = (sql, params = []) => new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(this);
+    });
+  });
+
+  const getAsync = (sql, params = []) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(row);
+    });
+  });
+
+  const finalizeAsync = (statement) => new Promise((resolve, reject) => {
+    statement.finalize((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+
+  const runStatementAsync = (statement, params = []) => new Promise((resolve, reject) => {
+    statement.run(params, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+
+  const importBook = async (bookData, results) => {
+    const { title, author, publisher, publish_date, isbn, description, cover_image, total_copies = 1, location = 'Main Shelf', category_id, language, page_count } = bookData;
+
+    try {
+      const existingBook = await getAsync('SELECT id FROM books WHERE isbn = ?', [isbn]);
+      if (existingBook) {
+        results.failed++;
+        results.errors.push({ isbn, error: 'Book with this ISBN already exists' });
+        return;
+      }
+
+      const copies = total_copies || 1;
+      const normalizedLanguage = (language || 'Chinese').trim() || 'Chinese';
+      const parsedPageCount = parseInt(page_count, 10);
+      const normalizedPageCount = Number.isFinite(parsedPageCount) && parsedPageCount > 0 ? parsedPageCount : 0;
+      const insertResult = await runAsync(
+        'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, normalizedLanguage, normalizedPageCount]
+      );
+      const bookId = insertResult.lastID;
+
+      if (category_id) {
+        try {
+          await runAsync(
+            'INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)',
+            [bookId, category_id]
+          );
+        } catch (err) {
+          console.error('批量导入分类关联失败:', err.message);
+        }
+      }
+
+      const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+      const totalCopies = copies;
+      const copyLocation = (location || 'Main Shelf').trim() || 'Main Shelf';
+
+      try {
+        for (let i = 0; i < totalCopies; i++) {
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          await runStatementAsync(insertCopy, [bookId, copyCode, 'available', copyLocation]);
+        }
+      } finally {
+        await finalizeAsync(insertCopy);
+      }
+
+      results.success++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push({ isbn, error: err.message });
+    }
+  };
+
+  db.serialize(() => {
+    (async () => {
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: []
+      };
+
+      try {
+        await runAsync('BEGIN TRANSACTION');
+
+        for (const bookData of books) {
+          await importBook(bookData, results);
+        }
+
+        await runAsync('COMMIT');
+        res.json(results);
+      } catch (err) {
+        db.run('ROLLBACK', () => {
+          res.status(500).json({ error: err.message });
+        });
+      }
+    })();
   });
 };

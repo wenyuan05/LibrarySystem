@@ -45,4 +45,13 @@ router.post('/confirm-borrow', authenticateToken, validateConfirmBorrowBody, bor
 // 处理超时借阅（需要登录，且只有管理员或图书管理员可以操作）
 router.post('/handle-timeout', authenticateToken, borrowController.handleTimeoutBorrows);
 
+// 检查和更新逾期记录（需要登录，且只有管理员或图书管理员可以操作）
+router.post('/check-overdue', authenticateToken, borrowController.checkOverdueRecords);
+
+// 获取用户的罚款记录（需要登录）
+router.get('/fines/:user_id', authenticateToken, borrowController.getUserFines);
+
+// 支付罚款（需要登录）
+router.post('/pay-fine', authenticateToken, borrowController.payFine);
+
 module.exports = router;

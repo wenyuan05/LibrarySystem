@@ -80,7 +80,9 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS book_copies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       book_id INTEGER NOT NULL,
+      copy_code TEXT UNIQUE,
       status TEXT DEFAULT 'available',
+      location TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (book_id) REFERENCES books(id)
@@ -98,6 +100,7 @@ db.serialize(() => {
       email TEXT NOT NULL,
       phone TEXT,
       address TEXT,
+      total_fine REAL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -116,6 +119,7 @@ db.serialize(() => {
       confirm_deadline TEXT,
       status TEXT DEFAULT 'borrowed',
       fine REAL DEFAULT 0,
+      fine_status TEXT DEFAULT 'unpaid',
       renew_count INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (book_id) REFERENCES books(id),
@@ -195,8 +199,41 @@ db.serialize(() => {
     // 字段已存在，忽略错误
   });
   
+  // 为现有书籍副本表添加 location 字段
+  db.run('ALTER TABLE book_copies ADD COLUMN location TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+
+  // 为现有书籍副本表添加 copy_code 字段
+  db.run('ALTER TABLE book_copies ADD COLUMN copy_code TEXT', (err) => {
+    // 字段已存在，忽略错误
+  });
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_book_copies_copy_code ON book_copies(copy_code)', (err) => {
+    // 索引已存在，忽略错误
+  });
+
+  // 为现有副本生成 copy_code（如果为空）
+  db.all("SELECT bc.id, bc.book_id, bc.copy_code, (SELECT COUNT(*) FROM book_copies WHERE book_id = bc.book_id AND id <= bc.id) as seq FROM book_copies bc WHERE bc.copy_code IS NULL", (err, rows) => {
+    if (!err && rows) {
+      rows.forEach(row => {
+        const copyCode = `CP-${row.book_id}-${String(row.seq).padStart(3, '0')}`;
+        db.run('UPDATE book_copies SET copy_code = ? WHERE id = ?', [copyCode, row.id]);
+      });
+    }
+  });
+
   // 为现有借阅记录表添加renew_count字段
   db.run('ALTER TABLE borrow_records ADD COLUMN renew_count INTEGER DEFAULT 0', (err) => {
+    // 字段已存在，忽略错误
+  });
+
+  // 为现有借阅记录表添加 fine_status 字段
+  db.run('ALTER TABLE borrow_records ADD COLUMN fine_status TEXT DEFAULT "unpaid"', (err) => {
+    // 字段已存在，忽略错误
+  });
+
+  // 为现有用户表添加 total_fine 字段
+  db.run('ALTER TABLE users ADD COLUMN total_fine REAL DEFAULT 0', (err) => {
     // 字段已存在，忽略错误
   });
 
@@ -209,12 +246,16 @@ db.serialize(() => {
 
   // 插入系统参数默认值
   const insertSetting = db.prepare('INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)');
+  insertSetting.run('system_name', 'Library Management System', '系统名称');
+  insertSetting.run('system_version', '1.0.0', '系统版本');
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
   insertSetting.run('max_borrows', '5', '最大借阅数量');
   insertSetting.run('max_reservations', '3', '最大预约数量');
   insertSetting.run('blacklist_days', '30', '拉黑天数');
   insertSetting.run('borrow_confirm_minutes', '60', '借阅确认时长（分钟）');
+  insertSetting.run('max_renew_times', '3', '最大续借次数');
+  insertSetting.run('renew_days', '7', '续借天数');
   insertSetting.finalize();
 
   // 插入图书分类示例数据
@@ -247,12 +288,13 @@ db.serialize(() => {
       
       // 只创建需要的副本
       if (currentCount < targetCount) {
-        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, status) VALUES (?, ?)');
-        
+        const insertCopy = db.prepare('INSERT INTO book_copies (book_id, copy_code, status, location) VALUES (?, ?, ?, ?)');
+
         for (let i = currentCount; i < targetCount; i++) {
           // 第一本书的第一个副本设为borrowed，其他为available
           const status = (bookId === 3 && i === 0) ? 'borrowed' : 'available';
-          insertCopy.run(bookId, status);
+          const copyCode = `CP-${bookId}-${String(i + 1).padStart(3, '0')}`;
+          insertCopy.run(bookId, copyCode, status, null);
         }
         
         insertCopy.finalize();

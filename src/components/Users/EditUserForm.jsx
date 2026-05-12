@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { usersAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import './Users.css';
 
 const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
   const { user: currentUser } = useAuth();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: user.name || '',
     email: user.email || '',
@@ -12,7 +14,6 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     address: user.address || '',
     role: user.role || ''
   });
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const modalRef = useRef(null);
 
@@ -26,14 +27,14 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
       const updatedUser = await usersAPI.update(user.id, formData);
+      showToast('User updated successfully!', 'success');
       onUserUpdated(updatedUser);
     } catch (err) {
-      setError('Failed to update user');
+      showToast('Failed to update user', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -93,12 +94,6 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
           <h3 id="modal-title">Edit User</h3>
           <button className="modal-close" onClick={handleModalClose} aria-label="Close modal">×</button>
         </div>
-        
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -167,7 +162,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
                 disabled={loading}
                 className="form-input"
               >
-                <option value="user">User</option>
+                <option value="user">Reader</option>
                 <option value="librarian">Librarian</option>
               </select>
             </div>

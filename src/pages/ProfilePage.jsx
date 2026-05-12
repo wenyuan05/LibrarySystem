@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+import { Link } from 'react-router-dom';
+import { usersAPI, borrowAPI } from '../utils/api';
 import EditUserForm from '../components/Users/EditUserForm';
 import './ProfilePage.css';
 
 const ProfilePage = () => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [totalFine, setTotalFine] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -20,11 +23,19 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      setError(null);
       const userData = await usersAPI.getById(user.id);
       setProfile(userData);
+      
+      // 只有用户角色才获取罚款信息
+      if (userData.role === 'user') {
+        const fines = await borrowAPI.getUserFines(user.id);
+        const total = fines
+          .filter(fine => fine.fine_status === 'unpaid')
+          .reduce((sum, fine) => sum + fine.fine, 0);
+        setTotalFine(total);
+      }
     } catch (err) {
-      setError('Failed to load profile');
+      showToast('Failed to load profile', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -55,17 +66,14 @@ const ProfilePage = () => {
     }
   };
 
+  const getRoleLabel = (role) => {
+    if (!role) return '';
+    if (role === 'user') return 'Reader';
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
   if (loading) {
     return <div className="loading">Loading profile...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="error-message">
-        {error}
-        <button onClick={fetchProfile} className="btn-primary">Retry</button>
-      </div>
-    );
   }
 
   if (!profile) {
@@ -84,7 +92,7 @@ const ProfilePage = () => {
             <div className="profile-header-info">
               <h2 className="profile-name">{profile.name}</h2>
               <span className={`role-badge ${getRoleClass()}`}>
-                {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                {getRoleLabel(profile.role)}
               </span>
             </div>
           </div>
@@ -124,6 +132,24 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Fine Information - Only for user role */}
+            {profile.role === 'user' && (
+              <div className="profile-section">
+                <h3 className="section-title">Fine Information</h3>
+                <div className="info-grid">
+                  <div className="info-item full-width">
+                    <span className="info-label">Total Fine</span>
+                    <span className="info-value fine-amount">¥{totalFine.toFixed(2)}</span>
+                  </div>
+                  <div className="info-item full-width">
+                    <Link to={`/fines/${user.id}`} className="btn-secondary fine-button">
+                      View Fine Details
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Action Buttons */}

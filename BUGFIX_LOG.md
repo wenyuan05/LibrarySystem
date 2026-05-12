@@ -731,3 +731,261 @@ This file documents all bug fixes applied to the project.
   - Added CSS styles for overdue status and count display
 - **Reason**: Implement comprehensive overdue book tracking, including automatic status updates, user notifications, and admin visibility, ensuring timely book returns and proper management of overdue items
 
+## 2026-05-06
+
+### Fix 79: Align reader and librarian borrow record layouts
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+- **Changes**:
+  - Unified the reader and librarian borrow record table layout.
+  - Added consistent barcode, status badge, fine, action, pagination, and sort controls.
+  - Expanded normal desktop width while keeping horizontal scrolling for small screens.
+- **Reason**: Keep historical borrow records readable and consistent across user roles.
+
+### Fix 80: Preserve fine history after payment
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/pages/ProfilePage.jsx`
+- **Changes**:
+  - Updated fine queries to return paid and unpaid historical fine records.
+  - Kept unpaid fines prioritized and calculated payable total from unpaid records only.
+  - Fixed the View Fines modal data flow so borrow records can display the fine list.
+- **Reason**: Prevent paid fines from disappearing from history while keeping payment totals accurate.
+
+### Fix 81: Correct borrow confirmation copy binding
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+- **Changes**:
+  - Changed pending borrow records to avoid binding or displaying a copy before confirmation.
+  - Added copy selection in the confirm dialog for borrow records.
+  - Fixed validation so selecting a different available copy in the confirm dialog is accepted.
+- **Reason**: Avoid incorrect preselected barcodes and prevent false "copy unavailable" errors.
+
+### Fix 82: Split book metadata management from copy management
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/Books.css`
+  - `backend/controllers/bookController.js`
+- **Changes**:
+  - Added a dedicated Manage Copies modal separate from Edit Info.
+  - Added independent copy id, barcode, status, and location editing.
+  - Added automatic copy code generation with default `Main Shelf` location.
+  - Added per-copy location confirmation and bulk location update.
+- **Reason**: Separate book metadata from physical inventory copies and make copy-level operations explicit.
+
+### Fix 83: Modernize book dashboard and Add Book workflow
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/layout/MainLayout.jsx`
+  - `src/styles/global.css`
+- **Changes**:
+  - Redesigned the reader book page as a compact enterprise dashboard with statistics, filters, card grid, and integrated right sidebar widgets.
+  - Added book cover thumbnails, compact metadata grouping, availability progress, and hover elevation to book cards.
+  - Moved Popular Books into the right dashboard sidebar and added Recently Borrowed and System Stats widgets.
+  - Added user avatar styling and reduced top navigation height.
+  - Converted Add New Book into a modal flow.
+- **Reason**: Improve layout balance, visual hierarchy, content density, and professional dashboard appearance.
+
+### Fix 84: Redesign batch import and remove copy-only fields from book metadata
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `backend/controllers/bookController.js`
+  - `API_DOC.md`
+- **Changes**:
+  - Removed `location` and `total_copies` from the single book metadata form.
+  - Added a two-panel Batch Import layout with ISBN list input, CSV/TXT upload, live preview, duplicate/invalid status, import progress, and Copy Settings.
+  - Moved default location, copies per book, and category assignment into Copy Settings.
+  - Updated backend batch import to accept `location`, `total_copies`, and `category_id`.
+- **Reason**: Keep metadata import separate from physical copy generation and support realistic library inventory workflows.
+
+### Fix 85: Fix Books page search field icon and text visibility
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+- **Changes**:
+  - Replaced the shared search input classes with `books-search-*` classes to avoid global style collisions.
+  - Replaced the image-based magnifier with a CSS-drawn absolute-positioned icon.
+  - Set search input text, caret, and placeholder colors explicitly.
+- **Reason**: Fix the misaligned search icon and invisible search text caused by shared CSS overrides and asset positioning.
+
+### Documentation: Update development documentation
+- **Files modified**:
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated the latest feature status, dashboard layout notes, Add Book modal workflow, and Batch Import Copy Settings behavior.
+  - Documented the current batch import payload fields.
+  - Added this BUGFIX_LOG section covering the prior borrow/copy-management commit and the latest dashboard/import/search fixes.
+- **Reason**: Keep development documentation synchronized with the current branch implementation.
+
+## 2026-05-10
+
+### Fix 86: Wait for batch import copy inserts before commit
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Refactored `batchImportBooks` to use awaitable SQLite helpers for `db.run`, `db.get`, prepared statement `run`, and `finalize`.
+  - Ensured category inserts, all copy inserts, and `insertCopy.finalize()` complete before incrementing `results.success`.
+  - Moved `COMMIT` and response sending after all books finish processing.
+  - Added rollback handling for unexpected transaction-level failures.
+- **Reason**: Prevent incorrect success counts and avoid copy inserts running outside the intended batch import transaction lifecycle.
+
+### Fix 87: Correct add copy API response documentation
+- **Files modified**:
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `POST /api/books/:book_id/copies` response documentation to match `bookController.addBookCopy`.
+  - Documented the actual flat copy object response instead of a wrapped `{ message, copy, book }` payload.
+- **Reason**: Keep the API contract documentation aligned with the current endpoint implementation and frontend usage.
+
+### Fix 88: Correct batch import API request and response documentation
+- **Files modified**:
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `POST /api/books/batch` request documentation from a raw JSON array to `{ "books": [...] }`.
+  - Removed the undocumented `message` field from the documented response shape.
+- **Reason**: Align API documentation with `bookController.batchImportBooks` and the frontend `booksAPI.batchImport` request contract.
+
+### Fix 89: Upsert missing system settings and provide UI defaults
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added seed rows for all keys used by `SystemSettingsPage`, including `system_name`, `system_version`, `max_renew_times`, and `renew_days`.
+  - Changed `updateSystemSettings` from `UPDATE ... WHERE key = ?` to an upsert so missing keys are created instead of silently affecting 0 rows.
+  - Added frontend default-setting merge so absent values render editable defaults instead of `undefined`.
+  - Updated system settings API documentation to describe object responses and upsert behavior.
+- **Reason**: Ensure fresh databases can display and save every documented system setting reliably.
+
+### Fix 90: Remove duplicate history UI styles from Borrow CSS
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed duplicate `.history-toolbar`, `.history-sort-button`, and `.history-pagination` definitions from `Borrow.css`.
+  - Kept the shared history UI styles in `src/styles/global.css`.
+  - Documented that cross-page shared UI styles belong in `global.css`.
+- **Reason**: Avoid global class style conflicts caused by duplicate definitions and CSS load order.
+
+### Fix 91: Use OpenLibrary cover URL fallbacks
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated ISBN metadata cleanup to prefer `bookData.cover.large`, then `medium`, then `small`.
+  - Kept a fallback for legacy `cover.id` values.
+  - Returned an empty cover URL when OpenLibrary does not provide cover data.
+  - Documented the cover image fallback behavior for `GET /api/books/isbn/:isbn`.
+- **Reason**: Prevent broken cover image URLs when OpenLibrary returns cover URLs instead of `cover.id`.
+
+### Fix 92: Normalize ISBN import publish date display
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added OpenLibrary publish date normalization for common formats.
+  - Normalizes full dates to `YYYY-MM-DD`, month/year values to `YYYY-MM`, and year-only values to `YYYY`.
+  - Preserves the original OpenLibrary value when it cannot be parsed cleanly.
+  - Changed the single-book Add Book publish date field from a native date input to a text input so partial dates can be displayed and edited.
+- **Reason**: Prevent OpenLibrary values such as `July 2008` from disappearing in the Add Book form.
+
+### Fix 93: Align book management search button
+- **Files modified**:
+  - `src/pages/BookManagementPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a management-specific search bar class.
+  - Fixed the search input and icon button into one horizontal row with consistent height.
+  - Kept the change scoped away from shared `.search-bar` styles.
+- **Reason**: Prevent the admin book management search button from dropping below the input due to global search bar styles.
+
+### Fix 94: Align user management search button
+- **Files modified**:
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Users/Users.css`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a user-management-specific search bar class.
+  - Fixed the user search input and icon button into one horizontal row with consistent height.
+  - Scoped the layout away from shared `.search-bar` styles.
+- **Reason**: Prevent librarian/admin user management search buttons from dropping below the input.
+
+### Fix 95: Preserve batch import language and page count
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `batchImportBooks` to persist incoming `language` and `page_count` metadata.
+  - Added defaults of `Chinese` and `0` only when those fields are missing or invalid.
+  - Documented the batch import metadata persistence behavior.
+- **Reason**: Prevent imported ISBN metadata from being overwritten by hardcoded language and page count values.
+
+### Fix 96: Respect zero fine-per-day setting
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `README.md`
+  - `API_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced `parseFloat(value) || 0.5` fine setting parsing with an explicit `Number.isNaN` fallback.
+  - Preserved configured `fine_per_day = 0` for both return-time fine calculation and overdue fine previews.
+  - Documented that setting `fine_per_day` to `0` disables overdue fines.
+- **Reason**: Allow administrators to intentionally disable overdue fines without the backend falling back to the default value.
+
+### Fix 97: Allow librarians to manage user fines
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `getUserFines` authorization to allow self, admin, or librarian access.
+  - Updated `payFine` authorization to allow self, admin, or librarian actions.
+  - Documented that administrators and librarians can view and process user fines.
+- **Reason**: Align fines endpoint authorization with the UI and API documentation.
+
+### Fix 98: Serialize bulk copy location updates
+- **Files modified**:
+  - `src/components/Books/CopyManagementModal.jsx`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced parallel `Promise.all` copy location updates with sequential requests.
+  - Kept the existing single-copy location endpoint unchanged.
+  - Documented that bulk location updates are submitted sequentially.
+- **Reason**: Prevent SQLite `cannot start a transaction within a transaction` errors caused by concurrent location update requests.
+

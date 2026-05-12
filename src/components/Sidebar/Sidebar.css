@@ -4,8 +4,8 @@
 /* 侧边栏 */
 .sidebar {
   width: var(--sidebar-width);
-  background-color: var(--secondary-color);
-  color: var(--text-white);
+  background-color: #FFFDF5;
+  color: var(--text-primary);
   height: 100vh;
   position: fixed;
   left: calc(-1 * var(--sidebar-width));
@@ -24,7 +24,7 @@
 /* 侧边栏头部 */
 .sidebar-header {
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--secondary-light);
+  border-bottom: 1px solid #F0E6D6;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -32,14 +32,14 @@
 
 .sidebar-header h3 {
   margin: 0;
-  color: var(--text-white);
+  color: var(--text-primary);
   font-size: var(--font-size-lg);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: var(--text-white);
+  color: var(--text-secondary);
   font-size: var(--font-size-xl);
   cursor: pointer;
   padding: 0;
@@ -53,7 +53,7 @@
 }
 
 .close-btn:hover {
-  background-color: var(--secondary-light);
+  background-color: #F5EDE0;
   transform: none;
   box-shadow: none;
 }
@@ -61,19 +61,19 @@
 /* 用户信息 */
 .user-info {
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--secondary-light);
+  border-bottom: 1px solid #F0E6D6;
   text-align: center;
 }
 
 .user-info h4 {
   margin: 0 0 var(--spacing-xs) 0;
-  color: var(--text-white);
+  color: var(--text-primary);
 }
 
 .user-info p {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--text-light);
+  color: var(--text-secondary);
 }
 
 /* 导航菜单 */
@@ -97,7 +97,7 @@
   padding: var(--spacing-md);
   background: none;
   border: none;
-  color: var(--text-white);
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
   font-size: var(--font-size-md);
@@ -111,20 +111,32 @@
 
 .sidebar-nav button:hover,
 .sidebar-nav a:hover {
-  background-color: var(--secondary-light);
+  background-color: #F5EDE0;
   transform: none;
   box-shadow: none;
 }
 
 .sidebar-nav li.active button,
 .sidebar-nav li.active a {
-  background-color: var(--primary-color);
+  background-color: #EDE6D6;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .nav-icon {
   font-size: var(--font-size-lg);
   width: 24px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: none;
 }
 
 .nav-text {
@@ -134,15 +146,15 @@
 /* 侧边栏底部 */
 .sidebar-footer {
   padding: var(--spacing-lg);
-  border-top: 1px solid var(--secondary-light);
+  border-top: 1px solid #F0E6D6;
 }
 
 .logout-btn {
   width: 100%;
   padding: var(--spacing-md);
-  background-color: var(--danger-color);
-  color: var(--text-white);
-  border: none;
+  background-color: #FEF2F2;
+  color: var(--danger-color);
+  border: 1px solid #FEE2E2;
   border-radius: var(--border-radius);
   cursor: pointer;
   font-size: var(--font-size-md);
@@ -155,7 +167,7 @@
 }
 
 .logout-btn:hover {
-  background-color: var(--danger-hover);
+  background-color: #FEE2E2;
   transform: none;
 }
 
@@ -165,20 +177,20 @@
     width: var(--sidebar-width-sm);
     left: calc(-1 * var(--sidebar-width-sm));
   }
-  
+
   .sidebar-header h3 {
     font-size: var(--font-size-md);
   }
-  
+
   .user-info h4 {
     font-size: var(--font-size-md);
   }
-  
+
   .sidebar-nav button {
     font-size: var(--font-size-sm);
     padding: var(--spacing-sm);
   }
-  
+
   .logout-btn {
     font-size: var(--font-size-sm);
     padding: var(--spacing-sm);
@@ -191,14 +203,14 @@
 }
 
 .sidebar-nav::-webkit-scrollbar-track {
-  background: var(--secondary-light);
+  background: #FFFDF5;
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: var(--text-light);
+  background: #E0D6C6;
   border-radius: 3px;
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: var(--text-white);
+  background: #D0C6B6;
 }

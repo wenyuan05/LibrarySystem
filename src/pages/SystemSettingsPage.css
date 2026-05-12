@@ -1,0 +1,96 @@
+.system-settings-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.system-settings-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.system-settings-page .page-header h2 {
+  margin: 0;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+  border-color: var(--border-color, #dee2e6);
+}
+
+.setting-item.editing {
+  border-color: var(--primary-color, #4f46e5);
+  background: var(--bg-active, #eef2ff);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary, #212529);
+}
+
+.setting-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6c757d);
+}
+
+.setting-default {
+  font-size: 0.75rem;
+  color: var(--text-muted, #adb5bd);
+}
+
+.current-value {
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-tertiary, #e9ecef);
+  border-radius: 4px;
+  display: inline-block;
+  font-family: monospace;
+}
+
+.setting-input {
+  width: 200px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.setting-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  min-width: auto;
+}

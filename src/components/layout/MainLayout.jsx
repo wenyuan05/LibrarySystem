@@ -25,6 +25,7 @@ const MainLayout = ({ children }) => {
           <button className="menu-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
           <h1>Library Management System</h1>
           <div className="user-menu">
+            <span className="user-avatar">{(user?.name || 'U').charAt(0).toUpperCase()}</span>
             <span>{user?.name || 'User'}</span>
           </div>
         </header>

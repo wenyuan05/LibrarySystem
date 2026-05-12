@@ -5,8 +5,8 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理 | 15 |
-| 借阅管理 | 借阅、归还、预约 | 10 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 19 |
+| 借阅管理 | 借阅、归还、预约、续借、罚款管理 | 14 |
 | 系统管理 | 系统设置、公告、日志 | 8 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
 
@@ -189,7 +189,10 @@
     "due_date": "2024-01-15",
     "return_date": "2024-01-10",
     "status": "returned",
-    "fine": 0
+    "fine": 0,
+    "fine_status": "paid",
+    "copy_id": 1,
+    "copy_code": "CP-1-001"
   }
 ]
 ```
@@ -418,12 +421,41 @@
   {
     "id": 1,
     "book_id": 1,
-    "status": "available"
+    "copy_code": "CP-1-001",
+    "status": "available",
+    "location": "Main Shelf"
   }
 ]
 ```
 
-#### 3.2.10 GET /api/books/copies/:id
+#### 3.2.10 POST /api/books/:book_id/copies
+**功能**：为指定书籍新增一个副本，并自动生成 `copy_code`
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "location": "Main Shelf"
+}
+```
+
+**说明**：
+- `location` 可选，未传时默认使用 `Main Shelf`
+- `copy_code` 按当前书籍已有副本编号递增生成，例如 `CP-1-001`
+- 新增成功后会同步更新 `books.total_copies` 与 `books.available_copies`
+
+**响应**：
+```json
+{
+  "id": 4,
+  "book_id": 1,
+  "copy_code": "CP-1-004",
+  "status": "available",
+  "location": "Main Shelf"
+}
+```
+
+#### 3.2.11 GET /api/books/copies/:id
 **功能**：获取单个副本信息
 
 **响应**：
@@ -431,11 +463,13 @@
 {
   "id": 1,
   "book_id": 1,
-  "status": "available"
+  "copy_code": "CP-1-001",
+  "status": "available",
+  "location": "Main Shelf"
 }
 ```
 
-#### 3.2.11 PUT /api/books/copies/:id/status
+#### 3.2.12 PUT /api/books/copies/:id/status
 **功能**：更新副本状态
 **权限**：admin/librarian
 
@@ -450,7 +484,83 @@
 ```json
 {
   "id": 1,
-  "status": "available"
+  "copy_code": "CP-1-001",
+  "status": "available",
+  "location": "Main Shelf"
+}
+```
+
+#### 3.2.13 GET /api/books/isbn/:isbn
+**功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
+**权限**：admin/librarian
+
+**说明**：
+- `cover_image` 优先使用 OpenLibrary 返回的 `cover.large`、`cover.medium`、`cover.small` URL。
+- 如仅返回旧式 `cover.id`，会回退为 OpenLibrary cover id URL；没有封面时返回空字符串。
+- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留 OpenLibrary 原始返回值。
+
+**响应**：
+```json
+{
+  "title": "The Great Gatsby",
+  "author": "F. Scott Fitzgerald",
+  "publisher": "Scribner",
+  "publish_date": "1925-04-10",
+  "language": "English",
+  "page_count": 180,
+  "cover_image": "https://covers.openlibrary.org/..."
+}
+```
+
+#### 3.2.14 POST /api/books/batch
+**功能**：批量导入书籍
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "books": [
+    {
+      "title": "Book 1", "author": "Author 1", "isbn": "9780743273565",
+      "publisher": "Pub", "publish_date": "2024-01-01", "language": "English",
+      "page_count": 200, "total_copies": 2, "location": "Main Shelf", "category_id": 1
+    }
+  ]
+}
+```
+
+**说明**：
+- `total_copies` 可选，未传时默认创建 1 个副本。
+- `location` 可选，未传时默认使用 `Main Shelf`。
+- `category_id` 可选；传入时批量导入会同步写入图书分类关联。
+- `language` 与 `page_count` 会随导入元数据一起保存；未传时分别默认使用 `Chinese` 与 `0`。
+- 前端 Batch Import 页面通过 Copy Settings 统一生成 `total_copies`、`location` 和 `category_id`。
+- 接口会等待书籍、分类关联、副本插入和 statement finalize 完成后再提交事务并返回统计结果。
+
+**响应**：
+```json
+{
+  "success": 2,
+  "failed": 0,
+  "errors": []
+}
+```
+
+#### 3.2.15 PUT /api/books/copies/:id/location
+**功能**：更新副本位置
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "location": "A1-01"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Location updated successfully"
 }
 ```
 
@@ -473,13 +583,16 @@
   "id": 10,
   "user_id": 2,
   "book_id": 1,
-  "copy_id": 1,
+  "copy_id": null,
+  "copy_code": null,
   "borrow_date": "2024-01-01",
   "due_date": "2024-01-15",
   "confirm_deadline": "2024-01-01T10:00:00Z",
   "status": "borrowing"
 }
 ```
+
+**说明**：发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
 
 #### 3.3.2 POST /api/borrow/return
 **功能**：归还书籍
@@ -519,6 +632,8 @@
   "message": "Borrow confirmed successfully"
 }
 ```
+
+**说明**：`copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
 
 #### 3.3.4 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
@@ -645,6 +760,50 @@
 {
   "message": "Book renewed successfully",
   "new_due_date": "2024-01-29"
+}
+```
+
+#### 3.3.11 GET /api/borrow/fines/:user_id
+**功能**：获取用户罚款历史记录
+**权限**：本人或admin/librarian
+
+**说明**：返回 `fine > 0` 的罚款历史，包含未支付和已支付记录；未支付记录优先，再按记录 ID 倒序。前端总额只统计 `fine_status = "unpaid"`。
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "book_id": 1,
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "borrow_date": "2024-01-01",
+    "due_date": "2024-01-15",
+    "return_date": "2024-01-20",
+    "fine": 2.5,
+    "fine_status": "unpaid",
+    "copy_id": 1,
+    "copy_code": "CP-1-001"
+  }
+]
+```
+
+#### 3.3.12 POST /api/borrow/pay-fine
+**功能**：支付所有未支付罚款
+**权限**：本人或admin/librarian
+
+**请求体**：
+```json
+{
+  "user_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "message": "All fines paid successfully",
+  "amount": 2.5
 }
 ```
 
@@ -780,34 +939,42 @@
 
 **响应**：
 ```json
-[
-  {
-    "id": 1,
-    "key": "borrow_period_days",
-    "value": "14",
-    "description": "借阅期限（天）"
-  }
-]
+{
+  "system_name": "Library Management System",
+  "system_version": "1.0.0",
+  "borrow_period_days": "14",
+  "fine_per_day": "0.5",
+  "max_borrows": "5",
+  "borrow_confirm_minutes": "60",
+  "max_renew_times": "3",
+  "renew_days": "7",
+  "blacklist_days": "30",
+  "max_reservations": "3"
+}
 ```
 
 #### 3.5.2 PUT /api/system/settings
-**功能**：更新系统设置
+**功能**：更新系统设置（支持部分更新）
 **权限**：admin
 
-**请求体**：
+**说明**：
+- 更新接口使用 upsert 语义；当某个 key 在 `system_settings` 中不存在时会自动创建。
+- 前端系统设置页会对缺失 key 使用默认值兜底显示。
+
+**请求体**（支持单项或多项更新）：
 ```json
 {
-  "key": "borrow_period_days",
-  "value": "21"
+  "borrow_period_days": "21",
+  "fine_per_day": "1.0"
 }
 ```
+
+`fine_per_day` 可以设置为 `"0"`，表示禁用逾期罚款。
 
 **响应**：
 ```json
 {
-  "key": "borrow_period_days",
-  "value": "21",
-  "description": "借阅期限（天）"
+  "message": "System settings updated successfully"
 }
 ```
 
@@ -906,6 +1073,11 @@
 #### 3.5.8 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
+
+**查询参数**：
+- `limit`：返回数量，默认 50
+- `offset`：分页偏移，默认 0
+- `order`：时间排序，`desc` 为最新优先，`asc` 为最旧优先
 
 **响应**：
 ```json

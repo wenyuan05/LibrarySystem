@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
 
@@ -7,12 +8,9 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [copies, setCopies] = useState([]);
-  const [copiesLoading, setCopiesLoading] = useState(false);
+  const { showToast } = useToast();
   const titleInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -37,20 +35,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       }
     };
 
-    const fetchCopies = async () => {
-      if (book) {
-        try {
-          setCopiesLoading(true);
-          const bookCopies = await booksAPI.getCopies(book.id);
-          setCopies(bookCopies);
-        } catch (error) {
-          console.error('Error fetching copies:', error);
-        } finally {
-          setCopiesLoading(false);
-        }
-      }
-    };
-
     if (book) {
       setFormData({
         title: book.title || '',
@@ -70,8 +54,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       
       // 获取分类数据
       fetchBookCategories();
-      // 获取副本数据
-      fetchCopies();
     }
   }, [book]);
 
@@ -122,66 +104,30 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     });
   };
 
-  // 处理副本状态更新
-  const handleCopyStatusChange = async (copyId, newStatus) => {
-    try {
-      await booksAPI.updateCopyStatus(copyId, newStatus);
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-    } catch (error) {
-      console.error('Error updating copy status:', error);
-      setError('Failed to update copy status');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  // 处理添加副本
-  const handleAddCopy = async () => {
-    try {
-      // 调用update接口，增加total_copies
-      await booksAPI.update(book.id, { total_copies: book.total_copies + 1 });
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      // 更新书籍信息
-      if (onEditComplete) {
-        const updatedBook = await booksAPI.getById(book.id);
-        onEditComplete(updatedBook);
-      }
-    } catch (error) {
-      console.error('Error adding copy:', error);
-      setError('Failed to add copy');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
-    setSuccess('');
 
     // 前端验证
     if (!formData.title.trim()) {
-      setError('Title is required');
+      showToast('Title is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.author.trim()) {
-      setError('Author is required');
+      showToast('Author is required', 'error');
       setIsSubmitting(false);
       return;
     }
     if (!formData.isbn.trim()) {
-      setError('ISBN is required');
+      showToast('ISBN is required', 'error');
       setIsSubmitting(false);
       return;
     }
     // 简单的ISBN格式检查
     const isbnPattern = /^\d{10}(?:\d{3})?$/;
     if (!isbnPattern.test(formData.isbn)) {
-      setError('ISBN must be 10 or 13 digits');
+      showToast('ISBN must be 10 or 13 digits', 'error');
       setIsSubmitting(false);
       return;
     }
@@ -208,19 +154,13 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
         }
       }
       
-      // 重新获取副本列表
-      const bookCopies = await booksAPI.getCopies(book.id);
-      setCopies(bookCopies);
-      
-      setSuccess('Book updated successfully!');
+      showToast('Book updated successfully!', 'success');
       // 通知父组件编辑完成
       if (onEditComplete) {
         onEditComplete(updatedBook);
       }
-      // 3秒后清除成功消息
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to update book. Please try again.');
+      showToast(err.message || 'Failed to update book. Please try again.', 'error');
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -238,9 +178,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     return null;
   }
 
-  // 过滤出不可用的副本
-  const unavailableCopies = copies.filter(copy => copy.status === 'unavailable');
-
   return (
     <div className="modal-overlay" onClick={handleModalClose}>
       <div 
@@ -254,18 +191,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
           <h3 id="modal-title">Edit Book</h3>
           <button className="modal-close" onClick={handleModalClose} aria-label="Close modal">×</button>
         </div>
-        
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="success-message">
-            {success}
-          </div>
-        )}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -419,77 +344,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
               </div>
             )}
           </div>
-          
-          {/* 副本管理 */}
-          <div className="form-group">
-            <label>Book Copies:</label>
-            {copiesLoading ? (
-              <p>Loading copies...</p>
-            ) : copies.length === 0 ? (
-              <p>No copies available</p>
-            ) : (
-              <div className="copies-management">
-                <div className="copies-list">
-                  {copies.map(copy => (
-                    <div key={copy.id} className="copy-item">
-                      <span className="copy-id">Copy ID: {copy.id}</span>
-                      <div className="copy-status-control">
-                        <select
-                          value={copy.status}
-                          onChange={(e) => {
-                            e.preventDefault();
-                            handleCopyStatusChange(copy.id, e.target.value);
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          <option value="available">Available</option>
-                          <option value="unavailable">Unavailable</option>
-                          <option value="borrowing">Borrowing</option>
-                          <option value="borrowed">Borrowed</option>
-                          <option value="reserved">Reserved</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* 不可用副本列表和添加按钮 */}
-                {unavailableCopies.length > 0 && (
-                  <div className="unavailable-copies-section">
-                    <h4>Unavailable Copies</h4>
-                    <div className="unavailable-copies-list">
-                      {unavailableCopies.map(copy => (
-                        <div key={copy.id} className="unavailable-copy-item">
-                          <span>Copy ID: {copy.id}</span>
-                          <button
-                            type="button"
-                            className="btn-small"
-                            onClick={() => handleCopyStatusChange(copy.id, 'available')}
-                            disabled={isSubmitting}
-                          >
-                            Make Available
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* 添加副本按钮 */}
-                <div className="add-copy-section">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleAddCopy}
-                    disabled={isSubmitting}
-                  >
-                    Add Copy
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          
           <div className="form-actions">
             <button 
               type="submit" 

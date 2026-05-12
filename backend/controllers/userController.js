@@ -285,33 +285,48 @@ exports.deleteUser = (req, res) => {
         return;
       }
 
-      // 删除用户状态记录
-      db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
+      // 检查用户是否有未归还的借阅记录
+      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
 
-        // 删除用户
-        db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
+        if (result.count > 0) {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
+          return;
+        }
+
+        // 删除用户状态记录
+        db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
             return;
           }
-          if (this.changes === 0) {
-            db.run('ROLLBACK');
-            res.status(404).json({ error: 'User not found' });
-            return;
-          }
 
-          db.run('COMMIT', (err) => {
+          // 删除用户
+          db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
             if (err) {
+              db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            res.json({ message: 'User deleted' });
+            if (this.changes === 0) {
+              db.run('ROLLBACK');
+              res.status(404).json({ error: 'User not found' });
+              return;
+            }
+
+            db.run('COMMIT', (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json({ message: 'User deleted' });
+            });
           });
         });
       });
@@ -353,27 +368,49 @@ exports.getUserBorrowRecords = (req, res) => {
           
           const overdueCount = overdueResult.overdue_count || 0;
           
-          // 获取用户借阅记录
-          db.all(
-            `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine 
-             FROM borrow_records br 
-             JOIN books b ON br.book_id = b.id 
-             WHERE br.user_id = ? 
-             ORDER BY br.borrow_date DESC`,
-            [id],
-            (err, records) => {
-              if (err) {
-                res.status(500).json({ error: err.message });
-                return;
+          // 获取每日罚款金额
+          db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], (err, settingRow) => {
+            const parsedFinePerDay = (!err && settingRow) ? parseFloat(settingRow.value) : NaN;
+            const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
+            const today = new Date().toISOString().split('T')[0];
+
+            // 获取用户借阅记录
+            db.all(
+              `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine,
+                      br.copy_id, bc.copy_code
+               FROM borrow_records br
+               JOIN books b ON br.book_id = b.id
+               LEFT JOIN book_copies bc ON br.copy_id = bc.id
+               WHERE br.user_id = ?
+               ORDER BY br.borrow_date DESC`,
+              [id],
+              (err, records) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                // 对 overdue 状态的记录实时计算预估罚款
+                const enrichedRecords = records.map(record => {
+                  if (record.status === 'overdue' && record.due_date) {
+                    const dueDate = new Date(record.due_date);
+                    const todayDate = new Date(today);
+                    const daysOverdue = Math.ceil((todayDate - dueDate) / (1000 * 60 * 60 * 24));
+                    if (daysOverdue > 0) {
+                      record.fine = parseFloat((daysOverdue * finePerDay).toFixed(2));
+                    }
+                  }
+                  return record;
+                });
+
+                // 返回记录和逾期次数
+                res.json({
+                  records: enrichedRecords,
+                  overdue_count: overdueCount
+                });
               }
-              
-              // 返回记录和逾期次数
-              res.json({
-                records,
-                overdue_count: overdueCount
-              });
-            }
-          );
+            );
+          });
         });
       });
     });

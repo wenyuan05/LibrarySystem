@@ -3,8 +3,7 @@ import BorrowRecords from '../components/Borrow/BorrowRecords';
 
 const BorrowRecordsPage = () => {
   return (
-    <div className="borrow-section card fade-in">
-      <h2>My Borrow Records</h2>
+    <div className="borrow-records-page fade-in">
       <BorrowRecords />
     </div>
   );

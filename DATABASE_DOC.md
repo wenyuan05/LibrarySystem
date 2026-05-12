@@ -40,6 +40,10 @@
 - max_reservations: 3 (最大预约数量)
 - blacklist_days: 30 (拉黑天数)
 - borrow_confirm_minutes: 60 (借阅确认时长，分钟)
+- max_renew_times: 3 (最大续借次数)
+- renew_days: 7 (续借延长天数)
+- system_name: "Library Management System" (系统名称)
+- system_version: "1.0.0" (系统版本)
 
 ### 2.2 categories 表
 
@@ -107,9 +111,15 @@
 |--------|----------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
 | book_id | INTEGER | NOT NULL | 书籍ID，外键关联books表 |
+| copy_code | TEXT | UNIQUE | 副本条形码编号，按书籍生成，如CP-1-001 |
 | status | TEXT | DEFAULT 'available' | 状态（available/borrowing/borrowed/reserved） |
+| location | TEXT | | 副本位置（如A1-01、Main Shelf） |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+**说明**：
+- `copy_code` 用于前端条形码渲染和实体副本识别。
+- 旧数据启动时会自动补齐 `copy_code`，新增副本会按同一本书已有最大序号递增。
 
 ### 2.7 users 表
 
@@ -125,6 +135,7 @@
 | email | TEXT | NOT NULL | 邮箱 |
 | phone | TEXT | | 电话 |
 | address | TEXT | | 地址 |
+| total_fine | REAL | DEFAULT 0 | 累计未付罚款总额 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
@@ -144,6 +155,7 @@
 | confirm_deadline | TEXT | | 确认截止时间 |
 | status | TEXT | DEFAULT 'borrowed' | 状态（borrowing/borrowed/returning/returned/overdue/timeout） |
 | fine | REAL | DEFAULT 0 | 罚款金额 |
+| fine_status | TEXT | DEFAULT 'unpaid' | 罚款状态（unpaid/paid） |
 | renew_count | INTEGER | DEFAULT 0 | 续借次数 |
 
 ### 2.9 reservation_records 表
@@ -191,6 +203,7 @@
 | 索引名 | 表名 | 字段 | 类型 | 描述 |
 |--------|------|------|------|------|
 | idx_books_isbn | books | isbn | UNIQUE | 加速ISBN查询 |
+| idx_book_copies_copy_code | book_copies | copy_code | UNIQUE | 保证副本条形码编号唯一 |
 | idx_users_username | users | username | UNIQUE | 加速用户名查询 |
 | idx_users_role | users | role | | 加速角色查询 |
 | idx_borrow_records_user_id | borrow_records | user_id | | 加速用户借阅记录查询 |

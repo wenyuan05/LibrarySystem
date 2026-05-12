@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
 import EditBookForm from '../components/Books/EditBookForm';
+import CopyManagementModal from '../components/Books/CopyManagementModal';
 import { booksAPI } from '../utils/api';
 
 const BookManagementPage = () => {
@@ -11,21 +12,19 @@ const BookManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
+  const [managingCopiesBook, setManagingCopiesBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [error, setError] = useState(null);
   const { showToast } = useToast();
 
   // Load books data
   const fetchBooks = async () => {
     try {
       setBooksLoading(true);
-      setError(null);
       const data = await booksAPI.getAll();
       setBooks(data);
     } catch (err) {
       console.error('Failed to load books:', err);
       const errorMessage = 'Failed to load books. Please try again.';
-      setError(errorMessage);
       showToast(errorMessage, 'error');
     } finally {
       setBooksLoading(false);
@@ -34,7 +33,11 @@ const BookManagementPage = () => {
 
   // Handle book addition
   const handleBookAdded = (newBook) => {
-    setBooks(prevBooks => [...prevBooks, newBook]);
+    if (newBook) {
+      setBooks(prevBooks => [...prevBooks, newBook]);
+    } else {
+      fetchBooks();
+    }
   };
 
   // Handle book update
@@ -86,17 +89,7 @@ const BookManagementPage = () => {
     setFilteredBooks(books);
   }, [books]);
 
-  if (error) {
-    return (
-      <div className="book-management-section card fade-in">
-        <h2>Book Management</h2>
-        <div className="error-message">
-          {error}
-          <button onClick={fetchBooks} className="btn-primary">Retry</button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="book-management-section card fade-in">
@@ -107,9 +100,9 @@ const BookManagementPage = () => {
         <div className="action-buttons">
           <button 
             className="btn-primary"
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => setShowAddForm(true)}
           >
-            {showAddForm ? 'Cancel' : 'Add New Book'}
+            Add New Book
           </button>
           {/* 暂时隐藏导出按钮，待权限问题解决后再恢复 */}
           {/* <button 
@@ -151,7 +144,7 @@ const BookManagementPage = () => {
             Export Books
           </button> */}
         </div>
-        <div className="search-bar">
+        <div className="management-search-bar">
           <div className="search-input-container">
             <input
               type="text"
@@ -162,19 +155,24 @@ const BookManagementPage = () => {
             />
           </div>
           <button className="search-button" onClick={handleSearchClick}>
-            🔍
+            <img src="/放大镜.svg" alt="Search" />
           </button>
         </div>
       </div>
       
       {/* Add Book Form */}
       {showAddForm && (
-        <AddBookForm 
-          onBookAdded={(newBook) => {
-            handleBookAdded(newBook);
-            setShowAddForm(false);
-          }}
-        />
+        <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+          <div className="modal-content add-book-modal" onClick={(e) => e.stopPropagation()}>
+            <AddBookForm
+              onCancel={() => setShowAddForm(false)}
+              onBookAdded={(newBook) => {
+                handleBookAdded(newBook);
+                setShowAddForm(false);
+              }}
+            />
+          </div>
+        </div>
       )}
       
       {/* Edit Book Form */}
@@ -189,6 +187,17 @@ const BookManagementPage = () => {
         />
       )}
 
+      {managingCopiesBook && (
+        <CopyManagementModal
+          book={managingCopiesBook}
+          onClose={() => setManagingCopiesBook(null)}
+          onBookUpdated={(updatedBook) => {
+            handleBookUpdated(updatedBook);
+            setManagingCopiesBook(updatedBook);
+          }}
+        />
+      )}
+
       {/* Book List (with edit functionality) */}
       <BookList 
         books={filteredBooks}
@@ -197,6 +206,7 @@ const BookManagementPage = () => {
         onBookDeleted={handleBookDeleted}
         showEditButton={true}
         onEditBook={setEditingBook}
+        onManageCopies={setManagingCopiesBook}
       />
     </div>
   );
