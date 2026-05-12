@@ -141,6 +141,21 @@ db.serialize(() => {
     )
   `);
 
+  // 创建站内通知表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT DEFAULT 'reservation',
+      is_read INTEGER DEFAULT 0,
+      related_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
   // 创建系统日志表
   db.run(`
     CREATE TABLE IF NOT EXISTS system_logs (
@@ -165,6 +180,19 @@ db.serialize(() => {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (author_id) REFERENCES users(id)
+    )
+  `);
+
+  // 创建公告已读记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS announcement_reads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      announcement_id INTEGER NOT NULL,
+      read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (announcement_id) REFERENCES announcements(id),
+      UNIQUE(user_id, announcement_id)
     )
   `);
 
@@ -337,6 +365,11 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_user_id ON reservation_records(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_book_id ON reservation_records(book_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_status ON reservation_records(status)');
+
+  // 通知表索引
+  db.run('CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at)');
   
   // 图书分类关联表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_book_categories_book_id ON book_categories(book_id)');
@@ -353,6 +386,10 @@ db.serialize(() => {
   // 公告表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_announcements_is_published ON announcements(is_published)');
   db.run('CREATE INDEX IF NOT EXISTS idx_announcements_created_at ON announcements(created_at)');
+
+  // 公告已读记录索引
+  db.run('CREATE INDEX IF NOT EXISTS idx_announcement_reads_user_id ON announcement_reads(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_announcement_reads_announcement_id ON announcement_reads(announcement_id)');
 
   console.log('Database initialized with sample data and extended structure');
 

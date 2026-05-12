@@ -416,6 +416,30 @@ export const borrowAPI = {
   },
 };
 
+// 通知相关API
+export const notificationAPI = {
+  getAll: async (userId) => {
+    return request(`/notifications/${userId}`);
+  },
+
+  getUnreadCount: async (userId) => {
+    return request(`/notifications/${userId}/unread-count`);
+  },
+
+  markAsRead: async (id) => {
+    return request(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  markAllAsRead: async (userId) => {
+    return request('/notifications/read-all', {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  },
+};
+
 // 系统相关API
 export const systemAPI = {
   // 获取系统设置
@@ -443,7 +467,21 @@ export const announcementAPI = {
   getById: async (id) => {
     return request(`/announcements/${id}`);
   },
-  
+
+  // 获取当前用户未读公告
+  getUnread: async () => {
+    return request('/announcements/unread/mine');
+  },
+
+  // 标记公告已读
+  markRead: async (announcementIds) => {
+    const ids = Array.isArray(announcementIds) ? announcementIds : [announcementIds];
+    return request('/announcements/read', {
+      method: 'PUT',
+      body: JSON.stringify({ announcement_ids: ids }),
+    });
+  },
+
   // 创建公告
   create: async (announcement) => {
     return request('/announcements', {
@@ -571,6 +609,7 @@ export default {
   books: booksAPI,
   users: usersAPI,
   borrow: borrowAPI,
+  notification: notificationAPI,
   system: systemAPI,
   announcement: announcementAPI,
   category: categoryAPI,

@@ -49,6 +49,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const logRoutes = require('./routes/logRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // 引入错误处理中间件
 const { errorHandler } = require('./middleware/error');
@@ -62,6 +63,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 统一错误处理中间件
 app.use(errorHandler);

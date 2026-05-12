@@ -6,8 +6,9 @@
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
 | 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 19 |
-| 借阅管理 | 借阅、归还、预约、续借、罚款管理 | 14 |
-| 系统管理 | 系统设置、公告、日志 | 8 |
+| 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
+| 系统管理 | 系统设置、公告、公告已读、日志 | 11 |
+| 站内通知 | 通知列表、未读数量、标记已读 | 4 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
 
 ## 2. 认证机制
@@ -535,14 +536,17 @@
 - `category_id` 可选；传入时批量导入会同步写入图书分类关联。
 - `language` 与 `page_count` 会随导入元数据一起保存；未传时分别默认使用 `Chinese` 与 `0`。
 - 前端 Batch Import 页面通过 Copy Settings 统一生成 `total_copies`、`location` 和 `category_id`。
+- 后端会再次校验 ISBN 格式、标题、作者和本地重复 ISBN，并为每个失败项返回具体错误原因。
 - 接口会等待书籍、分类关联、副本插入和 statement finalize 完成后再提交事务并返回统计结果。
 
 **响应**：
 ```json
 {
   "success": 2,
-  "failed": 0,
-  "errors": []
+  "failed": 1,
+  "errors": [
+    { "isbn": "123", "error": "ISBN must be 10 or 13 digits" }
+  ]
 }
 ```
 
@@ -989,7 +993,6 @@
     "title": "系统更新通知",
     "content": "图书馆系统已完成更新",
     "author_id": 1,
-    "author_name": "Admin User",
     "is_published": 1,
     "created_at": "2024-01-01 00:00:00"
   }
@@ -1006,7 +1009,6 @@
   "title": "系统更新通知",
   "content": "图书馆系统已完成更新",
   "author_id": 1,
-  "author_name": "Admin User",
   "is_published": 1,
   "created_at": "2024-01-01 00:00:00"
 }
@@ -1031,8 +1033,8 @@
   "id": 2,
   "title": "新公告",
   "content": "公告内容",
-  "author_id": 1,
-  "is_published": 1
+  "is_published": 1,
+  "created_at": "2026-05-12"
 }
 ```
 
@@ -1066,11 +1068,60 @@
 **响应**：
 ```json
 {
-  "message": "Announcement deleted"
+  "message": "Announcement deleted successfully"
 }
 ```
 
-#### 3.5.8 GET /api/logs
+#### 3.5.8 GET /api/announcements/unread/mine
+**功能**：获取当前登录用户未读的已发布公告，用于全局公告弹窗提醒
+**权限**：登录用户
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "title": "系统更新通知",
+    "content": "图书馆系统已完成更新",
+    "author_id": 1,
+    "is_published": 1,
+    "created_at": "2026-05-12"
+  }
+]
+```
+
+#### 3.5.9 PUT /api/announcements/read
+**功能**：批量标记公告已读，写入 `announcement_reads`，已读公告不会再次触发弹窗
+**权限**：登录用户
+
+**请求体**：
+```json
+{
+  "announcement_ids": [1, 2]
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Announcements marked as read",
+  "updated": 2
+}
+```
+
+#### 3.5.10 PUT /api/announcements/:id/read
+**功能**：标记单条公告已读
+**权限**：登录用户
+
+**响应**：
+```json
+{
+  "message": "Announcements marked as read",
+  "updated": 1
+}
+```
+
+#### 3.5.11 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -1094,7 +1145,7 @@
 ]
 ```
 
-#### 3.5.9 DELETE /api/logs/clear
+#### 3.5.12 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 
@@ -1147,6 +1198,69 @@
     "borrow_count": 10
   }
 ]
+```
+
+### 3.7 站内通知接口
+
+#### 3.7.1 GET /api/notifications/:user_id
+**功能**：获取用户通知列表
+**权限**：本人/admin/librarian
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "user_id": 2,
+    "title": "Reserved book available",
+    "message": "\"1984\" is now available. Please borrow it when convenient.",
+    "type": "reservation",
+    "is_read": 0,
+    "related_id": 3,
+    "created_at": "2026-05-12 10:00:00"
+  }
+]
+```
+
+#### 3.7.2 GET /api/notifications/:user_id/unread-count
+**功能**：获取用户未读通知数量
+**权限**：本人/admin/librarian
+
+**响应**：
+```json
+{
+  "count": 2
+}
+```
+
+#### 3.7.3 PUT /api/notifications/:id/read
+**功能**：标记单条通知已读
+**权限**：通知接收者/admin/librarian
+
+**响应**：
+```json
+{
+  "message": "Notification marked as read"
+}
+```
+
+#### 3.7.4 PUT /api/notifications/read-all
+**功能**：标记用户全部通知已读
+**权限**：本人/admin/librarian
+
+**请求体**：
+```json
+{
+  "user_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "message": "All notifications marked as read",
+  "updated": 2
+}
 ```
 
 ## 4. 错误处理

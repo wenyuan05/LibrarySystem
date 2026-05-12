@@ -57,6 +57,7 @@ LibrarySystem/
 │   │   └── useApiRequest.jsx  # API请求处理钩子
 │   ├── pages/          # 页面组件
 │   │   ├── AnnouncementManagementPage.jsx  # 公告管理页面
+│   │   ├── AnnouncementManagementPage.css  # 公告管理样式
 │   │   ├── AnnouncementsPage.jsx           # 公告页面
 │   │   ├── BookDetailsPage.jsx             # 书籍详情页面
 │   │   ├── BookManagementPage.jsx          # 书籍管理页面
@@ -64,6 +65,8 @@ LibrarySystem/
 │   │   ├── BorrowRecordsPage.jsx           # 借阅记录页面
 │   │   ├── CategoryManagementPage.jsx      # 分类管理页面
 │   │   ├── LogsPage.jsx                    # 日志页面
+│   │   ├── NotificationsPage.jsx           # 站内通知页面
+│   │   ├── NotificationsPage.css           # 站内通知样式
 │   │   ├── ProfilePage.jsx                 # 个人资料页面
 │   │   ├── ReservationsPage.jsx            # 预约页面
 │   │   ├── ReturnApprovalPage.jsx          # 归还审批页面
@@ -86,6 +89,7 @@ LibrarySystem/
 ├── backend/            # 后端代码
 │   ├── controllers/    # 控制器
 │   │   ├── announcementController.js  # 公告控制器
+│   │   ├── notificationController.js  # 站内通知控制器
 │   │   ├── bookController.js          # 书籍控制器
 │   │   ├── borrowController.js        # 借阅控制器
 │   │   ├── categoryController.js      # 分类控制器
@@ -99,6 +103,7 @@ LibrarySystem/
 │   │   └── validation.js  # 验证中间件
 │   ├── routes/         # 路由
 │   │   ├── announcementRoutes.js  # 公告路由
+│   │   ├── notificationRoutes.js  # 站内通知路由
 │   │   ├── bookRoutes.js          # 书籍路由
 │   │   ├── borrowRoutes.js        # 借阅路由
 │   │   ├── categoryRoutes.js      # 分类路由
@@ -117,7 +122,6 @@ LibrarySystem/
 │   ├── fix_book_status.js # 书籍状态修复工具
 │   ├── fix_borrow_records.js # 修复借阅记录工具
 │   ├── fix_borrow_records_direct.js # 直接修复借阅记录工具
-│   ├── test_constraints.js # 约束测试工具
 │   ├── update_book_data.js # 书籍数据更新工具
 │   ├── package.json    # 后端依赖
 │   ├── package-lock.json # 后端依赖锁文件
@@ -347,7 +351,7 @@ npm run dev
 
 ## 功能说明
 
-### 最新功能状态（2026-05-06）
+### 最新功能状态（2026-05-12）
 
 - 角色数据值仍使用 `user/librarian/admin`，前端展示层将普通用户显示为 `Reader`，不改变后端权限与接口逻辑。
 - 借阅确认改为确认时选择副本：用户发起借阅后记录状态为 `borrowing`，不会提前占用或展示某个副本条形码；确认弹窗中选择可用副本后才绑定 `copy_id` 并显示 `copy_code`。
@@ -360,6 +364,11 @@ npm run dev
 - Reader 书籍页升级为仪表盘布局：顶部统计卡、紧凑书籍卡片、搜索/分类/快捷状态筛选、右侧热门书籍/最近借阅/系统统计侧栏。
 - 书籍管理的 Add New Book 改为弹窗；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
 - Batch Import 使用现代双栏导入界面：左侧 ISBN 列表与 CSV/TXT 上传，右侧实时预览成功/重复/无效 ISBN，下方 Copy Settings 统一生成副本位置、数量和分类。
+- Release 2 新增站内通知：预约书籍在归还审批后变为可借时，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
+- 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
+- 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
+- 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
+- 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
 ### 前端功能
 
@@ -381,6 +390,7 @@ npm run dev
    - `/profile` - 个人资料
    - `/announcements` - 公告
    - `/announcement-management` - 公告管理（管理员）
+   - `/notifications` - 站内通知
    - `/category-management` - 分类管理（管理员/图书管理员）
    - `/stats` - 统计分析
    - `/return-approval` - 归还审批（管理员/图书管理员）
@@ -409,6 +419,7 @@ npm run dev
    - 新增副本时自动生成副本编号和条形码编号，并填充默认位置
    - 副本位置支持单个确认保存和批量应用到全部副本；批量位置保存会按顺序提交，避免 SQLite 并发事务冲突
    - ISBN单个/批量导入；批量导入支持 ISBN 实时预览、CSV/TXT 上传、导入进度和 Copy Settings
+   - 批量导入会在前端和后端同时报告无效 ISBN、重复 ISBN、元数据查询失败和写入失败原因
 7. **书籍详情页**：
    - 显示书籍详细信息
    - 显示所有副本信息（ID、条形码、状态、位置）
@@ -451,15 +462,20 @@ npm run dev
     - 每个toast独立倒计时，按照创建顺序消失
     - 当一个toast消失时，其他toast会平滑上移
     - 手动关闭toast时也会有平滑的消失动画
-12. **加载状态**：使用 SkeletonLoader 组件显示加载状态
+12. **站内通知与公告提醒**：
+    - 预约书籍归还审批后恢复可借时，自动生成站内通知
+    - 侧边栏显示未读通知数量，Reader 可进入通知中心查看、单条已读或全部已读
+    - 已发布公告按用户记录已读状态；存在未读公告时，全局弹窗提醒一次
+    - 公告管理使用弹窗创建/编辑公告，发布开关和列表状态清晰分离
+13. **加载状态**：使用 SkeletonLoader 组件显示加载状态
     - 书籍列表加载时显示骨架屏
     - 提升用户体验，减少加载等待感
     - 响应式设计，适配不同屏幕尺寸
-13. **数据验证**：
+14. **数据验证**：
     - 表单字段验证
     - 数据格式检查
     - 重复数据提示
-14. **安全性**：
+15. **安全性**：
     - 前端输入验证
     - 密码强度检查
     - 实时错误提示
@@ -499,29 +515,33 @@ npm run dev
    - 支持单个和批量 ISBN 导入
    - 批量导入时通过 Copy Settings 指定默认位置、每本副本数和分类，后端自动生成副本编号与条形码编号
    - 批量导入会保留 ISBN 元数据中的语言和页数，缺省时使用默认值
+   - 批量导入会返回每个失败 ISBN 的具体原因，包含格式错误、重复、元数据缺失和数据库写入错误
    - 批量导入事务会等待书籍、分类关联和所有副本写入完成后再提交并返回成功/失败统计
-8. **用户管理**：处理用户信息的增删改查
-9. **数据去重**：
+8. **站内通知与公告已读**：
+   - `notifications` 表保存预约可借通知，支持未读数量、单条已读和全部已读
+   - `announcement_reads` 表按用户保存公告已读状态，避免已读公告重复弹窗
+   - 公告创建/编辑采用弹窗表单，保存后刷新公告列表
+9. **用户管理**：处理用户信息的增删改查
+10. **数据去重**：
    - 书籍ISBN唯一检查
    - 用户名唯一检查
    - 数据库唯一索引约束
-10. **数据验证**：
+11. **数据验证**：
    - API请求参数验证
    - 数据完整性检查
    - 错误处理和提示
-11. **安全性**：
+12. **安全性**：
    - 密码加密存储（使用bcrypt）
    - JWT token认证
    - 中间件权限控制
    - 输入验证中间件
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
-12. **数据库工具**：
+13. **数据库工具**：
     - `check_db.js` - 检查数据库中的书籍和借阅记录
     - `check_indexes.js` - 检查数据库索引状态和数据
     - `cleanup.js` - 清理数据库重复数据并添加唯一约束
     - `fix_book_status.js` - 修复书籍状态
-    - `test_constraints.js` - 测试数据库唯一约束
     - 其他数据修复和管理工具
 
 ## 开发指南

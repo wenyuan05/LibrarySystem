@@ -34,6 +34,73 @@ exports.getAnnouncementById = (req, res) => {
   );
 };
 
+// 获取当前用户未读公告
+exports.getUnreadAnnouncements = (req, res) => {
+  const sql = `
+    SELECT a.*
+    FROM announcements a
+    LEFT JOIN announcement_reads ar
+      ON ar.announcement_id = a.id
+      AND ar.user_id = ?
+    WHERE a.is_published = 1
+      AND ar.id IS NULL
+    ORDER BY a.created_at DESC, a.id DESC
+  `;
+
+  db.all(sql, [req.user.id], (err, announcements) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(announcements || []);
+  });
+};
+
+// 标记公告已读
+exports.markAnnouncementsRead = (req, res) => {
+  const announcementIds = Array.isArray(req.body.announcement_ids)
+    ? req.body.announcement_ids
+    : [req.body.announcement_id || req.params.id].filter(Boolean);
+
+  const normalizedIds = [...new Set(
+    announcementIds
+      .map(id => parseInt(id, 10))
+      .filter(id => Number.isInteger(id) && id > 0)
+  )];
+
+  if (normalizedIds.length === 0) {
+    res.status(400).json({ error: 'announcement_ids is required' });
+    return;
+  }
+
+  const insertRead = db.prepare('INSERT OR IGNORE INTO announcement_reads (user_id, announcement_id) VALUES (?, ?)');
+  let processed = 0;
+  let failed = false;
+
+  normalizedIds.forEach((announcementId) => {
+    insertRead.run(req.user.id, announcementId, (err) => {
+      if (failed) return;
+      if (err) {
+        failed = true;
+        insertRead.finalize();
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      processed++;
+      if (processed === normalizedIds.length) {
+        insertRead.finalize((finalizeErr) => {
+          if (finalizeErr) {
+            res.status(500).json({ error: finalizeErr.message });
+            return;
+          }
+          res.json({ message: 'Announcements marked as read', updated: processed });
+        });
+      }
+    });
+  });
+};
+
 // 创建公告（系统管理员）
 exports.createAnnouncement = (req, res) => {
   const { title, content, is_published } = req.body;

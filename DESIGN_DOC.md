@@ -27,7 +27,7 @@
 | 构建工具 | Vite | 7.3.1 | 前端构建 |
 | 前端 | JsBarcode | 3.12.3 | 副本条形码渲染 |
 
-### 1.3 最新设计状态（2026-05-06）
+### 1.3 最新设计状态（2026-05-12）
 
 - 数据模型仍保留 `user/librarian/admin` 三种角色值；前端展示层将 `user` 显示为 `Reader`，权限判断和接口协议不变。
 - 副本从书籍基础信息中拆分为独立管理弹窗：书籍卡片负责编辑书籍信息，`Manage Copies` 负责新增副本、状态调整、单个位置确认和批量位置更新。
@@ -40,6 +40,10 @@
 - 书籍卡片增加封面缩略图、状态 badge、紧凑元数据、可用率进度条和 hover elevation，提升库存浏览密度。
 - Add New Book 采用弹窗承载；单本添加只维护书籍元数据，批量导入通过 Copy Settings 统一生成副本位置、数量和分类。
 - Batch Import 页面使用左侧 ISBN 输入/CSV 上传、右侧实时预览、底部 Copy Settings 和导入进度，清晰分离“元数据导入”和“副本生成”。
+- Release 2 站内通知由后端持久化：预约书籍在归还审批后恢复可借时写入 `notifications`，侧边栏显示未读数量，通知中心支持单条/全部已读。
+- 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
+- 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
+- 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 
 ## 2. 前端设计
 
@@ -83,6 +87,7 @@ src/
 │   └── useApiRequest.jsx   # API请求处理
 ├── pages/            # 页面组件
 │   ├── AnnouncementManagementPage.jsx  # 公告管理
+│   ├── AnnouncementManagementPage.css  # 公告管理样式
 │   ├── AnnouncementsPage.jsx           # 公告列表
 │   ├── BookDetailsPage.jsx             # 书籍详情
 │   ├── BookManagementPage.jsx          # 书籍管理
@@ -90,6 +95,8 @@ src/
 │   ├── BorrowRecordsPage.jsx           # 借阅记录
 │   ├── CategoryManagementPage.jsx      # 分类管理
 │   ├── LogsPage.jsx                    # 系统日志
+│   ├── NotificationsPage.jsx           # 站内通知
+│   ├── NotificationsPage.css           # 站内通知样式
 │   ├── ProfilePage.jsx                 # 个人资料
 │   ├── ReservationsPage.jsx            # 预约管理
 │   ├── ReturnApprovalPage.jsx          # 归还审批
@@ -213,6 +220,7 @@ backend/
 │   ├── borrowController.js        # 借阅控制器
 │   ├── categoryController.js      # 分类控制器
 │   ├── logController.js           # 日志控制器
+│   ├── notificationController.js  # 站内通知控制器
 │   ├── statsController.js         # 统计控制器
 │   ├── systemController.js        # 系统控制器
 │   └── userController.js          # 用户控制器
@@ -226,6 +234,7 @@ backend/
 │   ├── borrowRoutes.js        # 借阅路由
 │   ├── categoryRoutes.js      # 分类路由
 │   ├── logRoutes.js           # 日志路由
+│   ├── notificationRoutes.js  # 站内通知路由
 │   ├── statsRoutes.js         # 统计路由
 │   ├── systemRoutes.js        # 系统路由
 │   └── userRoutes.js          # 用户路由
@@ -236,7 +245,6 @@ backend/
 ├── check_indexes.js  # 索引检查工具
 ├── cleanup.js        # 数据清理工具
 ├── fix_book_status.js # 书籍状态修复工具
-├── test_constraints.js # 约束测试工具
 ├── package.json      # 依赖配置
 └── .env.example      # 环境变量示例
 ```
@@ -343,9 +351,19 @@ backend/
 - **方法**：
   - getAllAnnouncements：获取公告列表
   - getAnnouncementById：获取单个公告
+  - getUnreadAnnouncements：获取当前登录用户未读公告
+  - markAnnouncementsRead：标记单个或多个公告已读
   - createAnnouncement：创建公告
   - updateAnnouncement：更新公告
   - deleteAnnouncement：删除公告
+
+**notificationController.js**
+- **功能**：处理站内通知
+- **方法**：
+  - getUserNotifications：获取用户通知列表
+  - getUnreadCount：获取未读通知数量
+  - markAsRead：标记单条通知已读
+  - markAllAsRead：标记用户全部通知已读
 
 #### 3.2.5 统计模块
 
@@ -369,7 +387,8 @@ backend/
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
 | 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert） |
-| 公告管理 | /api/announcements | 公告CRUD |
+| 公告管理 | /api/announcements | 公告CRUD、当前用户未读公告、公告已读记录 |
+| 站内通知 | /api/notifications | 预约可借通知、未读数量、标记已读 |
 | 日志管理 | /api/logs | 系统日志 |
 | 统计分析 | /api/stats | 各种统计数据 |
 
@@ -452,10 +471,20 @@ backend/
 
 1. 用户查看书籍详情
 2. 如果所有副本均已借出，可点击预约按钮
-3. 系统创建预约记录，状态为 "pending"
-4. 当有副本归还时，系统通知用户
-5. 用户确认预约后，预约状态变为 "confirmed"
-6. 用户在规定时间内完成借阅
+3. 系统创建预约记录，状态为 `active`，并将 `notification_sent` 置为 `0`
+4. 用户提交归还，管理员/图书管理员审批归还
+5. 审批释放副本并重新计算可用副本数
+6. 如果该书存在未通知的有效预约，系统写入 `notifications` 并更新 `notification_sent = 1`
+7. Reader 侧边栏显示未读通知数量，用户进入 `/notifications` 查看并标记已读
+
+### 4.5 公告提醒流程
+
+1. 管理员在 `/announcement-management` 通过弹窗创建或编辑公告
+2. 已发布公告对用户可见
+3. 用户登录并进入受保护布局后，MainLayout 请求 `/api/announcements/unread/mine`
+4. 如果存在未读已发布公告，前端展示公告弹窗
+5. 用户点击确认后，前端调用 `/api/announcements/read` 写入 `announcement_reads`
+6. 已读公告不会再次触发弹窗提醒
 
 ## 5. 性能优化
 

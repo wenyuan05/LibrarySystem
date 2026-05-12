@@ -133,6 +133,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   }, [existingIsbnSet, metadataCache, parsedIsbns]);
 
   const importablePreview = batchPreview.filter(item => item.status === 'success');
+  const blockedPreview = batchPreview.filter(item => item.status !== 'success');
 
   useEffect(() => {
     if (activeTab !== 'batch') return undefined;
@@ -217,8 +218,12 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     setImportResult(null);
     
     try {
-      // 构建书籍数据列表
       const books = [];
+      const lookupErrors = blockedPreview.map(item => ({
+        isbn: item.isbn,
+        error: item.status === 'duplicate' ? 'Duplicate ISBN in database or import list' : 'ISBN must be 10 or 13 digits, or metadata was not found'
+      }));
+
       for (const item of importablePreview) {
         try {
           const cachedData = metadataCache[item.isbn]?.data;
@@ -231,7 +236,10 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
           });
         } catch (err) {
           console.error(`Failed to fetch book for ISBN ${item.isbn}:`, err);
-          // 继续处理其他 ISBN
+          lookupErrors.push({
+            isbn: item.isbn,
+            error: err.message || 'Failed to fetch metadata'
+          });
         } finally {
           setImportProgress(prev => ({
             ...prev,
@@ -239,18 +247,31 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
           }));
         }
       }
-      
+
       if (books.length === 0) {
+        setImportResult({
+          success: 0,
+          failed: lookupErrors.length,
+          errors: lookupErrors
+        });
         showToast('No valid books found', 'error');
         return;
       }
-      
+
       // 批量导入书籍
       const result = await booksAPI.batchImport(books);
-      setImportResult(result);
-      showToast(`Batch import completed: ${result.success} success, ${result.failed} failed`, 'success');
-      setIsbnList('');
-      setMetadataCache({});
+      const mergedResult = {
+        ...result,
+        failed: result.failed + lookupErrors.length,
+        errors: [...lookupErrors, ...(result.errors || [])]
+      };
+      setImportResult(mergedResult);
+      showToast(`Batch import completed: ${mergedResult.success} success, ${mergedResult.failed} failed`, mergedResult.success > 0 ? 'success' : 'error');
+
+      if (mergedResult.success > 0) {
+        setIsbnList('');
+        setMetadataCache({});
+      }
       
       // 通知父组件刷新书籍列表
       if (onBookAdded && result.success > 0) {

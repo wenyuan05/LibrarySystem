@@ -989,3 +989,108 @@ This file documents all bug fixes applied to the project.
   - Documented that bulk location updates are submitted sequentially.
 - **Reason**: Prevent SQLite `cannot start a transaction within a transaction` errors caused by concurrent location update requests.
 
+## 2026-05-12
+
+### Feature: Complete Release 2 reservation notifications
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/notificationController.js`
+  - `backend/routes/notificationRoutes.js`
+  - `backend/server.js`
+  - `src/App.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/components/Sidebar/Sidebar.css`
+  - `src/pages/NotificationsPage.jsx`
+  - `src/pages/NotificationsPage.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `DATABASE_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added the `notifications` table and indexes.
+  - Added notification APIs for list, unread count, single read, and read-all.
+  - Triggered reservation availability notifications during return approval after available copies are recalculated.
+  - Added the `/notifications` page and sidebar unread badge.
+  - Documented notification schema, API contract, UI flow, and test cases.
+- **Reason**: Finish Release 2 reservation notification requirements and make availability notices visible and trackable for readers.
+
+### Feature: Add unread announcement reminders
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/announcementController.js`
+  - `backend/routes/announcementRoutes.js`
+  - `src/components/layout/MainLayout.jsx`
+  - `src/styles/global.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `DATABASE_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `announcement_reads` to record announcement read state per user.
+  - Added endpoints for current-user unread announcements and marking announcements read.
+  - Added a global popup reminder for unread published announcements in `MainLayout`.
+  - Marked announcements as read when users acknowledge the reminder so read announcements do not repeat.
+  - Documented the database table, API endpoints, UI behavior, and regression cases.
+- **Reason**: Ensure important published announcements proactively reach users while preventing repeated reminders after acknowledgement.
+
+### Fix 99: Convert announcement management form to an unclipped modal
+- **Files modified**:
+  - `src/pages/AnnouncementManagementPage.jsx`
+  - `src/pages/AnnouncementManagementPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the inline add/edit announcement form with a modal.
+  - Rendered the modal with `createPortal(document.body)` so it is not constrained by page content layers.
+  - Improved the announcement management list with content preview, published/draft status badges, and compact row actions.
+  - Added modal-specific responsive sizing and internal scrolling.
+- **Reason**: Prevent the announcement form from being clipped by parent layout/content layers and improve the management page usability.
+
+### Fix 100: Improve batch ISBN import error reporting
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `RELEASE2_NOTES.md`
+  - `release_plan_v2.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend validation for ISBN format, title, author, duplicate ISBNs, and copy count bounds.
+  - Returned per-ISBN backend errors in the batch import result.
+  - Merged frontend precheck and metadata lookup failures into the final import result display.
+  - Documented the request/response behavior and mixed-success validation scenarios.
+- **Reason**: Make batch import failures actionable instead of silently dropping failed ISBNs.
+
+### Maintenance: Remove unused backend test scripts
+- **Files modified**:
+  - `backend/test_blocked_user.js`
+  - `backend/test_constraints.js`
+  - `backend/test_db.js`
+  - `backend/test_renew_book.js`
+  - `backend/test_reserve.js`
+  - `backend/test_server.js`
+  - `backend/test_simple.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Deleted unused `backend/test*.js` ad hoc scripts that were not referenced by npm scripts or active workflows.
+  - Removed stale documentation references to `test_constraints.js`.
+- **Reason**: Reduce lint noise and keep the backend utility surface focused on maintained check/fix scripts.
+

@@ -6,6 +6,15 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 // 获取所有公告（无需登录，公开访问）
 router.get('/', announcementController.getAllAnnouncements);
 
+// 获取当前用户未读公告（需要登录）
+router.get('/unread/mine', authenticateToken, announcementController.getUnreadAnnouncements);
+
+// 批量标记公告已读（需要登录）
+router.put('/read', authenticateToken, announcementController.markAnnouncementsRead);
+
+// 标记单条公告已读（需要登录）
+router.put('/:id/read', authenticateToken, announcementController.markAnnouncementsRead);
+
 // 获取单个公告（无需登录，公开访问）
 router.get('/:id', announcementController.getAnnouncementById);
 
