@@ -967,3 +967,14 @@ This file documents all bug fixes applied to the project.
   - Documented that setting `fine_per_day` to `0` disables overdue fines.
 - **Reason**: Allow administrators to intentionally disable overdue fines without the backend falling back to the default value.
 
+### Fix 97: Allow librarians to manage user fines
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated `getUserFines` authorization to allow self, admin, or librarian access.
+  - Updated `payFine` authorization to allow self, admin, or librarian actions.
+  - Documented that administrators and librarians can view and process user fines.
+- **Reason**: Align fines endpoint authorization with the UI and API documentation.
+

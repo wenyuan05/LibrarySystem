@@ -1132,8 +1132,8 @@ exports.checkOverdueRecords = function(req, res) {
 exports.getUserFines = function(req, res) {
   const { user_id } = req.params;
   
-  // 非管理员只能查看自己的罚款记录
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+  // 普通用户只能查看自己的罚款记录；管理员和图书管理员可查看任意用户罚款
+  if (Number(user_id) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'librarian') {
     res.status(403).json({ error: 'Forbidden: cannot view other users\' fines' });
     return;
   }
@@ -1162,8 +1162,8 @@ exports.getUserFines = function(req, res) {
 exports.payFine = function(req, res) {
   const { user_id } = req.body;
   
-  // 非管理员只能支付自己的罚款
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+  // 普通用户只能支付自己的罚款；管理员和图书管理员可代用户处理罚款
+  if (Number(user_id) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'librarian') {
     res.status(403).json({ error: 'Forbidden: cannot pay other users\' fines' });
     return;
   }
