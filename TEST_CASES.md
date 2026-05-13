@@ -400,3 +400,84 @@
   - 仅显示 `borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day` 对应设置
   - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
   - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
+## Test Cases Update - 2026-05-13
+
+### Test Case: Prevent deleting users with active lending state
+
+- **Scenario**: Admin attempts to delete users with active records.
+- **Steps**:
+  1. Create or select a user with a `borrowing`, `borrowed`, `overdue`, or `returning` borrow record.
+  2. Attempt to delete the user from User Management.
+  3. Create or select a user with an active reservation and attempt deletion.
+  4. Attempt to delete the currently logged-in admin account.
+  5. Attempt to delete another admin account.
+- **Expected result**:
+  - Delete is rejected for active borrow records.
+  - Delete is rejected for active reservations.
+  - Delete is rejected for the current account.
+  - Delete is rejected for admin accounts.
+  - The frontend displays the backend error message.
+
+### Test Case: Prevent deleting books with active lending or reservation state
+
+- **Scenario**: Admin or librarian attempts to delete books that are still operationally active.
+- **Steps**:
+  1. Select a book with a `borrowing`, `borrowed`, `overdue`, or `returning` record.
+  2. Attempt to delete the book.
+  3. Select a book with an occupied copy status (`borrowing`, `borrowed`, or `reserved`) and attempt deletion.
+  4. Select a book with an active reservation and attempt deletion.
+- **Expected result**:
+  - Delete is rejected in all active or occupied states.
+  - No book, copy, category link, borrow record, or reservation record is orphaned.
+  - The frontend displays the backend error message.
+
+### Test Case: Delete one available copy
+
+- **Scenario**: Admin or librarian deletes a surplus available copy.
+- **Steps**:
+  1. Open Book Management.
+  2. Click `Manage Copies` for a book with at least two copies.
+  3. Choose a copy whose status is `available`.
+  4. Click `Delete`.
+  5. Confirm the browser confirmation prompt.
+- **Expected result**:
+  - The copy row is removed from the modal.
+  - `books.total_copies` decreases by one.
+  - `books.available_copies` is recalculated correctly.
+  - The book still has at least one copy.
+
+### Test Case: Block unsafe copy deletion
+
+- **Scenario**: Admin or librarian attempts to delete a copy that should not be removable.
+- **Steps**:
+  1. Try deleting a copy with status `borrowed`, `borrowing`, `reserved`, or `unavailable`.
+  2. Try deleting the only remaining copy of a book.
+  3. Try deleting an available copy that still has an active borrow record in the database.
+- **Expected result**:
+  - The UI disables obvious unsafe copy deletes.
+  - The backend rejects all unsafe delete attempts even if called directly.
+  - Book counters remain unchanged after rejected attempts.
+
+### Test Case: Copy Management desktop layout
+
+- **Scenario**: Confirm that action buttons are visible without horizontal dragging.
+- **Steps**:
+  1. Open Copy Management on a desktop viewport.
+  2. Confirm the table displays Barcode, Status, Location, and Action columns.
+  3. Verify `Confirm` and `Delete` buttons are visible without dragging the bottom horizontal scrollbar.
+  4. Resize to a small mobile-width viewport.
+- **Expected result**:
+  - Desktop layout shows action buttons immediately.
+  - Small screens may use horizontal scrolling while keeping controls readable.
+
+### Test Case: Log clear validation
+
+- **Scenario**: Admin clears logs with valid and invalid age filters.
+- **Steps**:
+  1. Call `DELETE /api/logs/clear` with `days = 7`.
+  2. Call it with `days = 0`.
+  3. Call it with invalid values such as `-1`, `1.5`, or a string.
+- **Expected result**:
+  - Valid values clear matching logs.
+  - `0` clears all logs.
+  - Invalid values return HTTP 400 and do not delete logs.

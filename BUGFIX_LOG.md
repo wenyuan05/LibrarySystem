@@ -2,6 +2,55 @@
 
 This file documents all bug fixes applied to the project.
 
+## 2026-05-13
+
+### Fix 1: Harden dangerous delete operations
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `backend/controllers/bookController.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/logController.js`
+  - `backend/routes/userRoutes.js`
+  - `backend/utils/statusConstants.js`
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Books/BookList.jsx`
+- **Changes**:
+  - Added shared active-status constants for borrow, reservation, and occupied-copy checks.
+  - User deletion now blocks self-deletion, admin-account deletion, active borrow records, and active reservations.
+  - Book deletion now blocks active borrow records, occupied copies, and active reservations.
+  - Active borrow checks now include `borrowing`, `borrowed`, `overdue`, and `returning`.
+  - Removed reliance on `return_date IS NULL` for delete safety, because `returning` records can already have a `return_date` while still awaiting approval.
+  - Reduced-copy updates now require enough available copies and validate `total_copies` as a positive integer.
+  - Log clearing validates `days` before running the delete query.
+  - Frontend delete failures now surface backend safety messages.
+- **Reason**: Prevent low-level data integrity failures such as deleting a user or book while unreturned, overdue, or return-pending records still exist.
+
+### Fix 2: Add safe single-copy deletion
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/routes/bookRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/CopyManagementModal.jsx`
+- **Changes**:
+  - Added `DELETE /api/books/copies/:id`.
+  - Copy deletion is limited to `admin` and `librarian`.
+  - Backend only deletes copies with `status = 'available'`.
+  - Backend blocks deleting the last remaining copy of a book.
+  - Backend blocks deletion if the copy has any active borrow record.
+  - After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
+  - Copy Management modal now shows a `Delete` action per copy with confirmation and disabled states.
+- **Reason**: Let librarians remove surplus physical copies while preserving borrow, reservation, and inventory consistency.
+
+### Fix 3: Fix Copy Management action-column layout
+- **Files modified**:
+  - `src/components/Books/Books.css`
+- **Changes**:
+  - Removed desktop table minimum width that forced horizontal scrolling.
+  - Changed copy-management table columns to fit the modal width.
+  - Constrained barcode rendering and compacted the location editor.
+  - Kept horizontal scrolling only for smaller screens.
+- **Reason**: Ensure `Confirm` and `Delete` buttons are visible without dragging the bottom scrollbar on desktop.
+
 ## 2026-03-08
 
 ### Fix 1: Add security checks for books.find()

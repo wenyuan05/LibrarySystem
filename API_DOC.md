@@ -5,7 +5,7 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 19 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 20 |
 | 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
 | 系统管理 | 系统设置、公告、公告已读、日志 | 11 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
@@ -1371,3 +1371,77 @@ api.get('/books').then(response => {
 6. **CSRF防护**：实现CSRF令牌验证
 7. **密码安全**：使用强密码哈希算法
 8. **Token管理**：实现token过期和刷新机制
+## 8. API Update - 2026-05-13
+
+### 8.1 Book-management endpoint count
+
+The book-management module now includes 20 endpoints after adding single-copy deletion.
+
+### 8.2 DELETE /api/books/copies/:id
+
+**Purpose**: Delete one physical copy of a book.
+
+**Permission**: `admin` or `librarian`
+
+**Response**:
+
+```json
+{
+  "message": "Copy deleted successfully"
+}
+```
+
+**Safety rules**:
+
+- The copy id must be a positive integer.
+- The copy must exist.
+- The copy status must be `available`.
+- The parent book must keep at least one remaining copy.
+- The copy must not have an active borrow record.
+- After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
+
+**Possible errors**:
+
+```json
+{ "error": "Cannot delete copy: only available copies can be deleted" }
+```
+
+```json
+{ "error": "Cannot delete copy: a book must keep at least one copy" }
+```
+
+```json
+{ "error": "Cannot delete copy: it has active borrowing records" }
+```
+
+### 8.3 Delete-safety rules
+
+The following active borrow statuses block user deletion, book deletion, and duplicate borrow creation:
+
+- `borrowing`
+- `borrowed`
+- `overdue`
+- `returning`
+
+User deletion now also blocks:
+
+- deleting the current account
+- deleting an admin account
+- active reservations with status `active` or `pending`
+
+Book deletion now also blocks:
+
+- occupied copies with status `borrowing`, `borrowed`, or `reserved`
+- active reservations with status `active` or `pending`
+
+The delete checks no longer rely on `return_date IS NULL`, because `returning` records already have a return date while still waiting for librarian approval.
+
+### 8.4 DELETE /api/logs/clear validation
+
+`days` must be an integer from `1` to `3650`, or `0` to clear all logs. Invalid values return:
+
+```json
+{
+  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
+}
+```

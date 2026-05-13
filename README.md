@@ -659,3 +659,21 @@ npm run dev
 ## 许可证
 
 MIT License
+
+## Maintenance Update - 2026-05-13
+
+### Dangerous operation safeguards
+
+- User deletion is now admin-only and is blocked when the target user is the current account, an admin account, has active borrow records, or has active reservations.
+- Book deletion is blocked when the book has active borrow records, occupied copies, or active reservations.
+- Active borrow checks consistently include `borrowing`, `borrowed`, `overdue`, and `returning`, so return-pending and overdue records cannot be bypassed.
+- Copy-count reduction validates `total_copies` and refuses to remove more copies than are currently available.
+- System log clearing validates the `days` parameter before issuing a delete query.
+
+### Copy management
+
+- Copy Management now supports deleting a single copy through the modal action column.
+- Single-copy deletion calls `DELETE /api/books/copies/:id`.
+- A copy can be deleted only when it is `available`, is not the last copy for the book, and has no active borrow records.
+- After deletion, the backend recalculates `books.total_copies` and `books.available_copies` in the same transaction.
+- The Copy Management modal table layout was adjusted so the `Confirm` and `Delete` buttons are visible on desktop without dragging the horizontal scrollbar.

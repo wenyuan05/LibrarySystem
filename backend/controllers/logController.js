@@ -46,9 +46,14 @@ exports.clearSystemLogs = (req, res) => {
   const params = [];
   
   // 如果指定了天数，只清除指定天数前的日志
-  if (days) {
+  if (days !== undefined && days !== null && days !== 0) {
+    const parsedDays = Number(days);
+    if (!Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 3650) {
+      res.status(400).json({ error: 'Days must be an integer between 1 and 3650, or 0 to clear all logs' });
+      return;
+    }
     sql += ' WHERE created_at < datetime(\'now\', ?)';
-    params.push(`-${days} days`);
+    params.push(`-${parsedDays} days`);
   }
   
   db.run(sql, params, function(err) {

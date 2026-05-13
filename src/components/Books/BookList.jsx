@@ -80,7 +80,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, s
         }
         showToast('Book deleted successfully', 'success');
       } catch (err) {
-        showToast('Failed to delete book', 'error');
+        showToast(err.message || 'Failed to delete book', 'error');
         console.error(err);
       }
     }

@@ -1,5 +1,7 @@
-// API基础URL
-const API_BASE_URL = 'http://localhost:3001/api';
+// API base URL.
+// Use a relative path in production so the static site can be served behind
+// the same reverse proxy as the backend without browser-side CORS issues.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const monthLookup = {
   january: '01',
@@ -251,6 +253,12 @@ export const booksAPI = {
   },
   
   // 更新副本状态
+  deleteCopy: async (copyId) => {
+    return request(`/books/copies/${copyId}`, {
+      method: 'DELETE',
+    });
+  },
+  
   updateCopyStatus: async (copyId, status) => {
     return request(`/books/copies/${copyId}/status`, {
       method: 'PUT',

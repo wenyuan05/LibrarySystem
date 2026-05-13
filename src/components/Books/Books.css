@@ -1204,9 +1204,10 @@
 }
 
 .modal-content.copy-management-modal {
-  width: min(94vw, 1280px) !important;
-  max-width: 1280px !important;
-  min-width: min(94vw, 1040px);
+  box-sizing: border-box;
+  width: min(calc(100vw - 48px), 1260px) !important;
+  max-width: 1260px !important;
+  min-width: 0;
   padding: var(--spacing-xl);
   overflow-x: hidden;
 }
@@ -1276,9 +1277,10 @@
 }
 
 .copy-management-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
+  max-width: 100%;
 }
 
 .copy-management-table {
@@ -1293,28 +1295,42 @@
 
 .copy-management-table th:nth-child(1),
 .copy-management-table td:nth-child(1) {
-  width: 140px;
+  width: 9%;
 }
 
 .copy-management-table th:nth-child(2),
 .copy-management-table td:nth-child(2) {
-  width: 250px;
+  width: 23%;
 }
 
 .copy-management-table th:nth-child(3),
 .copy-management-table td:nth-child(3) {
-  width: 170px;
+  width: 15%;
 }
 
 .copy-management-table th:nth-child(4),
 .copy-management-table td:nth-child(4) {
-  width: 360px;
+  width: 38%;
+}
+
+.copy-management-table th:nth-child(5),
+.copy-management-table td:nth-child(5) {
+  width: 15%;
+  text-align: left;
 }
 
 .copy-management-table th,
 .copy-management-table td {
-  padding: var(--spacing-md);
+  box-sizing: border-box;
+  padding: var(--spacing-md) 10px;
   vertical-align: middle;
+}
+
+.copy-management-table .barcode-cell svg,
+.copy-management-table .barcode-cell canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .copy-management-table select,
@@ -1329,18 +1345,26 @@
 
 .copy-location-editor {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) auto;
+  grid-template-columns: minmax(0, 1fr) 92px;
   align-items: center;
-  gap: var(--spacing-sm);
-  justify-content: start;
+  gap: 8px;
+  width: 100%;
 }
 
 .copy-location-editor button {
   height: 38px;
   margin: 0;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-sm);
   font-size: var(--font-size-sm);
   white-space: nowrap;
+}
+
+.copy-management-table td:nth-child(5) .btn-danger {
+  width: 86px;
+  height: 38px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
 }
 
 .copy-id-stack {
@@ -1360,6 +1384,14 @@
     width: 96vw !important;
     min-width: 0;
     padding: var(--spacing-md);
+  }
+
+  .copy-management-table-wrap {
+    overflow-x: auto;
+  }
+
+  .copy-management-table {
+    min-width: 760px;
   }
 
   .book-detail-section {
