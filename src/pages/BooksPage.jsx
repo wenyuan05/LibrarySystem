@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import BookList from '../components/Books/BookList';
-import { booksAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
+import { booksAPI, borrowAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
 
 const BooksPage = () => {
   const [books, setBooks] = useState([]);
@@ -15,24 +15,22 @@ const BooksPage = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [popularBooks, setPopularBooks] = useState([]);
   const [recentBorrowed, setRecentBorrowed] = useState([]);
+  const [activeReservations, setActiveReservations] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
 
-  // Load books data
-  const fetchBooks = async (category = 'all', search = '') => {
+  const fetchBooks = useCallback(async (category = 'all', search = '') => {
     try {
       setBooksLoading(true);
       let data;
-      
-      // If there's a category or search term, use search API
+
       if (category !== 'all' || search.trim() !== '') {
         data = await booksAPI.search(search, category === 'all' ? null : category);
       } else {
-        // Otherwise get all books
         data = await booksAPI.getAll();
       }
-      
+
       setBooks(data);
     } catch (err) {
       console.error('Failed to load books:', err);
@@ -40,10 +38,9 @@ const BooksPage = () => {
     } finally {
       setBooksLoading(false);
     }
-  };
+  }, [showToast]);
 
-  // Load categories data
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setCategoriesLoading(true);
       const data = await categoryAPI.getAll();
@@ -53,19 +50,18 @@ const BooksPage = () => {
     } finally {
       setCategoriesLoading(false);
     }
-  };
+  }, []);
 
-  // Load popular books data
-  const fetchPopularBooks = async () => {
+  const fetchPopularBooks = useCallback(async () => {
     try {
       const data = await statsAPI.getPopularBooksStats(10);
       setPopularBooks(data);
     } catch (err) {
       console.error('Failed to load popular books:', err);
     }
-  };
+  }, []);
 
-  const fetchRecentBorrowed = async () => {
+  const fetchRecentBorrowed = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -78,60 +74,68 @@ const BooksPage = () => {
     } catch (err) {
       console.error('Failed to load recent borrowed records:', err);
     }
-  };
+  }, [user?.id]);
 
-  // Handle book update
+  const fetchActiveReservations = useCallback(async () => {
+    if (!user?.id) {
+      setActiveReservations([]);
+      return;
+    }
+
+    try {
+      const records = await borrowAPI.getReservations(user.id);
+      setActiveReservations((records || []).filter(record => ['active', 'pending'].includes(record.status)));
+    } catch (err) {
+      console.error('Failed to load reservation records:', err);
+      setActiveReservations([]);
+    }
+  }, [user?.id]);
+
   const handleBookUpdated = (updatedBook) => {
-    setBooks(prevBooks => prevBooks.map(book => 
+    setBooks(prevBooks => prevBooks.map(book =>
       book.id === updatedBook.id ? updatedBook : book
     ));
   };
 
-  // Handle book deletion
   const handleBookDeleted = (bookId) => {
     setBooks(prevBooks => prevBooks.filter(book => book.id !== bookId));
   };
 
-  // Load books and categories on component mount
   useEffect(() => {
     fetchBooks();
     fetchCategories();
     fetchPopularBooks();
-  }, []);
+  }, [fetchBooks, fetchCategories, fetchPopularBooks]);
 
   useEffect(() => {
     fetchRecentBorrowed();
-  }, [user]);
+    fetchActiveReservations();
+  }, [fetchRecentBorrowed, fetchActiveReservations]);
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-    // When search term changes, reload books data
     fetchBooks(selectedCategory, term);
   };
 
-  // Handle category selection
   const handleCategoryChange = (e) => {
     const category = e.target.value;
     setSelectedCategory(category);
-    // When category changes, reload books data
     fetchBooks(category, searchTerm);
   };
 
-  // Update filtered books when books list changes
   useEffect(() => {
+    const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
     const nextBooks = books.filter(book => {
       if (quickFilter === 'available') return Number(book.available_copies || 0) > 0;
       if (quickFilter === 'borrowed') return Number(book.available_copies || 0) === 0;
-      if (quickFilter === 'reserved') return book.status === 'reserved';
+      if (quickFilter === 'reserved') return reservedBookIds.has(Number(book.id));
       return true;
     });
 
     setFilteredBooks(nextBooks);
-  }, [books, quickFilter]);
+  }, [books, quickFilter, activeReservations]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -181,8 +185,7 @@ const BooksPage = () => {
             </div>
           ))}
         </div>
-        
-        {/* 搜索和筛选栏 */}
+
         <div className="books-toolbar">
           <div className="search-and-filter">
             <div className="books-search-bar">
@@ -228,8 +231,9 @@ const BooksPage = () => {
                 }}
                 disabled={categoriesLoading}
               >
-                {selectedCategory === 'all' ? 'All Categories' : 
-                  categories.find(cat => cat.id === selectedCategory)?.name || 'Select Category'}
+                {selectedCategory === 'all'
+                  ? 'All Categories'
+                  : categories.find(cat => cat.id === selectedCategory)?.name || 'Select Category'}
                 <span className="dropdown-arrow">▼</span>
               </button>
               <div className="category-dropdown-menu">
@@ -267,12 +271,12 @@ const BooksPage = () => {
           </div>
         </div>
 
-        {/* 书籍列表 */}
         <BookList
           books={filteredBooks}
           loading={booksLoading}
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
+          onReservationsChanged={fetchActiveReservations}
         />
       </div>
 

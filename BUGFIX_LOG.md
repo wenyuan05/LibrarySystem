@@ -4,6 +4,17 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-05-13
 
+### Fix 4: Correct Books page Reserved filter
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/BookList.jsx`
+- **Changes**:
+  - Books page now loads the current user's reservation records with `borrowAPI.getReservations`.
+  - The `Reserved` quick filter now matches books by reservation `book_id` instead of relying on a non-existent `book.status === 'reserved'` field.
+  - Active reservation matching accepts both `active` and `pending` states.
+  - BookList notifies the parent Books page after reserve/cancel actions so the Reserved filter updates without a full page refresh.
+- **Reason**: Reserved books were not shown in the Books page Reserved category even when the user already had active reservations.
+
 ### Fix 1: Harden dangerous delete operations
 - **Files modified**:
   - `backend/controllers/userController.js`
