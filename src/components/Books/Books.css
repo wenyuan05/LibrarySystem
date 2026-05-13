@@ -83,6 +83,12 @@
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
 }
 
+.books-search-bar .search-button {
+  flex: 0 0 60px;
+  height: 40px;
+  padding: 0;
+}
+
 .search-button {
   padding: 0 var(--spacing-lg);
   border: 1px solid var(--primary-color);

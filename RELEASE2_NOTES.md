@@ -55,5 +55,6 @@
 - Copy deletion is allowed only for available copies, never for the last copy of a book, and never when active borrow records exist.
 - Recalculated `books.total_copies` and `books.available_copies` after copy deletion in the same transaction.
 - Fixed Copy Management modal layout so desktop users can see `Confirm` and `Delete` actions without dragging the bottom horizontal scrollbar.
+- Added the shared icon search button to the Books page search bar and aligned it with the search input.
 - Improved frontend delete error messages by surfacing backend safety reasons.
 - Added validation to log clearing so invalid `days` values cannot trigger unintended delete scope.

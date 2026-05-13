@@ -95,6 +95,10 @@ const BooksPage = () => {
     fetchBooks(term);
   };
 
+  const handleSearchClick = () => {
+    fetchBooks(searchTerm);
+  };
+
   // Update filtered books when books list changes
   useEffect(() => {
     const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
@@ -154,6 +158,9 @@ const BooksPage = () => {
                   className="books-search-input"
                 />
               </div>
+              <button type="button" className="search-button" onClick={handleSearchClick}>
+                <img src="/放大镜.svg" alt="Search" />
+              </button>
             </div>
             <div className="quick-filter-group" aria-label="Book availability filters">
               {[
