@@ -407,7 +407,7 @@ npm run dev
    - 内容区域：根据路由显示不同的页面内容
 5. **书籍管理**：
    - 书籍列表展示，采用现代 dashboard 网格布局
-   - 搜索功能（支持按标题、作者、ISBN搜索），支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
+   - 搜索功能（支持按标题、作者、ISBN搜索），搜索栏提供输入框与统一图标按钮，支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
    - 点击书籍查看详情
    - 借阅和归还书籍
    - 删除书籍（管理员/图书管理员）
@@ -683,3 +683,8 @@ MIT License
 - The `Reserved` quick filter now uses the current user's reservation records instead of a book-level status field.
 - Reservations with status `active` or `pending` are treated as reserved for the current reader.
 - After a reader reserves or cancels a reservation from the book card, the Books page refreshes its reservation filter data without requiring a page reload.
+
+### Books page search
+
+- The Books page search bar now reuses the shared icon search button used by other search bars.
+- The search button is aligned with the input field and reruns the search using the current title, author, or ISBN query.

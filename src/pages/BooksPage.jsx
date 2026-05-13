@@ -124,6 +124,10 @@ const BooksPage = () => {
     fetchBooks(category, searchTerm);
   };
 
+  const handleSearchClick = () => {
+    fetchBooks(selectedCategory, searchTerm);
+  };
+
   useEffect(() => {
     const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
     const nextBooks = books.filter(book => {
@@ -199,6 +203,9 @@ const BooksPage = () => {
                   className="books-search-input"
                 />
               </div>
+              <button type="button" className="search-button" onClick={handleSearchClick}>
+                <img src="/放大镜.svg" alt="Search" />
+              </button>
             </div>
             <div className="quick-filter-group" aria-label="Book availability filters">
               {[

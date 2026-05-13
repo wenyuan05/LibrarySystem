@@ -495,3 +495,17 @@
   - Books with the current reader's `active` or `pending` reservation records are displayed.
   - Books are matched by reservation `book_id`, not by a book-level `status` field.
   - After canceling a reservation, the book disappears from the `Reserved` filter without a full page reload.
+
+### Test Case: Books page search button
+
+- **Scenario**: Reader searches books from the Books page toolbar.
+- **Steps**:
+  1. Log in as a reader.
+  2. Open the Books page.
+  3. Enter a title, author, or ISBN in the search field.
+  4. Click the search icon button beside the input.
+  5. Clear the input and click the search icon button again.
+- **Expected result**:
+  - The search icon button is visible beside the Books page search input.
+  - Clicking the button reruns the search using the current input value.
+  - Clearing the input and clicking the button reloads the full book list.

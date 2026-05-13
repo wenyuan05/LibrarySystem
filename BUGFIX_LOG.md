@@ -4,6 +4,20 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-05-13
 
+### Fix 5: Add Books page search button
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `RELEASE2_NOTES.md`
+  - `TEST_CASES.md`
+- **Changes**:
+  - Added the shared icon search button to the Books page search bar.
+  - Added a dedicated click handler that reruns the book search with the current search term.
+  - Scoped the Books page search button size so it stays aligned with the search input.
+  - Documented the UI behavior and regression test coverage.
+- **Reason**: The Books page search bar only exposed a text input, while other search bars also provided a visible search button.
+
 ### Fix 4: Correct Books page Reserved filter
 - **Files modified**:
   - `src/pages/BooksPage.jsx`
