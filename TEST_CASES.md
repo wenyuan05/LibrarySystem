@@ -481,3 +481,17 @@
   - Valid values clear matching logs.
   - `0` clears all logs.
   - Invalid values return HTTP 400 and do not delete logs.
+
+### Test Case: Books page Reserved filter
+
+- **Scenario**: Reader filters the Books page to show books they have reserved.
+- **Steps**:
+  1. Log in as a reader.
+  2. Reserve a book from the Books page, or use an existing active reservation.
+  3. Return to the Books page.
+  4. Click the `Reserved` quick filter.
+  5. Cancel the reservation from the book card and check the filter again.
+- **Expected result**:
+  - Books with the current reader's `active` or `pending` reservation records are displayed.
+  - Books are matched by reservation `book_id`, not by a book-level `status` field.
+  - After canceling a reservation, the book disappears from the `Reserved` filter without a full page reload.

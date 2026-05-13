@@ -677,3 +677,9 @@ MIT License
 - A copy can be deleted only when it is `available`, is not the last copy for the book, and has no active borrow records.
 - After deletion, the backend recalculates `books.total_copies` and `books.available_copies` in the same transaction.
 - The Copy Management modal table layout was adjusted so the `Confirm` and `Delete` buttons are visible on desktop without dragging the horizontal scrollbar.
+
+### Books page filters
+
+- The `Reserved` quick filter now uses the current user's reservation records instead of a book-level status field.
+- Reservations with status `active` or `pending` are treated as reserved for the current reader.
+- After a reader reserves or cancels a reservation from the book card, the Books page refreshes its reservation filter data without requiring a page reload.

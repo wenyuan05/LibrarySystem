@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import BookList from '../components/Books/BookList';
-import { booksAPI, usersAPI } from '../utils/api';
+import { booksAPI, borrowAPI, usersAPI } from '../utils/api';
 
 const BooksPage = () => {
   const [books, setBooks] = useState([]);
@@ -11,11 +11,12 @@ const BooksPage = () => {
   const [quickFilter, setQuickFilter] = useState('all');
   const [booksLoading, setBooksLoading] = useState(true);
   const [recentBorrowed, setRecentBorrowed] = useState([]);
+  const [activeReservations, setActiveReservations] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
 
   // Load books data
-  const fetchBooks = async (search = '') => {
+  const fetchBooks = useCallback(async (search = '') => {
     try {
       setBooksLoading(true);
       let data;
@@ -33,9 +34,9 @@ const BooksPage = () => {
     } finally {
       setBooksLoading(false);
     }
-  };
+  }, [showToast]);
 
-  const fetchRecentBorrowed = async () => {
+  const fetchRecentBorrowed = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -48,11 +49,26 @@ const BooksPage = () => {
     } catch (err) {
       console.error('Failed to load recent borrowed records:', err);
     }
-  };
+  }, [user?.id]);
+
+  const fetchActiveReservations = useCallback(async () => {
+    if (!user?.id) {
+      setActiveReservations([]);
+      return;
+    }
+
+    try {
+      const records = await borrowAPI.getReservations(user.id);
+      setActiveReservations((records || []).filter(record => ['active', 'pending'].includes(record.status)));
+    } catch (err) {
+      console.error('Failed to load reservation records:', err);
+      setActiveReservations([]);
+    }
+  }, [user?.id]);
 
   // Handle book update
   const handleBookUpdated = (updatedBook) => {
-    setBooks(prevBooks => prevBooks.map(book => 
+    setBooks(prevBooks => prevBooks.map(book =>
       book.id === updatedBook.id ? updatedBook : book
     ));
   };
@@ -65,11 +81,12 @@ const BooksPage = () => {
   // Load books on component mount
   useEffect(() => {
     fetchBooks();
-  }, []);
+  }, [fetchBooks]);
 
   useEffect(() => {
     fetchRecentBorrowed();
-  }, [user]);
+    fetchActiveReservations();
+  }, [fetchRecentBorrowed, fetchActiveReservations]);
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -80,15 +97,16 @@ const BooksPage = () => {
 
   // Update filtered books when books list changes
   useEffect(() => {
+    const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
     const nextBooks = books.filter(book => {
       if (quickFilter === 'available') return Number(book.available_copies || 0) > 0;
       if (quickFilter === 'borrowed') return Number(book.available_copies || 0) === 0;
-      if (quickFilter === 'reserved') return book.status === 'reserved';
+      if (quickFilter === 'reserved') return reservedBookIds.has(Number(book.id));
       return true;
     });
 
     setFilteredBooks(nextBooks);
-  }, [books, quickFilter]);
+  }, [books, quickFilter, activeReservations]);
 
   const totalBooks = books.length;
   const availableCopies = books.reduce((sum, book) => sum + Number(book.available_copies || 0), 0);
@@ -121,7 +139,7 @@ const BooksPage = () => {
             </div>
           ))}
         </div>
-        
+
         {/* 搜索和筛选栏 */}
         <div className="books-toolbar">
           <div className="search-and-filter">
@@ -163,6 +181,7 @@ const BooksPage = () => {
           loading={booksLoading}
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
+          onReservationsChanged={fetchActiveReservations}
         />
       </div>
 
