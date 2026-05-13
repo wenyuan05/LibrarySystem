@@ -527,6 +527,11 @@ const Login = () => {
                 // 注册成功后导航到首页
                 navigate('/');
               } catch (error) {
+                if (error.message === 'Email already exists') {
+                  setRegisterErrors(prev => ({ ...prev, email: 'Email already exists' }));
+                } else if (error.message === 'Username already exists') {
+                  setRegisterErrors(prev => ({ ...prev, username: 'Username already exists' }));
+                }
                 setLoginError(error.message);
               } finally {
                 setIsSubmitting(false);

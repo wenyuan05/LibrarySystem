@@ -44,9 +44,11 @@ const BorrowRecords = () => {
         const overdueFines = data.records
           .filter(r => r.status === 'overdue' && r.fine > 0)
           .reduce((sum, r) => sum + r.fine, 0);
+        const overdueLabel = data.overdue_count === 1 ? 'book' : 'books';
+        const returnTarget = data.overdue_count === 1 ? 'it' : 'them';
         const msg = overdueFines > 0
-          ? `您有 ${data.overdue_count} 本图书已逾期，预估罚款 ¥${overdueFines.toFixed(2)}，请及时归还！`
-          : `您有 ${data.overdue_count} 本图书已逾期，请及时归还！`;
+          ? `You have ${data.overdue_count} overdue ${overdueLabel}. Estimated fine: ¥${overdueFines.toFixed(2)}. Please return ${returnTarget} as soon as possible.`
+          : `You have ${data.overdue_count} overdue ${overdueLabel}. Please return ${returnTarget} as soon as possible.`;
         showToast(msg, 'warning');
       }
     } catch (err) {

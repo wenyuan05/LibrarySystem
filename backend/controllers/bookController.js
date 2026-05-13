@@ -102,7 +102,7 @@ exports.addBook = (req, res) => {
         const copies = total_copies || 1;
         db.run(
           'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, language || 'Chinese', page_count],
+          [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, language || 'English', page_count],
           function(err) {
             if (err) {
               db.run('ROLLBACK');
@@ -144,7 +144,7 @@ exports.addBook = (req, res) => {
                         available_copies: copies,
                         publisher,
                         publish_date,
-                        language: language || 'Chinese',
+                        language: language || 'English',
                         page_count
                       });
                     });
@@ -1078,7 +1078,7 @@ exports.searchByISBN = (req, res) => {
             isbn: isbn,
             description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
             cover_image: coverImage,
-            language: 'Chinese',
+            language: 'English',
             page_count: bookData.number_of_pages || 0
           };
           
@@ -1176,7 +1176,7 @@ exports.batchImportBooks = (req, res) => {
 
       const parsedCopies = parseInt(total_copies, 10);
       const copies = Number.isFinite(parsedCopies) && parsedCopies > 0 ? Math.min(parsedCopies, 100) : 1;
-      const normalizedLanguage = (language || 'Chinese').trim() || 'Chinese';
+      const normalizedLanguage = (language || 'English').trim() || 'English';
       const parsedPageCount = parseInt(page_count, 10);
       const normalizedPageCount = Number.isFinite(parsedPageCount) && parsedPageCount > 0 ? parsedPageCount : 0;
       const insertResult = await runAsync(

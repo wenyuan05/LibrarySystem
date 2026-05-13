@@ -64,4 +64,8 @@
   --sidebar-width-sm: 240px;
   --header-height: 64px;
   --main-content-max-width: 1200px;
+
+  /* 层级 */
+  --z-index-notification-modal: 2147482000;
+  --z-index-toast: 2147483000;
 }

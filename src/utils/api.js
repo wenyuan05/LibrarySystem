@@ -177,7 +177,7 @@ export const booksAPI = {
           isbn: isbn,
           description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
           cover_image: coverImage,
-          language: 'Chinese',
+          language: 'English',
           page_count: bookData.number_of_pages || 0
         };
         

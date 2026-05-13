@@ -68,7 +68,7 @@ db.serialize(() => {
       available_copies INTEGER DEFAULT 1,
       publisher TEXT,
       publish_date TEXT,
-      language TEXT DEFAULT 'Chinese',
+      language TEXT DEFAULT 'English',
       page_count INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -97,7 +97,7 @@ db.serialize(() => {
       password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
       name TEXT NOT NULL,
-      email TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
       phone TEXT,
       address TEXT,
       total_fine REAL DEFAULT 0,
@@ -220,7 +220,7 @@ db.serialize(() => {
   db.run('ALTER TABLE books ADD COLUMN publish_date TEXT', (err) => {
     // 字段已存在，忽略错误
   });
-  db.run('ALTER TABLE books ADD COLUMN language TEXT DEFAULT "Chinese"', (err) => {
+  db.run('ALTER TABLE books ADD COLUMN language TEXT DEFAULT "English"', (err) => {
     // 字段已存在，忽略错误
   });
   db.run('ALTER TABLE books ADD COLUMN page_count INTEGER', (err) => {
@@ -354,6 +354,7 @@ db.serialize(() => {
   
   // 用户表索引
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
   db.run('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)');
   
   // 借阅记录表索引

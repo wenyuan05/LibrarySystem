@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
@@ -6,7 +6,7 @@ import './Books.css';
 const ISBN_PATTERN = /^\d{10}(?:\d{3})?$/;
 
 const AddBookForm = ({ onBookAdded, onCancel }) => {
-  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
+  const [formData, setFormData] = useState({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'English', page_count: '' });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -188,7 +188,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
         author: bookData.author || '',
         publisher: bookData.publisher || '',
         publish_date: bookData.publish_date || '',
-        language: bookData.language || 'Chinese',
+        language: bookData.language || 'English',
         page_count: bookData.page_count || '',
         cover_image: bookData.cover_image || ''
       }));
@@ -377,7 +377,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
       
       showToast('Book added successfully!', 'success');
       // 重置表单
-      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'Chinese', page_count: '' });
+      setFormData({ title: '', author: '', isbn: '', publisher: '', publish_date: '', language: 'English', page_count: '' });
       setSelectedCategories([]);
       // 通知父组件刷新书籍列表
       if (onBookAdded) {
@@ -509,8 +509,8 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
             onChange={handleChange}
             disabled={isSubmitting}
           >
-            <option value="Chinese">Chinese</option>
             <option value="English">English</option>
+            <option value="Chinese">Chinese</option>
             <option value="Japanese">Japanese</option>
             <option value="Korean">Korean</option>
             <option value="Other">Other</option>

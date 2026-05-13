@@ -9,6 +9,16 @@ const {
 
 const JWT_EXPIRES_IN = '7d';
 
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const findUserByUsernameOrEmail = (username, email, callback) => {
+  db.get(
+    'SELECT id, username, email FROM users WHERE username = ? OR LOWER(email) = LOWER(?)',
+    [username, email],
+    callback
+  );
+};
+
 // 用户登录
 exports.login = (req, res) => {
   const { username, password } = req.body;
@@ -51,20 +61,22 @@ exports.login = (req, res) => {
 // 用户注册（普通用户自助注册）
 exports.register = (req, res) => {
   const { username, password, name, email } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
   if (!username || !password || !name || !email) {
     res.status(400).json({ error: 'Username, password, name and email are required' });
     return;
   }
 
-  // 检查用户名是否已存在
-  db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+  // 检查用户名和邮箱是否已存在
+  findUserByUsernameOrEmail(username, normalizedEmail, (err, existingUser) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (existingUser) {
-      res.status(400).json({ error: 'Username already exists' });
+      const isEmailMatch = normalizeEmail(existingUser.email) === normalizedEmail;
+      res.status(400).json({ error: isEmailMatch ? 'Email already exists' : 'Username already exists' });
       return;
     }
 
@@ -78,7 +90,7 @@ exports.register = (req, res) => {
       const role = 'user';
       db.run(
         'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
-        [username, hash, role, name, email],
+        [username, hash, role, name, normalizedEmail],
         function(insertErr) {
           if (insertErr) {
             res.status(500).json({ error: insertErr.message });
@@ -98,7 +110,7 @@ exports.register = (req, res) => {
           res.status(201).json({
             ...payload,
             name,
-            email,
+            email: normalizedEmail,
             token,
           });
         }
@@ -152,15 +164,17 @@ exports.getAllUsers = (req, res) => {
 // 添加用户（管理员）
 exports.addUser = (req, res) => {
   const { username, password, role, name, email } = req.body;
-  
-  // 检查用户名是否已存在
-  db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  // 检查用户名和邮箱是否已存在
+  findUserByUsernameOrEmail(username, normalizedEmail, (err, existingUser) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (existingUser) {
-      res.status(400).json({ error: 'Username already exists' });
+      const isEmailMatch = normalizeEmail(existingUser.email) === normalizedEmail;
+      res.status(400).json({ error: isEmailMatch ? 'Email already exists' : 'Username already exists' });
       return;
     }
     
@@ -173,7 +187,7 @@ exports.addUser = (req, res) => {
 
       db.run(
         'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
-        [username, hash, role, name, email],
+        [username, hash, role, name, normalizedEmail],
         function(err) {
           if (err) {
             res.status(500).json({ error: err.message });
@@ -183,7 +197,7 @@ exports.addUser = (req, res) => {
           // 为新用户创建状态记录
           db.run('INSERT INTO user_status (user_id, status) VALUES (?, ?)', [this.lastID, 'active']);
           
-          res.json({ id: this.lastID, username, role, name, email });
+          res.json({ id: this.lastID, username, role, name, email: normalizedEmail });
         }
       );
     });
@@ -200,14 +214,16 @@ exports.updateUser = (req, res) => {
   // 构建更新语句
   let updateFields = [];
   let params = [];
+  let normalizedEmail = null;
   
   if (body.hasOwnProperty('name') && body.name) {
     updateFields.push('name = ?');
     params.push(body.name);
   }
   if (body.hasOwnProperty('email') && body.email) {
+    normalizedEmail = normalizeEmail(body.email);
     updateFields.push('email = ?');
-    params.push(body.email);
+    params.push(normalizedEmail);
   }
   if (body.hasOwnProperty('phone')) {
     updateFields.push('phone = ?');
@@ -239,7 +255,7 @@ exports.updateUser = (req, res) => {
   params.push(id);
   const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
 
-  db.run(sql, params, function(err) {
+  const runUpdate = () => db.run(sql, params, function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -276,6 +292,28 @@ exports.updateUser = (req, res) => {
       }
     );
   });
+
+  if (normalizedEmail) {
+    db.get(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?',
+      [normalizedEmail, id],
+      (err, existingUser) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (existingUser) {
+          res.status(400).json({ error: 'Email already exists' });
+          return;
+        }
+
+        runUpdate();
+      }
+    );
+    return;
+  }
+
+  runUpdate();
 };
 
 // 删除用户（管理员）
