@@ -1,5 +1,6 @@
 const db = require('../db');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
+const { ACTIVE_BORROW_STATUSES, placeholders } = require('../utils/statusConstants');
 
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
@@ -70,8 +71,8 @@ exports.borrowBook = function(req, res) {
             }
 
             // 检查用户当前借阅数量是否超过限制
-            db.get('SELECT COUNT(*) as cnt FROM borrow_records WHERE user_id = ? AND status IN (?, ?)',
-              [user_id, 'borrowing', 'borrowed'], function(err, row) {
+            db.get(`SELECT COUNT(*) as cnt FROM borrow_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+              [user_id, ...ACTIVE_BORROW_STATUSES], function(err, row) {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -84,8 +85,8 @@ exports.borrowBook = function(req, res) {
                 }
 
                 // 检查用户是否已经有该书籍的未完成借阅记录
-                db.get('SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
-                  [user_id, book_id, 'borrowing', 'borrowed'], function(err, existingRecord) {
+                db.get(`SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+                  [user_id, book_id, ...ACTIVE_BORROW_STATUSES], function(err, existingRecord) {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });

@@ -1,5 +1,11 @@
 const db = require('../db');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
+const {
+  ACTIVE_BORROW_STATUSES,
+  ACTIVE_RESERVATION_STATUSES,
+  OCCUPIED_COPY_STATUSES,
+  placeholders
+} = require('../utils/statusConstants');
 
 const monthLookup = {
   january: '01',
@@ -184,8 +190,13 @@ exports.updateBook = (req, res) => {
     updateValues.push(cover_image);
   }
   if (total_copies !== undefined) {
+    const parsedTotalCopies = Number(total_copies);
+    if (!Number.isInteger(parsedTotalCopies) || parsedTotalCopies < 1) {
+      res.status(400).json({ error: 'Total copies must be a positive integer' });
+      return;
+    }
     updateFields.push('total_copies = ?');
-    updateValues.push(total_copies);
+    updateValues.push(parsedTotalCopies);
   }
   if (publisher !== undefined) {
     updateFields.push('publisher = ?');
@@ -242,7 +253,7 @@ exports.updateBook = (req, res) => {
             }
             
             const currentCount = result.count || 0;
-            const targetCount = parseInt(total_copies);
+            const targetCount = parseInt(total_copies, 10);
             
             if (currentCount < targetCount) {
               // 需要添加副本
@@ -313,10 +324,10 @@ exports.updateBook = (req, res) => {
                   return;
                 }
                 
-                if (copies.length === 0) {
+                if (copies.length < currentCount - targetCount) {
                   // 没有可用副本可以删除
                   db.run('ROLLBACK');
-                  res.status(400).json({ error: 'Cannot reduce copies: no available copies to remove' });
+                  res.status(400).json({ error: 'Cannot reduce copies: not enough available copies to remove' });
                   return;
                 }
                 
@@ -416,8 +427,13 @@ exports.updateBook = (req, res) => {
 // 删除书籍（管理员）
 exports.deleteBook = (req, res) => {
   const { id } = req.params;
-  
-  // 开始事务
+  const bookId = Number(id);
+
+  if (!Number.isInteger(bookId) || bookId <= 0) {
+    res.status(400).json({ error: 'Invalid book id' });
+    return;
+  }
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
@@ -425,65 +441,108 @@ exports.deleteBook = (req, res) => {
         return;
       }
 
-      // 检查是否有正常借阅的记录（排除逾期记录）
-      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
+      db.get('SELECT id FROM books WHERE id = ?', [bookId], (err, book) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
-
-        if (result.count > 0) {
+        if (!book) {
           db.run('ROLLBACK');
-          res.status(400).json({ error: 'Cannot delete book: it has active borrowing records' });
+          res.status(404).json({ error: 'Book not found' });
           return;
         }
 
-        // 删除图书分类关联
-        db.run('DELETE FROM book_categories WHERE book_id = ?', [id], (err) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 删除书籍副本
-          db.run('DELETE FROM book_copies WHERE book_id = ?', [id], (err) => {
+        db.get(
+          `SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+          [bookId, ...ACTIVE_BORROW_STATUSES],
+          (err, borrowResult) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
 
-            // 删除书籍
-            db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              if (this.changes === 0) {
-                db.run('ROLLBACK');
-                res.status(404).json({ error: 'Book not found' });
-                return;
-              }
+            if (borrowResult.count > 0) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: 'Cannot delete book: it has active borrowing records' });
+              return;
+            }
 
-              db.run('COMMIT', (err) => {
+            db.get(
+              `SELECT COUNT(*) as count FROM book_copies WHERE book_id = ? AND status IN (${placeholders(OCCUPIED_COPY_STATUSES)})`,
+              [bookId, ...OCCUPIED_COPY_STATUSES],
+              (err, copyResult) => {
                 if (err) {
+                  db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                res.json({ message: 'Book deleted' });
-              });
-            });
-          });
-        });
+
+                if (copyResult.count > 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete book: it has occupied copies' });
+                  return;
+                }
+
+                db.get(
+                  `SELECT COUNT(*) as count FROM reservation_records WHERE book_id = ? AND status IN (${placeholders(ACTIVE_RESERVATION_STATUSES)})`,
+                  [bookId, ...ACTIVE_RESERVATION_STATUSES],
+                  (err, reservationResult) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    if (reservationResult.count > 0) {
+                      db.run('ROLLBACK');
+                      res.status(400).json({ error: 'Cannot delete book: it has active reservations' });
+                      return;
+                    }
+
+                    db.run('DELETE FROM book_categories WHERE book_id = ?', [bookId], (err) => {
+                      if (err) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+
+                      db.run('DELETE FROM book_copies WHERE book_id = ?', [bookId], (err) => {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('DELETE FROM books WHERE id = ?', [bookId], (err) => {
+                          if (err) {
+                            db.run('ROLLBACK');
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+
+                          db.run('COMMIT', (err) => {
+                            if (err) {
+                              res.status(500).json({ error: err.message });
+                              return;
+                            }
+                            res.json({ message: 'Book deleted' });
+                          });
+                        });
+                      });
+                    });
+                  }
+                );
+              }
+            );
+          }
+        );
       });
     });
   });
 };
 
-// 搜索图书（无需登录，公开访问）
 exports.searchBooks = (req, res) => {
   const { query, category } = req.query;
   
@@ -719,6 +778,122 @@ exports.addBookCopy = (req, res) => {
 };
 
 // 获取单个副本信息（公开访问）
+exports.deleteBookCopy = (req, res) => {
+  const { id } = req.params;
+  const copyId = Number(id);
+
+  if (!Number.isInteger(copyId) || copyId <= 0) {
+    res.status(400).json({ error: 'Invalid copy id' });
+    return;
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get('SELECT id, book_id, status FROM book_copies WHERE id = ?', [copyId], (err, copy) => {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!copy) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Copy not found' });
+          return;
+        }
+        if (copy.status !== 'available') {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete copy: only available copies can be deleted' });
+          return;
+        }
+
+        db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [copy.book_id], (err, totalResult) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          if (totalResult.count <= 1) {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Cannot delete copy: a book must keep at least one copy' });
+            return;
+          }
+
+          db.get(
+            `SELECT COUNT(*) as count FROM borrow_records WHERE copy_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+            [copyId, ...ACTIVE_BORROW_STATUSES],
+            (err, borrowResult) => {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              if (borrowResult.count > 0) {
+                db.run('ROLLBACK');
+                res.status(400).json({ error: 'Cannot delete copy: it has active borrowing records' });
+                return;
+              }
+
+              db.run('DELETE FROM book_copies WHERE id = ? AND status = ?', [copyId, 'available'], function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                if (this.changes === 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete copy: copy is no longer available' });
+                  return;
+                }
+
+                db.get('SELECT COUNT(*) as total_count FROM book_copies WHERE book_id = ?', [copy.book_id], (err, totalAfterDelete) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [copy.book_id, 'available'], (err, availableAfterDelete) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run(
+                      'UPDATE books SET total_copies = ?, available_copies = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                      [totalAfterDelete.total_count, availableAfterDelete.available_count, copy.book_id],
+                      (err) => {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('COMMIT', (err) => {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.json({ message: 'Copy deleted successfully' });
+                        });
+                      }
+                    );
+                  });
+                });
+              });
+            }
+          );
+        });
+      });
+    });
+  });
+};
+
 exports.getCopyById = (req, res) => {
   const { id } = req.params;
   

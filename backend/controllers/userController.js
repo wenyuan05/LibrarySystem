@@ -1,6 +1,11 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const {
+  ACTIVE_BORROW_STATUSES,
+  ACTIVE_RESERVATION_STATUSES,
+  placeholders
+} = require('../utils/statusConstants');
 
 const JWT_EXPIRES_IN = '7d';
 
@@ -276,8 +281,18 @@ exports.updateUser = (req, res) => {
 // 删除用户（管理员）
 exports.deleteUser = (req, res) => {
   const { id } = req.params;
-  
-  // 开始事务
+  const userId = Number(id);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+
+  if (userId === req.user.id) {
+    res.status(400).json({ error: 'Cannot delete your own account' });
+    return;
+  }
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
@@ -285,56 +300,87 @@ exports.deleteUser = (req, res) => {
         return;
       }
 
-      // 检查用户是否有未归还的借阅记录
-      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
+      db.get('SELECT id, role FROM users WHERE id = ?', [userId], (err, targetUser) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
-
-        if (result.count > 0) {
+        if (!targetUser) {
           db.run('ROLLBACK');
-          res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
+          res.status(404).json({ error: 'User not found' });
+          return;
+        }
+        if (targetUser.role === 'admin') {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete an admin account' });
           return;
         }
 
-        // 删除用户状态记录
-        db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 删除用户
-          db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
+        db.get(
+          `SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+          [userId, ...ACTIVE_BORROW_STATUSES],
+          (err, borrowResult) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (this.changes === 0) {
+
+            if (borrowResult.count > 0) {
               db.run('ROLLBACK');
-              res.status(404).json({ error: 'User not found' });
+              res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
               return;
             }
 
-            db.run('COMMIT', (err) => {
-              if (err) {
-                res.status(500).json({ error: err.message });
-                return;
+            db.get(
+              `SELECT COUNT(*) as count FROM reservation_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_RESERVATION_STATUSES)})`,
+              [userId, ...ACTIVE_RESERVATION_STATUSES],
+              (err, reservationResult) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                if (reservationResult.count > 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete user: they have active reservations' });
+                  return;
+                }
+
+                db.run('DELETE FROM user_status WHERE user_id = ?', [userId], (err) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run('COMMIT', (err) => {
+                      if (err) {
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+                      res.json({ message: 'User deleted' });
+                    });
+                  });
+                });
               }
-              res.json({ message: 'User deleted' });
-            });
-          });
-        });
+            );
+          }
+        );
       });
     });
   });
 };
 
-// 获取用户借阅记录（需要登录，只能查看自己的记录或管理员）
 exports.getUserBorrowRecords = (req, res) => {
   const { id } = req.params;
   

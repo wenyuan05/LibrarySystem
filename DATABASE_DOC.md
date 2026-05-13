@@ -324,3 +324,37 @@ system_settings
 3. **索引维护**：定期检查和优化索引
 4. **数据清理**：定期清理过期的预约记录和借阅记录
 5. **性能监控**：监控数据库性能，及时调整优化策略
+## Data Integrity Update - 2026-05-13
+
+### Active-record definitions
+
+The application now treats these borrow statuses as active for deletion and duplicate-borrow safeguards:
+
+- `borrowing`
+- `borrowed`
+- `overdue`
+- `returning`
+
+The application treats these reservation statuses as active for delete safeguards:
+
+- `active`
+- `pending`
+
+The application treats these copy statuses as occupied for book deletion:
+
+- `borrowing`
+- `borrowed`
+- `reserved`
+
+### Delete and inventory consistency rules
+
+- A user row must not be deleted while related active borrow records or active reservations exist.
+- A book row must not be deleted while related active borrow records, active reservations, or occupied copies exist.
+- A `book_copies` row may be deleted only when its status is `available`.
+- A book must keep at least one row in `book_copies`.
+- After deleting a copy, `books.total_copies` and `books.available_copies` are recalculated from `book_copies` in the same transaction.
+- Reducing `books.total_copies` removes only available copies and fails if the requested reduction would require deleting unavailable, borrowed, reserved, or otherwise occupied copies.
+
+### Rationale
+
+`returning` records may already have `return_date` set while still waiting for librarian approval. Delete guards therefore use borrow status, not `return_date IS NULL`, as the source of truth for active lending state.

@@ -253,6 +253,12 @@ export const booksAPI = {
   },
   
   // 更新副本状态
+  deleteCopy: async (copyId) => {
+    return request(`/books/copies/${copyId}`, {
+      method: 'DELETE',
+    });
+  },
+  
   updateCopyStatus: async (copyId, status) => {
     return request(`/books/copies/${copyId}/status`, {
       method: 'PUT',

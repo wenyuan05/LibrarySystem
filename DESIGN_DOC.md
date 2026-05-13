@@ -559,3 +559,31 @@ backend/
 系统设计考虑了可扩展性和可维护性，采用了模块化的代码结构和清晰的数据流管理。通过合理的数据库设计和API设计，确保了系统的性能和可靠性。
 
 未来可以通过添加更多功能和优化现有功能，进一步提升系统的用户体验和管理效率。
+## Design Update - 2026-05-13
+
+### Dangerous operation guardrails
+
+Deletion and destructive inventory changes are treated as server-side integrity operations, not only as UI confirmations.
+
+- Active borrow status is centralized as `borrowing`, `borrowed`, `overdue`, and `returning`.
+- User deletion is admin-only and is blocked for the current account, admin accounts, active borrow records, and active reservations.
+- Book deletion is blocked by active borrow records, occupied copies, and active reservations.
+- Copy deletion is a dedicated operation for physical inventory. It deletes only one `available` copy at a time and keeps at least one copy per book.
+- Copy-count reduction uses the same inventory principle: only available copies may be removed, and the operation fails if there are not enough available copies.
+- System log clearing validates the age filter before deleting records.
+
+### Copy Management modal
+
+The Copy Management modal now supports:
+
+- adding copies
+- changing copy status
+- updating one copy location
+- bulk-applying copy location
+- deleting one available copy
+
+The modal table is designed to keep the `Confirm` and `Delete` actions visible on desktop without horizontal scrolling. Small screens may still use horizontal scrolling to preserve readable controls.
+
+### Backend consistency pattern
+
+All destructive copy operations run in a transaction and then recalculate `books.total_copies` and `books.available_copies` from `book_copies`. This avoids stale book counters after a copy is added, removed, or has its status changed.

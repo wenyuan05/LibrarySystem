@@ -38,6 +38,8 @@ router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'libra
 router.put('/copies/:id/location', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyLocation);
 
 // 获取单个副本信息（无需登录，公开访问）
+router.delete('/copies/:id', authenticateToken, requireRole(['admin', 'librarian']), bookController.deleteBookCopy);
+
 router.get('/copies/:id', bookController.getCopyById);
 
 // 更新书籍信息（管理员或图书管理员）
