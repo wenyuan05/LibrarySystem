@@ -4,6 +4,20 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-05-13
 
+### Fix 6: Allow fine payment before return approval
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+  - `README.md`
+  - `TEST_CASES.md`
+- **Changes**:
+  - Return submission now posts newly calculated overdue fines to `users.total_fine` immediately.
+  - Fine payment now totals unpaid `borrow_records` directly instead of relying only on the cached user total.
+  - Return approval no longer adds the same fine again, preventing duplicate balances.
+  - Borrow blocking now checks unpaid fine records directly so old cache drift does not let users bypass unpaid fines.
+- **Reason**: Users could see an unpaid fine after submitting a return, but payment failed until a librarian approved the return because the cached user fine balance was not updated yet.
+
 ### Fix 5: Add Books page search button
 - **Files modified**:
   - `src/pages/BooksPage.jsx`

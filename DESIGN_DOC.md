@@ -327,7 +327,7 @@ backend/
   - returnBook：归还书籍（计算逾期罚款）
   - confirmBorrow：确认借阅
   - handleTimeoutBorrows：处理超时借阅
-  - approveReturn：审批归还请求（累计罚款到用户账户）
+  - approveReturn：审批归还请求（确认归还、释放副本、触发预约通知）
   - approveAllReturns：一键审批所有待归还请求（支持按日期筛选）
   - getBorrowingList：获取借阅中列表
   - getReturningList：获取待审批的归还请求列表
@@ -465,15 +465,14 @@ backend/
 5. 后端检查借阅记录（支持 borrowed 和 overdue 状态）
 6. 从系统设置读取 fine_per_day 计算逾期罚款
 7. 更新借阅记录状态为 "returning"，设置罚款金额和 fine_status='unpaid'
-8. 返回归还成功响应，包含罚款信息
-9. 图书管理员在归还审批页面查看待审批请求
-10. 管理员批准归还（可单条或一键批量审批，支持按日期筛选）
-11. 后端更新借阅记录状态为 "returned"
-12. 如果罚款未支付，累计到用户 total_fine
-13. 副本状态变回 "available"
-14. 用户可在个人资料或借阅记录中查看罚款
-15. 用户通过 pay fine 功能一次性支付所有未支付罚款
-16. 系统清除用户 total_fine 并标记相关记录 fine_status='paid'
+8. 如果产生罚款，立即累计到用户 total_fine，用户可马上支付
+9. 返回归还成功响应，包含罚款信息
+10. 用户可在个人资料、借阅记录或罚款详情中查看并支付罚款，无需等待归还审批
+11. 用户通过 pay fine 功能一次性支付所有未支付罚款，系统标记相关记录 fine_status='paid' 并同步 total_fine
+12. 图书管理员在归还审批页面查看待审批请求
+13. 管理员批准归还（可单条或一键批量审批，支持按日期筛选）
+14. 后端更新借阅记录状态为 "returned"，不会重复累计已入账罚款
+15. 副本状态变回 "available"
 
 ### 4.4 书籍预约流程
 

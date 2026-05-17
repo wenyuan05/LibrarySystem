@@ -160,6 +160,11 @@
 | fine_status | TEXT | DEFAULT 'unpaid' | 罚款状态（unpaid/paid） |
 | renew_count | INTEGER | DEFAULT 0 | 续借次数 |
 
+**说明**：
+- 归还申请提交时会立即计算并写入 `borrow_records.fine` / `fine_status`。
+- 若产生未支付罚款，`users.total_fine` 会同步增加；支付罚款时以 `borrow_records` 中 `fine_status='unpaid'` 的记录为准，并重新同步 `users.total_fine`。
+- 图书管理员审批归还只确认归还状态和释放副本，不重复累计罚款。
+
 ### 2.9 reservation_records 表
 
 **功能**：存储书籍预约记录

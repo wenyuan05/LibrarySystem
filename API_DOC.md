@@ -619,6 +619,8 @@
 }
 ```
 
+**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`，用户无需等待图书管理员审批即可调用 `pay-fine` 支付。
+
 #### 3.3.3 POST /api/borrow/confirm-borrow
 **功能**：确认借阅
 
@@ -668,6 +670,8 @@
   "message": "Return approved successfully"
 }
 ```
+
+**说明**：审批只确认归还状态、释放副本并触发预约可借通知。罚款已在用户提交归还时入账，审批阶段不会重复累计罚款；如果用户已提前支付，`fine_status` 保持 `"paid"`。
 
 #### 3.3.6 GET /api/borrow/returning
 **功能**：获取待审批的归还请求列表
@@ -796,6 +800,8 @@
 **功能**：支付所有未支付罚款
 **权限**：本人或admin/librarian
 
+**说明**：接口直接汇总 `borrow_records` 中 `fine > 0` 且 `fine_status = "unpaid"` 的记录，支持支付 `returning` 状态下已经计算出的罚款。支付成功后相关罚款记录标记为 `"paid"`，并重新同步用户 `total_fine`。
+
 **请求体**：
 ```json
 {
@@ -806,7 +812,7 @@
 **响应**：
 ```json
 {
-  "message": "All fines paid successfully",
+  "message": "Fines paid successfully",
   "amount": 2.5
 }
 ```
