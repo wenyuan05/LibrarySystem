@@ -14,7 +14,7 @@ try {
 }
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // 检查 JWT_SECRET 是否设置
 if (!process.env.JWT_SECRET) {
@@ -26,8 +26,19 @@ if (!process.env.JWT_SECRET) {
 
 // 中间件
 const frontendUrl = process.env.FRONTEND_URL || '*';
+const allowedOrigins = frontendUrl
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 const corsOptions = {
-  origin: frontendUrl === '*' ? '*' : frontendUrl,
+  origin: (origin, callback) => {
+    if (frontendUrl === '*' || !origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: frontendUrl !== '*'
