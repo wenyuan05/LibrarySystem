@@ -12,8 +12,8 @@ exports.borrowBook = function(req, res) {
   const borrow_date = new Date().toISOString().split('T')[0];
 
   // 获取系统参数
-  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)',
-    ['borrow_period_days', 'borrow_confirm_minutes', 'max_borrows'],
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?, ?)',
+    ['borrow_enabled', 'borrow_period_days', 'borrow_confirm_minutes', 'max_borrows'],
     function(err, settings) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -22,6 +22,12 @@ exports.borrowBook = function(req, res) {
 
       const settingsMap = {};
       settings.forEach(s => settingsMap[s.key] = s.value);
+      const borrowEnabled = settingsMap['borrow_enabled'] !== '0';
+      if (!borrowEnabled) {
+        res.status(403).json({ error: 'Borrowing is currently disabled by the system administrator' });
+        return;
+      }
+
       const borrowPeriodDays = parseInt(settingsMap['borrow_period_days']) || 14;
       const confirmMinutes = parseInt(settingsMap['borrow_confirm_minutes']) || 60;
       const maxBorrows = parseInt(settingsMap['max_borrows']) || 5;
@@ -665,9 +671,20 @@ exports.renewBook = function(req, res) {
 // 确认借阅（需要登录）
 exports.confirmBorrow = function(req, res) {
   const { record_id, copy_id } = req.body;
-  
-  // 开始事务
-  db.serialize(function() {
+
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['borrow_enabled'], function(err, setting) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (setting && setting.value === '0') {
+      res.status(403).json({ error: 'Borrowing is currently disabled by the system administrator' });
+      return;
+    }
+
+    // 开始事务
+    db.serialize(function() {
     db.run('BEGIN TRANSACTION', function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -787,6 +804,7 @@ exports.confirmBorrow = function(req, res) {
         }
       );
     });
+  });
   });
 };
 

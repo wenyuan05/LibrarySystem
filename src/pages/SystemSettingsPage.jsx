@@ -11,6 +11,13 @@ const settingSections = [
     description: 'Control borrowing limits, confirmation timing, renewals, and reservations.',
     settings: [
       {
+        key: 'borrow_enabled',
+        label: 'Borrowing Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn reader borrowing requests on or off globally.'
+      },
+      {
         key: 'borrow_period_days',
         label: 'Borrow Days',
         type: 'number',
@@ -256,6 +263,7 @@ const SystemSettingsPage = () => {
                 {section.settings.map(setting => {
                   const value = draftSettings[setting.key] ?? defaultSettings[setting.key] ?? '';
                   const changed = String(value) !== String(settings[setting.key] ?? defaultSettings[setting.key] ?? '');
+                  const isCheckbox = setting.type === 'checkbox';
 
                   return (
                     <label
@@ -268,19 +276,28 @@ const SystemSettingsPage = () => {
                       </span>
                       <span className="settings-input-wrap">
                         {setting.prefix && <span className="settings-affix">{setting.prefix}</span>}
-                        <input
-                          type={setting.type}
-                          min={setting.min}
-                          max={setting.max}
-                          step={setting.step}
-                          value={value}
-                          disabled={!isEditable || saving}
-                          onChange={event => handleFieldChange(setting.key, event.target.value)}
-                        />
+                        {isCheckbox ? (
+                          <input
+                            type="checkbox"
+                            checked={String(value) !== '0'}
+                            disabled={!isEditable || saving}
+                            onChange={event => handleFieldChange(setting.key, event.target.checked ? '1' : '0')}
+                          />
+                        ) : (
+                          <input
+                            type={setting.type}
+                            min={setting.min}
+                            max={setting.max}
+                            step={setting.step}
+                            value={value}
+                            disabled={!isEditable || saving}
+                            onChange={event => handleFieldChange(setting.key, event.target.value)}
+                          />
+                        )}
                         {setting.suffix && <span className="settings-affix">{setting.suffix}</span>}
                       </span>
                       <span className="settings-helper">{setting.helper}</span>
-                      <span className="settings-default">Default: {String(setting.default)}</span>
+                      <span className="settings-default">Default: {isCheckbox ? (String(setting.default) !== '0' ? 'Enabled' : 'Disabled') : String(setting.default)}</span>
                     </label>
                   );
                 })}

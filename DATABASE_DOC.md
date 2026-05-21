@@ -36,6 +36,7 @@
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
 **默认值**：
+- borrow_enabled: 1 (是否启用借阅功能，1=启用，0=关闭)
 - borrow_period_days: 14 (借阅期限，天)
 - fine_per_day: 0.5 (每天罚款金额)
 - max_borrows: 5 (最大借阅数量)
@@ -289,6 +290,7 @@ system_settings
 - 普通用户：user1 / user123
 
 ### 5.3 系统参数
+- borrow_enabled: 1
 - borrow_period_days: 14
 - fine_per_day: 0.5
 - max_borrows: 5

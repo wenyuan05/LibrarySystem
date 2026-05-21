@@ -7,7 +7,7 @@
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
 | 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 20 |
 | 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
-| 系统管理 | 系统设置、公告、公告已读、日志 | 11 |
+| 系统管理 | 系统设置、功能开关、公告、公告已读、日志 | 13 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
 
@@ -596,7 +596,9 @@
 }
 ```
 
-**说明**：发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+**说明**：
+- 发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+- 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.2 POST /api/borrow/return
 **功能**：归还书籍
@@ -639,7 +641,9 @@
 }
 ```
 
-**说明**：`copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
+**说明**：
+- `copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
+- 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.4 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
@@ -952,6 +956,7 @@
 {
   "system_name": "Library Management System",
   "system_version": "1.0.0",
+  "borrow_enabled": "1",
   "borrow_period_days": "14",
   "fine_per_day": "0.5",
   "max_borrows": "5",
@@ -974,6 +979,7 @@
 **请求体**（支持单项或多项更新）：
 ```json
 {
+  "borrow_enabled": "1",
   "borrow_period_days": "21",
   "fine_per_day": "1.0"
 }
@@ -988,7 +994,22 @@
 }
 ```
 
-#### 3.5.3 GET /api/announcements
+#### 3.5.3 GET /api/system/feature-flags
+**功能**：获取当前登录用户可见的功能开关
+**权限**：任意已登录用户
+
+**说明**：
+- 该接口只暴露前端业务需要知道的功能开关，不返回完整系统设置。
+- `borrow_enabled` 为 `false` 时，读者端应禁用发起借阅和确认借阅入口；后端仍会在借阅接口强制校验。
+
+**响应**：
+```json
+{
+  "borrow_enabled": true
+}
+```
+
+#### 3.5.4 GET /api/announcements
 **功能**：获取公告列表
 
 **响应**：
@@ -1005,7 +1026,7 @@
 ]
 ```
 
-#### 3.5.4 GET /api/announcements/:id
+#### 3.5.5 GET /api/announcements/:id
 **功能**：获取单个公告
 
 **响应**：
@@ -1020,7 +1041,7 @@
 }
 ```
 
-#### 3.5.5 POST /api/announcements
+#### 3.5.6 POST /api/announcements
 **功能**：添加公告
 **权限**：admin
 
@@ -1044,7 +1065,7 @@
 }
 ```
 
-#### 3.5.6 PUT /api/announcements/:id
+#### 3.5.7 PUT /api/announcements/:id
 **功能**：更新公告
 **权限**：admin
 
@@ -1067,7 +1088,7 @@
 }
 ```
 
-#### 3.5.7 DELETE /api/announcements/:id
+#### 3.5.8 DELETE /api/announcements/:id
 **功能**：删除公告
 **权限**：admin
 
@@ -1078,7 +1099,7 @@
 }
 ```
 
-#### 3.5.8 GET /api/announcements/unread/mine
+#### 3.5.9 GET /api/announcements/unread/mine
 **功能**：获取当前登录用户未读的已发布公告，用于全局公告弹窗提醒
 **权限**：登录用户
 
@@ -1096,7 +1117,7 @@
 ]
 ```
 
-#### 3.5.9 PUT /api/announcements/read
+#### 3.5.10 PUT /api/announcements/read
 **功能**：批量标记公告已读，写入 `announcement_reads`，已读公告不会再次触发弹窗
 **权限**：登录用户
 
@@ -1115,7 +1136,7 @@
 }
 ```
 
-#### 3.5.10 PUT /api/announcements/:id/read
+#### 3.5.11 PUT /api/announcements/:id/read
 **功能**：标记单条公告已读
 **权限**：登录用户
 
@@ -1127,7 +1148,7 @@
 }
 ```
 
-#### 3.5.11 GET /api/logs
+#### 3.5.12 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -1151,7 +1172,7 @@
 ]
 ```
 
-#### 3.5.12 DELETE /api/logs/clear
+#### 3.5.13 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 

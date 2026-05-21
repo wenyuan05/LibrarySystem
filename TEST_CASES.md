@@ -523,3 +523,19 @@
   - The search icon button is visible beside the Books page search input.
   - Clicking the button reruns the search using the current input value.
   - Clearing the input and clicking the button reloads the full book list.
+
+### Test Case: Borrowing feature toggle
+
+- **Scenario**: Admin globally disables and re-enables reader borrowing.
+- **Steps**:
+  1. Log in as admin and open `/system-settings`.
+  2. Enable Editable mode, switch `Borrowing Enabled` off, and save changes.
+  3. Log in as a reader and open the Books page or a book detail page with available copies.
+  4. Check the Borrow and Confirm Borrow controls.
+  5. Call `POST /api/borrow/borrow` and `POST /api/borrow/confirm-borrow` directly while the setting is off.
+  6. Re-enable `Borrowing Enabled` and save changes.
+- **Expected result**:
+  - Reader-facing borrow and confirm-borrow buttons are disabled and show `Borrowing Disabled` while the setting is off.
+  - `GET /api/system/feature-flags` returns `borrow_enabled: false`.
+  - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.
+  - Re-enabling the setting restores normal borrow controls and `borrow_enabled: true`.

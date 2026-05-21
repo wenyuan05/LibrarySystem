@@ -367,7 +367,8 @@ npm run dev
 - Release 2 新增站内通知：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
 - 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
 - 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
-- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
+- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅功能开关、借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
+- Release 3 新增借阅功能开关：管理员可通过 `borrow_enabled` 全局关闭读者借阅；前端借阅/确认按钮会显示 disabled 状态，后端也会拦截发起借阅和确认借阅请求。
 - 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
 - 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
@@ -491,7 +492,8 @@ npm run dev
 16. **系统设置**：
     - 管理员通过 `/system-settings` 管理全局配置
     - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
-    - 仅展示已被后端业务逻辑读取的设置项：`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - 仅展示已被后端业务逻辑读取的设置项：`borrow_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - `borrow_enabled` 为全局借阅功能开关，关闭后读者无法发起或确认借阅，但不影响归还、预约、罚款支付等流程
     - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
 
 ### 后端功能
@@ -501,7 +503,8 @@ npm run dev
 3. **用户认证**：验证用户登录信息，使用JWT进行身份验证
 4. **借阅管理**：处理书籍借阅和归还逻辑，更新书籍状态和借阅记录
    - 新的借阅流程：支持借阅请求、确认借阅、超时处理
-   - 从系统设置读取借阅参数（借阅期限、确认时长、最大借阅数量等）
+   - 从系统设置读取借阅参数（借阅功能开关、借阅期限、确认时长、最大借阅数量等）
+   - `borrow_enabled = 0` 时，后端会拒绝发起借阅和确认借阅请求并返回 403
    - 借阅前检查用户状态（是否拉黑）、罚款状态、借阅数量限制
    - 图书管理员审批归还（单条或一键批量审批，支持按日期筛选）
    - 逾期自动计算罚款

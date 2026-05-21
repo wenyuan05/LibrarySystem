@@ -18,6 +18,20 @@ exports.getSystemSettings = (req, res) => {
   });
 };
 
+// 获取普通登录用户可见的功能开关
+exports.getFeatureFlags = (req, res) => {
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['borrow_enabled'], (err, setting) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    res.json({
+      borrow_enabled: !setting || setting.value !== '0'
+    });
+  });
+};
+
 // 更新系统设置
 exports.updateSystemSettings = (req, res) => {
   const settings = req.body;

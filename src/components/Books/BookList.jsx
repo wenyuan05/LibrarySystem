@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 
 import { useToast } from '../../context/ToastContext';
 
-import { booksAPI, borrowAPI, usersAPI } from '../../utils/api';
+import { booksAPI, borrowAPI, systemAPI, usersAPI } from '../../utils/api';
 
 import Barcode from '../Barcode';
 
@@ -21,6 +21,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
   const [borrowRecords, setBorrowRecords] = useState([]);
 
   const [reservationRecords, setReservationRecords] = useState([]);
+  const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
 
   const { user } = useAuth();
 
@@ -92,6 +93,21 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
     fetchReservationRecords();
 
+  }, [user]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      if (!user?.id) return;
+
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setBorrowFeatureEnabled(flags.borrow_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch feature flags:', err);
+      }
+    };
+
+    fetchFeatureFlags();
   }, [user]);
 
 
@@ -199,6 +215,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
         return; // 防止重复点击
 
+      }
+
+      if (!borrowFeatureEnabled) {
+        throw new Error('Borrowing is currently disabled by the system administrator');
       }
 
       setBorrowingBooks(prev => new Set([...prev, bookId]));
@@ -556,6 +576,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
                       onClick={(e) => {
 
                         e.stopPropagation();
+                        if (!borrowFeatureEnabled) return;
                         setSelectedBookId(book.id);
                         setSelectedBorrowRecord(borrowRecord);
                         setSelectedCopyId(
@@ -566,9 +587,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
                         setShowConfirmModal(true);
                       }}
 
+                      disabled={!borrowFeatureEnabled}
                     >
 
-                      Confirm Borrow
+                      {borrowFeatureEnabled ? 'Confirm Borrow' : 'Borrowing Disabled'}
 
                     </button>
 
@@ -578,11 +600,11 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
                       onClick={(e) => { e.stopPropagation(); handleBorrowBook(book.id); }}
 
-                      disabled={borrowingBooks.has(book.id)}
+                      disabled={borrowingBooks.has(book.id) || !borrowFeatureEnabled}
 
                     >
 
-                      {borrowingBooks.has(book.id) ? 'Processing...' : 'Borrow'}
+                      {borrowFeatureEnabled ? (borrowingBooks.has(book.id) ? 'Processing...' : 'Borrow') : 'Borrowing Disabled'}
 
                     </button>
 
@@ -602,6 +624,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
                             onClick={(e) => {
 
                               e.stopPropagation();
+                              if (!borrowFeatureEnabled) return;
                               setSelectedBookId(book.id);
                               setSelectedBorrowRecord(borrowRecord);
                               setSelectedCopyId(
@@ -612,9 +635,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
                               setShowConfirmModal(true);
                             }}
 
+                            disabled={!borrowFeatureEnabled}
                           >
 
-                            Confirm
+                            {borrowFeatureEnabled ? 'Confirm' : 'Borrowing Disabled'}
 
                           </button>
 
@@ -792,9 +816,9 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
               <button
                 className="btn-primary"
                 onClick={handleConfirmBorrow}
-                disabled={!selectedCopyId}
+                disabled={!selectedCopyId || !borrowFeatureEnabled}
               >
-                Confirm
+                {borrowFeatureEnabled ? 'Confirm' : 'Borrowing Disabled'}
 
               </button>
 

@@ -44,6 +44,7 @@
 - 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
 - System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
+- Release 3 借阅功能开关通过 `borrow_enabled` 接入前后端：管理员可全局关闭借阅，普通登录用户通过 feature flags 接口读取开关，前端禁用借阅/确认入口，后端对借阅和确认借阅做强制拦截。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 
 ## 2. 前端设计
@@ -187,7 +188,7 @@ src/
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
 | 预约管理 | /reservations | user | 管理书籍预约 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
-| 系统设置 | /system-settings | admin | 管理已实现的借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
+| 系统设置 | /system-settings | admin | 管理已实现的借阅开关、借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
 | 系统日志 | /logs | admin | 查看系统操作日志 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 
@@ -344,6 +345,7 @@ backend/
 - **功能**：处理系统相关操作
 - **方法**：
   - getSystemSettings：获取系统设置
+  - getFeatureFlags：获取普通登录用户可见的功能开关
   - updateSystemSettings：更新系统设置
 
 **logController.js**
@@ -393,7 +395,7 @@ backend/
 | 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN导入、批量导入、位置管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
-| 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert） |
+| 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert）、当前用户可见功能开关 |
 | 公告管理 | /api/announcements | 公告CRUD、当前用户未读公告、公告已读记录 |
 | 站内通知 | /api/notifications | 预约可借通知、未读数量、标记已读 |
 | 日志管理 | /api/logs | 系统日志 |
@@ -437,13 +439,14 @@ backend/
 2. 选择要借阅的书籍
 3. 点击借阅按钮
 4. 前端发送借阅请求到 `/api/borrow/borrow`
-5. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
-6. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
-7. 检查书籍是否存在可用副本，但不预先绑定副本
-8. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
+5. 后端读取 `borrow_enabled`，如果借阅功能已关闭则返回 403，停止借阅流程
+6. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
+7. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
+8. 检查书籍是否存在可用副本，但不预先绑定副本
+9. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
 10. 返回借阅请求启动成功响应
 11. 前端显示倒计时和确认借阅按钮，不在记录表提前显示条形码
-12. 用户点击确认借阅按钮并在弹窗中选择可用副本
+12. 用户点击确认借阅按钮并在弹窗中选择可用副本；确认接口也会再次检查 `borrow_enabled`
 13. 前端发送 `record_id` 和 `copy_id` 到 `/api/borrow/confirm-borrow`
 14. 后端检查是否超时，并校验所选副本是否属于该书且可用
 15. 更新借阅记录状态为 "borrowed"，写入 `copy_id`

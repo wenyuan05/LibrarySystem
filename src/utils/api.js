@@ -454,6 +454,11 @@ export const systemAPI = {
   getSettings: async () => {
     return request('/system/settings');
   },
+
+  // 获取当前用户可见的功能开关
+  getFeatureFlags: async () => {
+    return request('/system/feature-flags');
+  },
   
   // 更新系统设置
   updateSettings: async (settings) => {

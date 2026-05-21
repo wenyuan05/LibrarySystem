@@ -1275,3 +1275,27 @@ This file documents all bug fixes applied to the project.
   - Documented the expanded notification trigger paths and badge sync behavior.
 - **Reason**: Ensure reservations do not become stale when inventory is restored outside return approval, and keep unread notification badges synchronized without navigation or refresh.
 
+### Fix 106: Add global borrowing feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `backend/routes/systemRoutes.js`
+  - `backend/controllers/borrowController.js`
+  - `src/utils/api.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `borrow_enabled` to default system settings with enabled-by-default behavior.
+  - Added `GET /api/system/feature-flags` so logged-in users can read frontend-relevant feature switches without full admin settings access.
+  - Enforced the borrowing switch on both `POST /api/borrow/borrow` and `POST /api/borrow/confirm-borrow`.
+  - Added a `Borrowing Enabled` checkbox to System Settings and disabled reader borrow/confirm controls when the switch is off.
+  - Documented the setting, API behavior, database default, and regression test case.
+- **Reason**: Complete Release 3 system-parameter scope by giving admins a real on/off control for borrowing, with server-side enforcement rather than UI-only hiding.
+
