@@ -1299,3 +1299,13 @@ This file documents all bug fixes applied to the project.
   - Documented the setting, API behavior, database default, and regression test case.
 - **Reason**: Complete Release 3 system-parameter scope by giving admins a real on/off control for borrowing, with server-side enforcement rather than UI-only hiding.
 
+### Documentation: Add Release 3 integration requirements
+- **Files modified**:
+  - `release_plan.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added Release 3 requirements for real Alipay fine payment with QR/link checkout and librarian income dashboard.
+  - Added Release 3 requirements for real email delivery during registration, password reset, and notification scenarios.
+  - Added Release 3 requirements for selectable ISBN lookup API nodes with provider health testing and explicit node switching.
+- **Reason**: Capture newly requested Release 3 external-service integration scope in the release plan without changing implementation code.
+

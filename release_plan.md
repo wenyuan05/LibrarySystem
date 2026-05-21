@@ -25,3 +25,30 @@
 3.4	As a librarian, I want to see statistics of borrowing transaction.
 3.5	As an admin, I want to be able to turn on/off some functions, like borrowing.
 3.6	As an admin, I want to be able to check the log of the system.
+3.7	As a reader, I want to pay overdue fines through a real Alipay integration, so that I can complete fine payment using an Alipay QR code or payment link.
+	Acceptance criteria:
+	- The system must integrate with the real Alipay API instead of a simulated local payment action.
+	- When a reader pays fines, the frontend must display either an Alipay QR code or an Alipay payment link generated from the backend payment order.
+	- Payment records must track payment order number, amount, user, related fine records, Alipay transaction status, paid time, and callback/notification result.
+	- The backend must verify Alipay asynchronous notifications and update fine records only after a trusted paid status is received.
+	- Librarians and admins must be able to view an income dashboard showing total fine revenue, daily/monthly revenue trends, successful/failed/pending payment counts, and recent payment records.
+	- The dashboard must support filtering by date range and payment status.
+
+3.8	As a system user, I want the system to send real emails for account and notification events, so that important actions can reach my registered email address.
+	Acceptance criteria:
+	- The system must integrate with a real email provider or SMTP service configured through environment variables.
+	- Registration success must send a welcome or account-created email to the user's account email.
+	- Password reset must send a reset email containing a secure reset link or token instead of relying only on an in-app token response.
+	- Reservation availability notifications, announcement reminders, and other important in-app notifications must also be eligible for email delivery when the target user has an email address.
+	- Email sending must be logged with delivery status, recipient, template type, related notification/event ID, and error message when delivery fails.
+	- The system must not expose SMTP credentials or email provider secrets in frontend code or committed files.
+
+3.9	As a librarian, I want ISBN import to support selectable and testable lookup API nodes, so that I can choose a working ISBN metadata source before importing books.
+	Acceptance criteria:
+	- The system must support multiple ISBN lookup API nodes, such as OpenLibrary and any configured alternate providers.
+	- The Add Book and Batch ISBN Import UI must allow librarians/admins to select the ISBN lookup node used for metadata queries.
+	- The UI must provide a node test action that checks whether each configured ISBN API node is reachable and returns a clear available/unavailable status.
+	- Test results must show provider name, endpoint, response status, latency, last tested time, and failure reason when unavailable.
+	- ISBN lookup and batch import must use the selected node rather than a hardcoded provider.
+	- If a selected node is unavailable, the UI must block import or clearly prompt the user to switch to another available node.
+	- API node configuration must be maintainable without changing frontend code, preferably through backend configuration or system settings.
