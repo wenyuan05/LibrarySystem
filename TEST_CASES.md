@@ -593,6 +593,23 @@
   - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
   - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
 
+### Test Case: Payment order management and income dashboard
+
+- **Scenario**: Librarian manages simulated Alipay fine payment orders locally.
+- **Steps**:
+  1. Create a payable fine payment for a user.
+  2. Create the same payment again before completing or expiring the first order.
+  3. Log in as librarian or admin and open `/income-dashboard`.
+  4. Filter payments by `Pending`.
+  5. Expire a pending payment order.
+  6. Complete another payment with `Simulate Payment Success` and refresh the dashboard.
+- **Expected result**:
+  - The second create call reuses the existing pending order for the same fine records instead of creating a duplicate.
+  - `/income-dashboard` shows total income, today income, month income, paid count, pending count, and payment rows.
+  - Pending rows can be marked expired.
+  - Expired payments do not mark fines as paid.
+  - Paid payments appear in the income totals after simulated success.
+
 ### Test Case: Borrow records fine modal payment route
 
 - **Scenario**: User starts fine payment from the My Borrow Records fine modal.

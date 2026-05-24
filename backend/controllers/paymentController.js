@@ -9,6 +9,14 @@ const canAccessUser = (req, userId) => (
 );
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+const parseBorrowRecordIds = (value) => {
+  try {
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed.map(Number).filter(Number.isFinite) : [];
+  } catch (_) {
+    return [];
+  }
+};
 
 const generateOutTradeNo = () => {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
@@ -36,8 +44,35 @@ const mapPaymentRow = (row) => {
     amount: roundMoney(row.amount),
     qr_code: row.qr_code || paymentUrl,
     payment_url: paymentUrl,
-    borrow_record_ids: row.borrow_record_ids ? JSON.parse(row.borrow_record_ids) : []
+    borrow_record_ids: parseBorrowRecordIds(row.borrow_record_ids)
   };
+};
+
+const findReusablePendingFinePayment = (userId, borrowRecordIds, amount, callback) => {
+  db.all(
+    `SELECT *
+     FROM payments
+     WHERE user_id = ?
+       AND provider = 'alipay'
+       AND payment_type = 'fine'
+       AND status = 'pending'
+     ORDER BY created_at DESC`,
+    [userId],
+    (err, rows) => {
+      if (err) {
+        callback(err);
+        return;
+      }
+
+      const targetIds = [...borrowRecordIds].sort((a, b) => a - b).join(',');
+      const reusable = rows.find(row => {
+        const rowIds = parseBorrowRecordIds(row.borrow_record_ids).sort((a, b) => a - b).join(',');
+        return rowIds === targetIds && roundMoney(row.amount) === amount;
+      });
+
+      callback(null, reusable || null);
+    }
+  );
 };
 
 const syncUserFineTotal = (userId, callback) => {
@@ -182,6 +217,21 @@ exports.createFineAlipayPayment = function(req, res) {
 
       const amount = roundMoney(fineRows.reduce((sum, row) => sum + (Number(row.fine) || 0), 0));
       const borrowRecordIds = fineRows.map(row => row.id);
+      findReusablePendingFinePayment(userId, borrowRecordIds, amount, (pendingErr, pendingPayment) => {
+        if (pendingErr) {
+          res.status(500).json({ error: pendingErr.message });
+          return;
+        }
+
+        if (pendingPayment) {
+          res.json({
+            ...mapPaymentRow(pendingPayment),
+            reused: true,
+            simulate_notify_path: `/api/payments/alipay/simulate-notify/${pendingPayment.out_trade_no}`
+          });
+          return;
+        }
+
       const outTradeNo = generateOutTradeNo();
       const subject = `Library fine payment #${outTradeNo}`;
       const paymentUrl = buildPaymentUrl({ out_trade_no: outTradeNo, amount });
@@ -225,6 +275,73 @@ exports.createFineAlipayPayment = function(req, res) {
           });
         }
       );
+      });
+    }
+  );
+};
+
+exports.listPayments = function(req, res) {
+  const {
+    user_id,
+    status,
+    provider = 'alipay',
+    payment_type,
+    date_from,
+    date_to
+  } = req.query;
+
+  const where = [];
+  const params = [];
+
+  if (!ADMIN_ROLES.includes(req.user.role)) {
+    where.push('p.user_id = ?');
+    params.push(req.user.id);
+  } else if (user_id) {
+    where.push('p.user_id = ?');
+    params.push(Number(user_id));
+  }
+
+  if (status) {
+    where.push('p.status = ?');
+    params.push(status);
+  }
+
+  if (provider) {
+    where.push('p.provider = ?');
+    params.push(provider);
+  }
+
+  if (payment_type) {
+    where.push('p.payment_type = ?');
+    params.push(payment_type);
+  }
+
+  if (date_from) {
+    where.push('date(p.created_at) >= date(?)');
+    params.push(date_from);
+  }
+
+  if (date_to) {
+    where.push('date(p.created_at) <= date(?)');
+    params.push(date_to);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  db.all(
+    `SELECT p.*, u.username, u.name
+     FROM payments p
+     LEFT JOIN users u ON p.user_id = u.id
+     ${whereSql}
+     ORDER BY p.created_at DESC
+     LIMIT 200`,
+    params,
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      res.json(rows.map(mapPaymentRow));
     }
   );
 };
@@ -306,6 +423,49 @@ exports.simulateAlipayNotify = function(req, res) {
         payment: paidPayment
       });
     });
+  });
+};
+
+exports.expirePayment = function(req, res) {
+  db.get('SELECT * FROM payments WHERE id = ?', [req.params.id], (err, payment) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (!payment) {
+      res.status(404).json({ error: 'Payment not found' });
+      return;
+    }
+
+    if (!canAccessUser(req, payment.user_id)) {
+      res.status(403).json({ error: 'Forbidden: cannot expire this payment' });
+      return;
+    }
+
+    if (payment.status !== 'pending') {
+      res.status(400).json({ error: 'Only pending payments can be expired' });
+      return;
+    }
+
+    db.run(
+      `UPDATE payments
+       SET status = 'expired',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [payment.id],
+      (updateErr) => {
+        if (updateErr) {
+          res.status(500).json({ error: updateErr.message });
+          return;
+        }
+
+        res.json({
+          message: 'Payment expired successfully',
+          payment: mapPaymentRow({ ...payment, status: 'expired' })
+        });
+      }
+    );
   });
 };
 

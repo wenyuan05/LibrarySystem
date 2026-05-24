@@ -640,7 +640,10 @@ npm run dev
    - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
    - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，支付成功后同步更新罚款状态和用户实际未付罚款总额
    - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，模拟支付成功后再次打开链接会显示最新状态
+   - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
+   - 支持支付订单列表查询和手动过期 pending 订单，便于本地验证订单状态流转
    - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
+   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
    - 真实支付宝 notify 路由已预留为 `/api/payments/alipay/notify`，后续接入签名验签后可替换模拟流程
 
 ## 示例数据

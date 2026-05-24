@@ -1439,3 +1439,26 @@ This file documents all bug fixes applied to the project.
   - Kept generated QR/payment links stable so reopening them after simulated payment shows the updated backend state.
 - **Reason**: Prevent the local payment result page from showing stale `pending` status after simulated payment completion.
 
+### Fix 114: Add payment order management dashboard
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/App.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `GET /api/payments` with user, status, provider, payment type, and date filters.
+  - Added `POST /api/payments/:id/expire` for expiring pending orders without settling fines.
+  - Reused existing pending fine payment orders when the same user attempts to pay the same actual fine records again.
+  - Added frontend payment list and expire API wrappers.
+  - Added `/income-dashboard` for admin/librarian users with income cards, status filtering, payment rows, and pending-order expiration.
+  - Added sidebar navigation for Income Dashboard.
+- **Reason**: Complete local payment-management support before replacing the simulated provider with real Alipay gateway calls.
+

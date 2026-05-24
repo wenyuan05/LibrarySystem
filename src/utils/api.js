@@ -438,6 +438,23 @@ export const paymentAPI = {
     return request(`/payments/trade/${outTradeNo}`);
   },
 
+  listPayments: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    const query = params.toString();
+    return request(`/payments${query ? `?${query}` : ''}`);
+  },
+
+  expirePayment: async (paymentId) => {
+    return request(`/payments/${paymentId}/expire`, {
+      method: 'POST',
+    });
+  },
+
   simulateAlipayNotify: async (outTradeNo) => {
     return request(`/payments/alipay/simulate-notify/${outTradeNo}`, {
       method: 'POST',

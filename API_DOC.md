@@ -845,11 +845,24 @@
 }
 ```
 
-#### 3.4.2 POST /api/payments/fines/alipay
+#### 3.4.2 GET /api/payments
+**功能**：查询支付订单列表
+**权限**：本人订单或admin/librarian查看全部
+
+**查询参数**：
+- `user_id`：可选，admin/librarian 可按用户筛选
+- `status`：可选，`pending`、`paid`、`expired`、`failed`
+- `provider`：可选，默认 `alipay`
+- `payment_type`：可选，例如 `fine`
+- `date_from` / `date_to`：可选，按创建日期筛选
+
+**说明**：普通用户只能看到自己的支付订单；admin/librarian 可查看全部或按用户筛选。
+
+#### 3.4.3 POST /api/payments/fines/alipay
 **功能**：创建支付宝罚款支付单（本地模拟）
 **权限**：本人或admin/librarian
 
-**说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。
+**说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
 Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。
 
 **请求体**：
@@ -873,33 +886,34 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "qr_code": "http://localhost:5173/payment-result?out_trade_no=...",
   "payment_url": "http://localhost:5173/payment-result?out_trade_no=...",
   "borrow_record_ids": [1, 2],
+  "reused": false,
   "simulate_notify_path": "/api/payments/alipay/simulate-notify/ALI202605240101010000A1B2C3D4"
 }
 ```
 
-#### 3.4.3 GET /api/payments/:id
+#### 3.4.4 GET /api/payments/:id
 **功能**：查询支付单状态
 **权限**：本人或admin/librarian
 
-#### 3.4.4 GET /api/payments/trade/:out_trade_no
+#### 3.4.5 GET /api/payments/trade/:out_trade_no
 **功能**：按商户订单号查询支付单状态
 **权限**：本人或admin/librarian
 
 **说明**：本地 `/payment-result` 页面使用该接口根据 `out_trade_no` 读取最新支付状态，而不是信任 URL 中的静态状态参数。
 
-#### 3.4.5 POST /api/payments/alipay/simulate-notify/:out_trade_no
+#### 3.4.6 POST /api/payments/alipay/simulate-notify/:out_trade_no
 **功能**：模拟支付宝支付成功通知
 **权限**：本人或admin/librarian
 
 **说明**：本地测试用接口。调用后将支付单标记为 `paid`，关联的罚款记录标记为 `paid`，并重新同步用户 `total_fine`。接口具备幂等性，已支付订单重复调用不会重复入账。
 
-#### 3.4.6 POST /api/payments/alipay/notify
+#### 3.4.7 POST /api/payments/alipay/notify
 **功能**：支付宝异步通知入口
 **权限**：公开入口
 
 **说明**：当前阶段保留真实支付宝 notify 路由形状，尚未实现支付宝签名验签。真实沙箱回调测试前需要接入验签逻辑。
 
-#### 3.4.7 GET /api/payments/income/summary
+#### 3.4.8 GET /api/payments/income/summary
 **功能**：图书管理员收入 dashboard 数据
 **权限**：admin/librarian
 
@@ -914,6 +928,12 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "recent_payments": []
 }
 ```
+
+#### 3.4.9 POST /api/payments/:id/expire
+**功能**：手动过期待支付订单
+**权限**：本人或admin/librarian
+
+**说明**：仅 `pending` 订单可以过期。过期订单不会改变罚款状态，用户可重新创建支付单。
 
 ### 3.5 分类管理接口
 
