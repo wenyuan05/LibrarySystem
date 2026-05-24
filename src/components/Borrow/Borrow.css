@@ -397,9 +397,9 @@
   animation: slideIn 0.3s ease;
 }
 
-.fine-modal-content {
-  width: min(1280px, calc(100vw - 64px));
-  max-width: 1280px;
+.modal-content.fine-modal-content {
+  width: min(1240px, calc(100vw - 32px));
+  max-width: none;
   max-height: min(86vh, 820px);
   padding: var(--spacing-xl);
 }

@@ -50,7 +50,7 @@
 - Release 3 支付宝沙箱收银台链接由 `backend/services/alipayClient.js` 生成：后端使用应用私钥按 `alipay.trade.page.pay` 参数排序签名生成浏览器收银台链接，同时优先调用 `alipay.trade.precreate` 获取支付宝专用短二维码内容，避免把超长 page-pay URL 直接编码成难以扫描的二维码；配置未启用或缺失时保留本地 `/payment-result` 模拟链接作为课程演示兜底。`/api/payments/alipay/notify` 已支持表单回调解析和支付宝公钥验签，验签通过且交易成功后复用统一支付完成逻辑。
 - Release 3 支付宝沙箱订单状态同步支持主动查询：当 `GET /api/payments/:id` 或 `GET /api/payments/trade/:out_trade_no` 读取 pending 订单且支付宝配置完整时，后端会调用 `alipay.trade.query` 同步沙箱交易状态；`TRADE_SUCCESS/TRADE_FINISHED` 会完成罚款支付，`TRADE_CLOSED` 会过期本地订单，查询失败时保留本地状态以避免前端轮询中断。
 - Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，并每 2.5 秒轮询订单状态，`paid` 自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记、`expired` 提示重新创建订单；模拟支付成功按钮受 `ALIPAY_MODE=sandbox` / `ALIPAY_SIMULATION_ENABLED` 控制，模拟成功后再标记支付单和关联罚款为 `paid`；同一批罚款复用 pending 订单，expired 订单不能模拟成功，paid 订单不能过期，管理员/图书管理员可通过 Income Dashboard 查看收入汇总、订单列表并过期待支付订单。
-- My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用宽屏横向拉伸的专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
+- My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 

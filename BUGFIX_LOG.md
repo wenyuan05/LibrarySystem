@@ -1627,3 +1627,16 @@ This file documents all bug fixes applied to the project.
   - Updated docs and regression expectations for the wide modal layout.
 - **Reason**: The centered fine modal still felt too narrow for dense overdue/fine records after the first layout fix.
 
+### Fix 125: Override base modal width for My Fines
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the My Fines modal selector to `.modal-content.fine-modal-content` so it overrides the base `.modal-content` 600px maximum width.
+  - Set the fine modal width to `min(1240px, calc(100vw - 32px))` with no inherited max-width cap.
+  - Updated docs and regression expectations to call out the base modal override.
+- **Reason**: The earlier wide modal style could still be constrained by the shared modal container rule, leaving the fine modal visually close to its old narrow width.
+

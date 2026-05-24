@@ -665,7 +665,7 @@
   3. Resize or scroll the borrow records page while the modal is open.
 - **Expected result**:
   - The modal is centered against the browser viewport, not the borrow-records card/container.
-  - The modal stretches horizontally on desktop, up to the wide modal limit, so the fine table has room to breathe.
+  - The fine modal overrides the base 600px modal limit and stretches horizontally on desktop, up to the wide modal limit, so the fine table has room to breathe.
   - Fine table columns keep readable widths; long book titles wrap naturally while status and amount columns stay on one line.
   - On narrow screens, the table scrolls horizontally inside the modal instead of squeezing columns into unreadable vertical text.
 
