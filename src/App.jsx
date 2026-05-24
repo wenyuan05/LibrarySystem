@@ -31,11 +31,11 @@ import './styles/global.css';
 // 主应用组件
 function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <NotificationProvider>
-          <div className="app-container">
-            <Router>
+    <Router>
+      <AuthProvider>
+        <ToastProvider>
+          <NotificationProvider>
+            <div className="app-container">
               <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
@@ -59,8 +59,7 @@ function App() {
               <Route path="/logs" element={<ProtectedRoute requiredRole="admin"><MainLayout><LogsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/system-settings" element={<ProtectedRoute requiredRole="admin"><MainLayout><SystemSettingsPage /></MainLayout></ProtectedRoute>} />
               </Routes>
-            </Router>
-            <footer className="app-footer">
+              <footer className="app-footer">
               <div className="footer-content">
                 <p>{privacyConfig.website.copyright}</p>
                 <p>
@@ -69,11 +68,12 @@ function App() {
                   </a>
                 </p>
               </div>
-            </footer>
-          </div>
-        </NotificationProvider>
-      </ToastProvider>
-    </AuthProvider>
+              </footer>
+            </div>
+          </NotificationProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

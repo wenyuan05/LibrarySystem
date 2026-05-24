@@ -658,6 +658,7 @@ npm run dev
 9. **支付宝罚款支付模拟接口**：
    - 后端新增 `/api/payments/fines/alipay` 创建支付宝罚款支付单，返回二维码内容和收款链接
    - 当 `ALIPAY_ENABLED=true` 且沙箱配置完整时，支付单会生成支付宝沙箱 `alipay.trade.page.pay` 收银台签名链接，并优先调用 `alipay.trade.precreate` 获取支付宝专用二维码内容；未启用或配置缺失时继续使用本地 `/payment-result` 模拟链接
+   - 支付宝沙箱启用时不会再把 page-pay 长链接作为二维码兜底；已有 pending 订单如果仍保存旧长链接二维码，后端会在复用订单前刷新为 precreate 二维码
    - 借阅历史区分预计罚款和实际罚款：未归还逾期书籍只显示 Estimated Fine，提交还书后生成的 `returning/returned` 未付罚款才允许支付
    - Fine Records 页面点击 Pay with Alipay 后会显示支付宝模拟支付区域、订单号、二维码内容占位和收款链接，不再直接结清罚款
    - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记，变为 `expired` 时提示重新创建订单

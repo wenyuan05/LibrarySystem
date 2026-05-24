@@ -623,6 +623,7 @@
   - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
   - `payment_url` contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
   - `qr_code` uses the `alipay.trade.precreate` response when available, so the generated frontend QR is less dense and scannable by the Alipay sandbox app.
+  - Existing pending payments with old page-pay QR content are refreshed to precreate QR content before being returned for reuse.
   - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
   - Single-line Alipay key bodies and PKCS#1 / PKCS#8 private key containers are accepted without `DECODER routines::unsupported` signing errors.
 
@@ -650,7 +651,7 @@
   - `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` query `alipay.trade.query` for pending orders.
   - If Alipay reports `TRADE_SUCCESS` or `TRADE_FINISHED`, the local payment becomes `paid` and linked fines become paid.
   - If Alipay reports `TRADE_CLOSED`, the local payment becomes `expired`.
-  - If the Alipay query times out or fails, the local payment remains pending and the frontend polling keeps working.
+  - If the Alipay query times out, fails, or returns an amount mismatch, the local payment remains pending and the frontend polling keeps working without a 500 response.
 
 ### Test Case: Fine page Alipay simulation flow
 

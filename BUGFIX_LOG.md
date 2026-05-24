@@ -1714,6 +1714,22 @@ This file documents all bug fixes applied to the project.
   - Documented that backend dependencies need to be installed after switching to the Release 3 branch.
 - **Reason**: The ISBN provider selection branch introduced `require('undici')` for proxy support, but the backend dependency manifest did not include it, causing startup to fail with `Cannot find module 'undici'`.
 
+### Fix 131: Prevent stale Alipay QR reuse and polling 500s
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `src/App.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Stopped falling back to the signed page-pay URL as the QR payload when Alipay sandbox is enabled.
+  - Required `alipay.trade.precreate` to return a QR payload before creating a sandbox payment order.
+  - Refreshed reusable pending orders whose stored QR payload still equals the old page-pay URL.
+  - Changed Alipay trade-query amount mismatch and synchronization errors to return the local payment row instead of a 500 response, keeping frontend polling alive.
+  - Rewrapped the app with `Router` outside the auth/toast/notification providers while keeping `AuthProvider` above `NotificationProvider`.
+- **Reason**: Old pending orders could keep unscannable page-pay QR content, and trade-query mismatches could make Fine Records polling fail with 500; the provider tree also needed to stay stable after the branch merge.
+
 ### Fix 111: Preserve ShowAPI description in single ISBN add
 - **Files modified**:
   - `src/components/Books/AddBookForm.jsx`

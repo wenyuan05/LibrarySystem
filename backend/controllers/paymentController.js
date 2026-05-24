@@ -47,18 +47,17 @@ const buildProviderPaymentUrl = async (payment, config = getAlipayConfig()) => {
   }
 
   const paymentUrl = buildPagePayUrl(config, payment);
-  let qrCode = paymentUrl;
-  let source = 'alipay-page-pay';
+  let qrCode = '';
+  let source = 'alipay-precreate';
   try {
     const precreateResult = await precreateTrade(config, payment);
     if (precreateResult.code === '10000' && precreateResult.qr_code) {
       qrCode = precreateResult.qr_code;
-      source = 'alipay-precreate';
     } else {
-      console.warn('Alipay precreate did not return a QR code:', precreateResult.sub_msg || precreateResult.msg || precreateResult.code);
+      throw new Error(precreateResult.sub_msg || precreateResult.msg || precreateResult.code || 'Alipay precreate failed');
     }
   } catch (precreateErr) {
-    console.warn('Failed to precreate Alipay QR code, falling back to page-pay URL:', precreateErr.message);
+    throw new Error(`Failed to create Alipay QR code: ${precreateErr.message}`);
   }
 
   return {
@@ -66,6 +65,33 @@ const buildProviderPaymentUrl = async (payment, config = getAlipayConfig()) => {
     qrCode,
     source
   };
+};
+
+const refreshPaymentCheckout = async (payment) => {
+  const providerPayment = await buildProviderPaymentUrl(payment);
+  return await new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE payments
+       SET qr_code = ?,
+           payment_url = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [providerPayment.qrCode, providerPayment.paymentUrl, payment.id],
+      (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve({
+          ...payment,
+          qr_code: providerPayment.qrCode,
+          payment_url: providerPayment.paymentUrl,
+          payment_url_source: providerPayment.source
+        });
+      }
+    );
+  });
 };
 
 const mapPaymentRow = (row) => {
@@ -266,7 +292,12 @@ const syncPendingAlipayPayment = async (payment) => {
   }
 
   if (queryResult.total_amount && roundMoney(queryResult.total_amount) !== roundMoney(payment.amount)) {
-    throw new Error('Alipay query amount does not match local payment');
+    console.error('Alipay query amount does not match local payment:', {
+      out_trade_no: payment.out_trade_no,
+      local_amount: payment.amount,
+      alipay_amount: queryResult.total_amount
+    });
+    return mapPaymentRow(payment);
   }
 
   if (['TRADE_SUCCESS', 'TRADE_FINISHED'].includes(queryResult.trade_status)) {
@@ -302,7 +333,10 @@ const syncPendingAlipayPayment = async (payment) => {
 const respondWithSyncedPayment = (res, payment) => {
   syncPendingAlipayPayment(payment)
     .then(syncedPayment => res.json(syncedPayment))
-    .catch(err => res.status(500).json({ error: err.message }));
+    .catch(err => {
+      console.error('Failed to synchronize Alipay payment:', err.message);
+      res.json(mapPaymentRow(payment));
+    });
 };
 
 exports.getAlipayStatus = function(req, res) {
@@ -349,10 +383,21 @@ exports.createFineAlipayPayment = function(req, res) {
         }
 
         if (pendingPayment) {
+          let reusablePayment = pendingPayment;
+          if (pendingPayment.qr_code === pendingPayment.payment_url) {
+            try {
+              reusablePayment = await refreshPaymentCheckout(pendingPayment);
+            } catch (refreshErr) {
+              res.status(500).json({ error: refreshErr.message });
+              return;
+            }
+          }
+
           res.json({
-            ...mapPaymentRow(pendingPayment),
+            ...mapPaymentRow(reusablePayment),
             reused: true,
-            simulate_notify_path: `/api/payments/alipay/simulate-notify/${pendingPayment.out_trade_no}`
+            payment_url_source: reusablePayment.payment_url_source,
+            simulate_notify_path: `/api/payments/alipay/simulate-notify/${reusablePayment.out_trade_no}`
           });
           return;
         }
