@@ -524,6 +524,19 @@
   - Clicking the button reruns the search using the current input value.
   - Clearing the input and clicking the button reloads the full book list.
 
+### Test Case: Books list availability fallback
+
+- **Scenario**: Reader opens Books while per-book copy details are still loading.
+- **Steps**:
+  1. Log in as a reader.
+  2. Open the Books page.
+  3. Observe book cards immediately after the main book list loads.
+  4. Wait for copy details to finish loading.
+- **Expected result**:
+  - Book cards use `available_copies` from the book list response until copy details are available.
+  - Available books are not temporarily marked as `Borrowed` while copy details are loading.
+  - Once copy details load, card status matches the actual available copy count.
+
 ### Test Case: Borrowing feature toggle
 
 - **Scenario**: Admin globally disables and re-enables reader borrowing.

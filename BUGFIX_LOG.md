@@ -1462,3 +1462,16 @@ This file documents all bug fixes applied to the project.
   - Added sidebar navigation for Income Dashboard.
 - **Reason**: Complete local payment-management support before replacing the simulated provider with real Alipay gateway calls.
 
+### Fix 115: Prevent Books list from showing all cards as borrowed during copy loading
+- **Files modified**:
+  - `src/components/Books/BookList.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed Books list availability calculation to use `book.available_copies` and `book.total_copies` while per-book copy details are still loading.
+  - Continued to use loaded copy details once they are available.
+  - Documented the fallback and regression case.
+- **Reason**: Avoid temporarily rendering every book card as `Borrowed` because an unloaded copy list was treated as an empty list.
+
