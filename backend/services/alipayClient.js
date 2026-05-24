@@ -25,13 +25,40 @@ const buildSignContent = (params) => (
     .join('&')
 );
 
+const switchPemLabel = (key, fromLabel, toLabel) => (
+  key
+    .replace(`-----BEGIN ${fromLabel}-----`, `-----BEGIN ${toLabel}-----`)
+    .replace(`-----END ${fromLabel}-----`, `-----END ${toLabel}-----`)
+);
+
+const buildPrivateKeyCandidates = (privateKey) => {
+  const candidates = [privateKey];
+  if (privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    candidates.push(switchPemLabel(privateKey, 'PRIVATE KEY', 'RSA PRIVATE KEY'));
+  }
+  if (privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+    candidates.push(switchPemLabel(privateKey, 'RSA PRIVATE KEY', 'PRIVATE KEY'));
+  }
+  return [...new Set(candidates)];
+};
+
 const signParams = (params, privateKey, signType = 'RSA2') => {
   const algorithm = signType === 'RSA' ? 'RSA-SHA1' : 'RSA-SHA256';
-  const signer = crypto.createSign(algorithm);
   const signContent = buildSignContent(params);
-  signer.update(signContent, 'utf8');
-  signer.end();
-  return signer.sign(privateKey, 'base64');
+  let lastError;
+
+  for (const candidate of buildPrivateKeyCandidates(privateKey)) {
+    try {
+      const signer = crypto.createSign(algorithm);
+      signer.update(signContent, 'utf8');
+      signer.end();
+      return signer.sign(candidate, 'base64');
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
 };
 
 const buildGatewayUrl = (gateway, params) => {

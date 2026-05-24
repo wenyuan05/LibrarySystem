@@ -1552,3 +1552,16 @@ This file documents all bug fixes applied to the project.
   - Updated environment examples and docs to explain the supported key formats.
 - **Reason**: Prevent Node crypto signing from failing with `DECODER routines::unsupported` when the sandbox private key is configured without PEM headers.
 
+### Fix 120: Fallback between PKCS#8 and PKCS#1 Alipay private key containers
+- **Files modified**:
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Kept `ALIPAY_SIGN_TYPE=RSA2` mapped to Node's `RSA-SHA256` signing algorithm.
+  - Added signing fallback that tries both `PRIVATE KEY` and `RSA PRIVATE KEY` PEM containers for the configured application private key.
+  - Documented that RSA2 is the default signing mode and private keys may be PKCS#8 or PKCS#1.
+- **Reason**: Some Alipay sandbox tools export PKCS#1 private keys, which fail if wrapped only as PKCS#8 even though the signing algorithm is correctly set to RSA2.
+
