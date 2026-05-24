@@ -1537,3 +1537,18 @@ This file documents all bug fixes applied to the project.
   - Documented active sandbox status synchronization and manual verification steps.
 - **Reason**: Let local deployments without a public notify callback still observe sandbox payment completion through the existing polling and refresh UI.
 
+### Fix 119: Normalize Alipay key bodies before signing
+- **Files modified**:
+  - `backend/config/alipayConfig.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added PEM normalization for Alipay private and public keys.
+  - Supported both full PEM values and the single-line base64 key body commonly copied from Alipay sandbox tooling.
+  - Automatically wraps bare private key bodies with `BEGIN/END PRIVATE KEY` and public key bodies with `BEGIN/END PUBLIC KEY`.
+  - Updated environment examples and docs to explain the supported key formats.
+- **Reason**: Prevent Node crypto signing from failing with `DECODER routines::unsupported` when the sandbox private key is configured without PEM headers.
+

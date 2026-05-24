@@ -596,7 +596,7 @@
 
 - **Scenario**: Backend creates a sandbox Alipay cashier link when Alipay is enabled and configured.
 - **Steps**:
-  1. Configure backend `.env` with `ALIPAY_ENABLED=true`, `ALIPAY_MODE=sandbox`, sandbox `ALIPAY_APP_ID`, app private key, Alipay public key, notify URL, and return URL.
+  1. Configure backend `.env` with `ALIPAY_ENABLED=true`, `ALIPAY_MODE=sandbox`, sandbox `ALIPAY_APP_ID`, app private key, Alipay public key, notify URL, and return URL. Use either full PEM keys or the single-line base64 key body copied from Alipay sandbox.
   2. Restart the backend.
   3. Create a payable fine payment with `POST /api/payments/fines/alipay`.
   4. Open the returned `payment_url`.
@@ -604,6 +604,7 @@
   - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
   - The URL contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
   - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
+  - Single-line Alipay key bodies are accepted without `DECODER routines::unsupported` signing errors.
 
 ### Test Case: Alipay sandbox notify verification
 

@@ -190,8 +190,9 @@ JWT_SECRET=your-secret-key-here
 ALIPAY_ENABLED=false
 ALIPAY_MODE=sandbox
 ALIPAY_APP_ID=your_sandbox_app_id
-ALIPAY_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour_app_private_key\n-----END PRIVATE KEY-----"
-ALIPAY_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nyour_alipay_public_key\n-----END PUBLIC KEY-----"
+# 支持完整 PEM，也支持直接粘贴支付宝沙箱里的一行 base64 key body
+ALIPAY_PRIVATE_KEY=your_app_private_key_body
+ALIPAY_PUBLIC_KEY=your_alipay_public_key_body
 ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
 ALIPAY_NOTIFY_URL=http://localhost:3001/api/payments/alipay/notify
 ALIPAY_RETURN_URL=http://localhost:5173/payment-result
@@ -225,8 +226,8 @@ JWT_SECRET=your-secret-key-here
 - `ALIPAY_ENABLED`：是否启用支付宝支付配置校验；沙箱调试时设为 `true`
 - `ALIPAY_MODE`：支付宝模式，支持 `sandbox` 和 `production`，默认 `sandbox`
 - `ALIPAY_APP_ID`：支付宝开放平台应用 ID，需要由你从沙箱应用提供
-- `ALIPAY_PRIVATE_KEY`：应用私钥，只能保存在 `backend/.env` 后端环境变量中
-- `ALIPAY_PUBLIC_KEY`：支付宝公钥，用于后续回调验签
+- `ALIPAY_PRIVATE_KEY`：应用私钥，只能保存在 `backend/.env` 后端环境变量中；可填写完整 PEM，也可直接粘贴支付宝工具/沙箱生成的一行私钥 body
+- `ALIPAY_PUBLIC_KEY`：支付宝公钥，用于回调验签；可填写完整 PEM，也可直接粘贴支付宝沙箱的一行公钥 body
 - `ALIPAY_NOTIFY_URL`：支付宝异步通知地址；本地模拟配置为 `http://localhost:3001/api/payments/alipay/notify`，真实沙箱回调测试需要换成公网或内网穿透地址
 - `ALIPAY_RETURN_URL`：支付完成后的前端返回地址；本地测试默认 `http://localhost:5173/payment-result`
 - `ALIPAY_SIMULATION_ENABLED`：是否显示并允许本地模拟支付成功按钮；默认在 `ALIPAY_MODE=sandbox` 时开启，生产环境应设为 `false`

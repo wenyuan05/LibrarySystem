@@ -9,12 +9,27 @@ const normalizeBoolean = (value, defaultValue = false) => {
   return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
 };
 
-const normalizePrivateKey = (value) => {
+const wrapPemBody = (body) => {
+  const compact = String(body || '').replace(/\s+/g, '');
+  return compact.match(/.{1,64}/g)?.join('\n') || '';
+};
+
+const normalizePemKey = (value, type) => {
   if (!value) {
     return '';
   }
 
-  return String(value).replace(/\\n/g, '\n').trim();
+  const key = String(value).replace(/\\n/g, '\n').trim();
+  if (!key) {
+    return '';
+  }
+
+  if (key.includes('-----BEGIN')) {
+    return key;
+  }
+
+  const label = type === 'private' ? 'PRIVATE KEY' : 'PUBLIC KEY';
+  return `-----BEGIN ${label}-----\n${wrapPemBody(key)}\n-----END ${label}-----`;
 };
 
 const normalizeMode = (value) => {
@@ -30,8 +45,8 @@ const getAlipayConfig = () => {
     enabled: normalizeBoolean(process.env.ALIPAY_ENABLED, false),
     mode,
     appId: process.env.ALIPAY_APP_ID || '',
-    privateKey: normalizePrivateKey(process.env.ALIPAY_PRIVATE_KEY),
-    alipayPublicKey: normalizePrivateKey(process.env.ALIPAY_PUBLIC_KEY),
+    privateKey: normalizePemKey(process.env.ALIPAY_PRIVATE_KEY, 'private'),
+    alipayPublicKey: normalizePemKey(process.env.ALIPAY_PUBLIC_KEY, 'public'),
     gateway: process.env.ALIPAY_GATEWAY || defaultGateway,
     notifyUrl: process.env.ALIPAY_NOTIFY_URL || '',
     returnUrl: process.env.ALIPAY_RETURN_URL || '',
