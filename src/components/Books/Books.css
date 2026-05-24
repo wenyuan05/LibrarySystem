@@ -1891,6 +1891,58 @@
   text-align: center;
 }
 
+.isbn-provider-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-md);
+  align-items: center;
+  margin: 0 0 var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+}
+
+.isbn-provider-copy label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.isbn-provider-copy p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.isbn-provider-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.isbn-provider-controls select {
+  min-width: 180px;
+}
+
+.isbn-provider-status {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.isbn-provider-status.available strong {
+  color: var(--success-color);
+}
+
+.isbn-provider-status.unavailable strong {
+  color: var(--danger-color);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .books-stats-row {
@@ -1930,8 +1982,16 @@
   }
 
   .batch-panel,
-  .copy-settings-card {
+  .copy-settings-card,
+  .isbn-provider-panel {
     padding: var(--spacing-md);
+  }
+
+  .isbn-provider-panel,
+  .isbn-provider-controls {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .batch-panel-header,

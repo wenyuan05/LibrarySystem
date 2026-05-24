@@ -53,6 +53,9 @@
 - My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
+- Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
+- 后端 ISBN provider 出站请求支持自动代理：`BACKEND_PROXY_MODE=auto` 时检测 `BACKEND_PROXY_HOST:BACKEND_PROXY_PORT`，代理可用则使用代理，不可用则回退默认网络。
+- 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、ISBN provider 查询失败和数据库写入失败。
 
 ## 2. 前端设计
 
@@ -315,7 +318,9 @@ backend/
   - addBookCopy：新增副本并自动生成 copy_code
   - getCopyById：获取单个副本信息
   - updateCopyStatus：更新副本状态
-  - searchByISBN：通过ISBN查询书籍信息（调用OpenLibrary API）
+  - getIsbnProviders：获取 ISBN 查询节点列表
+  - testIsbnProvider：测试指定 ISBN 查询节点可用性
+  - searchByISBN：通过选定 ISBN provider 查询书籍信息
   - batchAddBooks：批量导入书籍
   - updateCopyLocation：更新副本位置信息
 
@@ -404,7 +409,7 @@ backend/
 | 模块 | 路由前缀 | 主要接口 |
 |------|----------|----------|
 | 用户管理 | /api/users | 登录、注册、用户CRUD、状态管理 |
-| 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN导入、批量导入、位置管理 |
+| 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN provider 查询与测试、ISBN导入、批量导入、位置管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
 | 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert）、当前用户可见功能开关 |

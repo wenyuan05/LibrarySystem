@@ -3,45 +3,6 @@
 // the same reverse proxy as the backend without browser-side CORS issues.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const monthLookup = {
-  january: '01',
-  february: '02',
-  march: '03',
-  april: '04',
-  may: '05',
-  june: '06',
-  july: '07',
-  august: '08',
-  september: '09',
-  october: '10',
-  november: '11',
-  december: '12'
-};
-
-const normalizePublishDate = (value) => {
-  const rawValue = String(value || '').trim();
-  if (!rawValue) return '';
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue) || /^\d{4}$/.test(rawValue)) {
-    return rawValue;
-  }
-
-  const monthYear = rawValue.match(/^([A-Za-z]+)\s+(\d{4})$/);
-  if (monthYear) {
-    const month = monthLookup[monthYear[1].toLowerCase()];
-    return month ? `${monthYear[2]}-${month}` : rawValue;
-  }
-
-  const monthDayYear = rawValue.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
-  if (monthDayYear) {
-    const month = monthLookup[monthDayYear[1].toLowerCase()];
-    const day = monthDayYear[2].padStart(2, '0');
-    return month ? `${monthDayYear[3]}-${month}-${day}` : rawValue;
-  }
-
-  return rawValue;
-};
-
 // 从本地存储读取 token
 const getAuthToken = () => {
   try {
@@ -146,49 +107,23 @@ export const booksAPI = {
     });
   },
 
+  // 获取 ISBN 查询节点
+  getIsbnProviders: async () => {
+    return request('/books/isbn-providers');
+  },
+
+  // 测试 ISBN 查询节点
+  testIsbnProvider: async (provider, isbn) => {
+    return request('/books/isbn-providers/test', {
+      method: 'POST',
+      body: JSON.stringify({ provider, isbn }),
+    });
+  },
+
   // 通过 ISBN 查询书籍信息
-  searchByISBN: async (isbn) => {
-    // 直接调用 OpenLibrary API
-    const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
-    
-    try {
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const bookKey = `ISBN:${isbn}`;
-      
-      if (data[bookKey]) {
-        const bookData = data[bookKey];
-        const coverImage = bookData.cover?.large
-          || bookData.cover?.medium
-          || bookData.cover?.small
-          || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
-        
-        // 清洗数据，只返回需要的信息
-        const cleanedData = {
-          title: bookData.title || '',
-          author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
-          publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
-          publish_date: normalizePublishDate(bookData.publish_date),
-          isbn: isbn,
-          description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
-          cover_image: coverImage,
-          language: 'English',
-          page_count: bookData.number_of_pages || 0
-        };
-        
-        return cleanedData;
-      } else {
-        throw new Error('Book not found');
-      }
-    } catch (error) {
-      console.error('API request error:', error);
-      throw error;
-    }
+  searchByISBN: async (isbn, provider = 'openlibrary') => {
+    const params = provider ? `?provider=${encodeURIComponent(provider)}` : '';
+    return request(`/books/isbn/${encodeURIComponent(isbn)}${params}`);
   },
 
   // 批量导入书籍

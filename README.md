@@ -174,7 +174,7 @@ npm install
 
 2. **配置环境变量**：
    - 编辑 `.env` 文件，设置适当的值
-   - 编辑 `backend/.env` 文件，确保与根目录的 `.env` 文件中的 JWT_SECRET 一致
+   - 编辑 `backend/.env` 文件，设置后端专用配置
 
 **根目录 .env 文件示例**：
 
@@ -211,6 +211,14 @@ FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
+
+# ISBN lookup provider configuration
+SHOWAPI_ISBN_APP_KEY=your_showapi_app_key
+
+# Backend outbound proxy for external ISBN APIs
+BACKEND_PROXY_MODE=auto
+BACKEND_PROXY_HOST=127.0.0.1
+BACKEND_PROXY_PORT=7890
 ```
 
 **重要安全注意事项**：
@@ -234,6 +242,9 @@ JWT_SECRET=your-secret-key-here
 - `ALIPAY_SIMULATION_ENABLED`：是否显示并允许本地模拟支付成功按钮；默认在 `ALIPAY_MODE=sandbox` 时开启，生产环境应设为 `false`
 - `ALIPAY_GATEWAY`：支付宝网关；沙箱默认 `https://openapi-sandbox.dl.alipaydev.com/gateway.do`
 - `ALIPAY_SIGN_TYPE` / `ALIPAY_CHARSET` / `ALIPAY_FORMAT` / `ALIPAY_TIMEOUT_MS`：支付宝请求签名、编码、格式和超时配置
+- `SHOWAPI_ISBN_APP_KEY`：ShowAPI ISBN 查询节点的 appKey，应配置在 `backend/.env` 中
+- `BACKEND_PROXY_MODE`：后端访问外部 ISBN API 时的代理模式，`auto` 表示检测到代理可用才使用，`on` 表示总是使用，`off` 表示禁用代理
+- `BACKEND_PROXY_HOST` / `BACKEND_PROXY_PORT`：后端出站代理地址，默认 `127.0.0.1:7890`
 
 ## 运行方法
 
@@ -393,12 +404,13 @@ npm run dev
 - Reader 书籍页升级为仪表盘布局：顶部统计卡、紧凑书籍卡片、搜索/分类/快捷状态筛选、右侧热门书籍/最近借阅/系统统计侧栏。
 - 书籍管理的 Add New Book 改为 portal 弹窗，脱离书籍页面容器层级；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
 - Batch Import 使用现代双栏导入界面：左侧 ISBN 列表与 CSV/TXT 上传，右侧实时预览成功/重复/无效 ISBN，下方 Copy Settings 统一生成副本位置、数量和分类。
+- Release 3 ISBN 导入支持 API 节点选择与测试：管理员/图书管理员可在 Add New Book 中选择 OpenLibrary、Google Books 或 ShowAPI ISBN，测试节点可用性，并用选定节点执行单本查询和批量导入预览。
 - Release 2 新增站内通知：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
 - 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
 - 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
 - System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅功能开关、借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
 - Release 3 新增借阅功能开关：管理员可通过 `borrow_enabled` 全局关闭读者借阅；前端借阅/确认按钮会显示 disabled 状态，后端也会拦截发起借阅和确认借阅请求。
-- 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
+- 批量 ISBN 导入会汇总无效、重复、ISBN provider 查询失败和后端写入失败项，导入结果会展示完整失败原因。
 - 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
 ### 前端功能
@@ -442,7 +454,7 @@ npm run dev
    - 点击书籍查看详情
    - 借阅和归还书籍
    - 删除书籍（管理员/图书管理员）
-   - ISBN导入：通过OpenLibrary API查询ISBN自动填充书籍信息（管理员/图书管理员）
+   - ISBN导入：通过可选 ISBN API 节点查询并自动填充书籍信息（管理员/图书管理员）
    - 右侧侧栏展示热门书籍 Top 10、最近借阅和系统统计
 6. **书籍管理专门板块**（管理员/图书管理员）：
    - 通过 Add New Book portal 弹窗添加新书籍（包含ISBN格式验证和重复检查），避免被书籍页面容器裁切或遮挡
@@ -453,7 +465,7 @@ npm run dev
    - 通过独立弹窗管理书籍副本数量、状态、条形码和位置
    - 新增副本时自动生成副本编号和条形码编号，并填充默认位置
    - 副本位置支持单个确认保存和批量应用到全部副本；批量位置保存会按顺序提交，避免 SQLite 并发事务冲突
-   - ISBN单个/批量导入；批量导入支持 ISBN 实时预览、CSV/TXT 上传、导入进度和 Copy Settings
+   - ISBN单个/批量导入；批量导入支持 ISBN API 节点选择与测试、实时预览、CSV/TXT 上传、导入进度和 Copy Settings
    - 批量导入会在前端和后端同时报告无效 ISBN、重复 ISBN、元数据查询失败和写入失败原因
 7. **书籍详情页**：
    - 显示书籍详细信息
@@ -553,7 +565,10 @@ npm run dev
    - 支持确认借阅时绑定具体可用副本
    - 副本位置管理（如A1-01），方便定位实体书
 7. **ISBN导入**：
-   - 通过 OpenLibrary API 查询 ISBN 信息
+   - 通过选定的 ISBN 查询 API 节点查询 ISBN 信息，当前内置 OpenLibrary、Google Books 和国内 ShowAPI ISBN 节点
+   - Add New Book 弹窗中提供节点下拉选择与 Test Node 操作，显示节点是否可用、延迟、最后测试时间和失败原因
+   - ShowAPI ISBN 节点通过后端环境变量 `SHOWAPI_ISBN_APP_KEY` 配置 appKey，未配置时会显示 key required 并在节点测试中返回不可用
+   - 后端外部 ISBN API 请求支持自动代理，默认检测 `127.0.0.1:7890` 可用时走代理，不可用时走默认网络
    - 自动填充书籍详情（标题、作者、出版社、封面等）
    - 出版日期会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，无法解析时显示原始返回值
    - 支持单个和批量 ISBN 导入

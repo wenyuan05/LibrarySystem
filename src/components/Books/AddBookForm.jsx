@@ -18,6 +18,10 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   const [isbnList, setIsbnList] = useState('');
   const [existingBooks, setExistingBooks] = useState([]);
   const [metadataCache, setMetadataCache] = useState({});
+  const [isbnProviders, setIsbnProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('openlibrary');
+  const [providerStatuses, setProviderStatuses] = useState({});
+  const [testingProvider, setTestingProvider] = useState(null);
   const [batchSettings, setBatchSettings] = useState({
     defaultLocation: 'Main Shelf',
     copiesPerBook: 1,
@@ -27,6 +31,8 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
   const csvInputRef = useRef(null);
+
+  const getMetadataCacheKey = (isbn, provider = selectedProvider) => `${provider}:${isbn}`;
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -66,6 +72,27 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
 
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const fetchIsbnProviders = async () => {
+      try {
+        const providers = await booksAPI.getIsbnProviders();
+        setIsbnProviders(providers);
+        setSelectedProvider(currentProvider => {
+          if (providers.some(provider => provider.id === currentProvider)) {
+            return currentProvider;
+          }
+
+          return providers[0]?.id || currentProvider;
+        });
+      } catch (error) {
+        showToast('Failed to load ISBN lookup providers', 'error');
+        console.error('Error fetching ISBN providers:', error);
+      }
+    };
+
+    fetchIsbnProviders();
+  }, [showToast]);
 
   // 关闭下拉菜单当点击外部
   useEffect(() => {
@@ -110,7 +137,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     const seen = new Set();
 
     return parsedIsbns.map((isbn, index) => {
-      const metadata = metadataCache[isbn];
+      const metadata = metadataCache[getMetadataCacheKey(isbn)];
       let status = 'success';
 
       if (!ISBN_PATTERN.test(isbn) || metadata?.status === 'invalid') {
@@ -125,12 +152,12 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
         id: `${isbn}-${index}`,
         isbn,
         title: metadata?.data?.title || (status === 'success' ? 'Metadata ready to fetch' : 'Unavailable'),
-        author: metadata?.data?.author || (status === 'success' ? 'Open Library lookup' : '-'),
+        author: metadata?.data?.author || (status === 'success' ? `${isbnProviders.find(provider => provider.id === selectedProvider)?.name || 'Selected provider'} lookup` : '-'),
         cover: metadata?.data?.cover_image || '',
         status
       };
     });
-  }, [existingIsbnSet, metadataCache, parsedIsbns]);
+  }, [existingIsbnSet, metadataCache, parsedIsbns, selectedProvider, isbnProviders]);
 
   const importablePreview = batchPreview.filter(item => item.status === 'success');
   const blockedPreview = batchPreview.filter(item => item.status !== 'success');
@@ -140,7 +167,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
 
     const candidates = importablePreview
       .map(item => item.isbn)
-      .filter(isbn => !metadataCache[isbn])
+      .filter(isbn => !metadataCache[getMetadataCacheKey(isbn)])
       .slice(0, 8);
 
     if (candidates.length === 0) return undefined;
@@ -149,27 +176,59 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
       candidates.forEach(async (isbn) => {
         setMetadataCache(prev => ({
           ...prev,
-          [isbn]: { status: 'loading' }
+          [getMetadataCacheKey(isbn)]: { status: 'loading' }
         }));
 
         try {
-          const data = await booksAPI.searchByISBN(isbn);
+          const data = await booksAPI.searchByISBN(isbn, selectedProvider);
           setMetadataCache(prev => ({
             ...prev,
-            [isbn]: { status: 'loaded', data }
+            [getMetadataCacheKey(isbn)]: { status: 'loaded', data }
           }));
         } catch (error) {
           console.error(`Failed to preview ISBN ${isbn}:`, error);
           setMetadataCache(prev => ({
             ...prev,
-            [isbn]: { status: 'invalid' }
+            [getMetadataCacheKey(isbn)]: { status: 'invalid' }
           }));
         }
       });
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [activeTab, importablePreview, metadataCache]);
+  }, [activeTab, importablePreview, metadataCache, selectedProvider]);
+
+  const handleProviderChange = (event) => {
+    setSelectedProvider(event.target.value);
+    setMetadataCache({});
+    setImportResult(null);
+  };
+
+  const handleTestProvider = async () => {
+    const providerToTest = selectedProvider;
+    setTestingProvider(providerToTest);
+    try {
+      const result = await booksAPI.testIsbnProvider(providerToTest);
+      setProviderStatuses(prev => ({ ...prev, [providerToTest]: result }));
+      showToast(
+        result.available ? `${result.provider_name} is available` : `${result.provider_name} is unavailable`,
+        result.available ? 'success' : 'error'
+      );
+    } catch (error) {
+      setProviderStatuses(prev => ({
+        ...prev,
+        [providerToTest]: {
+          provider: providerToTest,
+          available: false,
+          error: error.message,
+          last_tested_at: new Date().toISOString()
+        }
+      }));
+      showToast(error.message || 'Failed to test ISBN provider', 'error');
+    } finally {
+      setTestingProvider(null);
+    }
+  };
 
   // 通过 ISBN 查询书籍信息
   const handleSearchISBN = async () => {
@@ -181,7 +240,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     setIsSearchingISBN(true);
     
     try {
-      const bookData = await booksAPI.searchByISBN(formData.isbn);
+      const bookData = await booksAPI.searchByISBN(formData.isbn, selectedProvider);
       setFormData(prev => ({
         ...prev,
         title: bookData.title || '',
@@ -212,6 +271,11 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
       showToast('No importable ISBNs found', 'error');
       return;
     }
+
+    if (providerStatuses[selectedProvider] && !providerStatuses[selectedProvider].available) {
+      showToast('Selected ISBN lookup node is unavailable. Please test or switch nodes.', 'error');
+      return;
+    }
     
     setIsImporting(true);
     setImportProgress({ current: 0, total: importablePreview.length });
@@ -226,8 +290,8 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
 
       for (const item of importablePreview) {
         try {
-          const cachedData = metadataCache[item.isbn]?.data;
-          const bookData = cachedData || await booksAPI.searchByISBN(item.isbn);
+          const cachedData = metadataCache[getMetadataCacheKey(item.isbn)]?.data;
+          const bookData = cachedData || await booksAPI.searchByISBN(item.isbn, selectedProvider);
           books.push({
             ...bookData,
             total_copies: batchSettings.copiesPerBook,
@@ -391,6 +455,10 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     }
   };
 
+  const selectedProviderInfo = isbnProviders.find(provider => provider.id === selectedProvider);
+  const currentProviderStatus = providerStatuses[selectedProvider];
+  const isSelectedProviderUnavailable = currentProviderStatus && !currentProviderStatus.available;
+
   return (
     <div className="add-book-form">
       <div className="add-book-modal-header">
@@ -427,6 +495,51 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
           Batch Import
         </button>
       </div>
+
+      <section className="isbn-provider-panel">
+        <div className="isbn-provider-copy">
+          <label htmlFor="isbn-provider">ISBN Lookup API</label>
+          <p>Select and test the metadata source used by single and batch ISBN lookup.</p>
+        </div>
+        <div className="isbn-provider-controls">
+          <select
+            id="isbn-provider"
+            value={selectedProvider}
+            onChange={handleProviderChange}
+            disabled={isSubmitting || isSearchingISBN || isImporting || isbnProviders.length === 0}
+          >
+            {isbnProviders.map(provider => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name}{provider.requires_app_key && !provider.configured ? ' (key required)' : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleTestProvider}
+            disabled={testingProvider === selectedProvider || isbnProviders.length === 0}
+          >
+            {testingProvider === selectedProvider ? 'Testing...' : 'Test Node'}
+          </button>
+        </div>
+        <div className={`isbn-provider-status ${currentProviderStatus ? (currentProviderStatus.available ? 'available' : 'unavailable') : 'unknown'}`}>
+          <strong>{selectedProviderInfo?.name || 'No provider selected'}</strong>
+          {currentProviderStatus ? (
+            <span>
+              {currentProviderStatus.available ? 'Available' : 'Unavailable'}
+              {currentProviderStatus.latency_ms !== undefined ? ` · ${currentProviderStatus.latency_ms} ms` : ''}
+              {currentProviderStatus.last_tested_at ? ` · ${new Date(currentProviderStatus.last_tested_at).toLocaleString()}` : ''}
+              {!currentProviderStatus.available && currentProviderStatus.error ? ` · ${currentProviderStatus.error}` : ''}
+            </span>
+          ) : (
+            <span>
+              Not tested · {selectedProviderInfo?.endpoint || 'Provider endpoint unavailable'}
+              {selectedProviderInfo?.requires_app_key && !selectedProviderInfo?.configured ? ' · App key not configured' : ''}
+            </span>
+          )}
+        </div>
+      </section>
       
       {/* 单本书籍添加 */}
       {activeTab === 'single' && (
@@ -465,13 +578,13 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
                 value={formData.isbn}
                 onChange={handleChange}
                 required
-                disabled={isSubmitting || isSearchingISBN}
+                disabled={isSubmitting || isSearchingISBN || isSelectedProviderUnavailable}
               />
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={handleSearchISBN}
-                disabled={isSubmitting || isSearchingISBN || !formData.isbn}
+                disabled={isSubmitting || isSearchingISBN || !formData.isbn || isSelectedProviderUnavailable}
               >
                 {isSearchingISBN ? 'Searching...' : 'Search ISBN'}
               </button>
@@ -736,7 +849,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
             type="button"
             className="btn-primary batch-import-primary"
             onClick={handleBatchImport}
-            disabled={isImporting || importablePreview.length === 0}
+            disabled={isImporting || importablePreview.length === 0 || isSelectedProviderUnavailable}
           >
             {isImporting ? 'Importing...' : 'Import Books'}
           </button>

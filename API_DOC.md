@@ -5,7 +5,7 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 20 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 22 |
 | 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
 | 系统管理 | 系统设置、功能开关、公告、公告已读、日志 | 13 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
@@ -491,14 +491,79 @@
 }
 ```
 
-#### 3.2.13 GET /api/books/isbn/:isbn
-**功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
+#### 3.2.13 GET /api/books/isbn-providers
+**功能**：获取可用 ISBN 查询 API 节点
 **权限**：admin/librarian
 
+**响应**：
+```json
+[
+  {
+    "id": "openlibrary",
+    "name": "OpenLibrary",
+    "endpoint": "https://openlibrary.org/api/books",
+    "test_isbn": "9780743273565"
+  },
+  {
+    "id": "googlebooks",
+    "name": "Google Books",
+    "endpoint": "https://www.googleapis.com/books/v1/volumes",
+    "test_isbn": "9780743273565"
+  },
+  {
+    "id": "showapi",
+    "name": "ShowAPI ISBN",
+    "endpoint": "https://route.showapi.com/1626-1",
+    "test_isbn": "9787302124887",
+    "requires_app_key": true,
+    "configured": false
+  }
+]
+```
+
+#### 3.2.14 POST /api/books/isbn-providers/test
+**功能**：测试指定 ISBN 查询 API 节点是否可用
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "provider": "openlibrary",
+  "isbn": "9780743273565"
+}
+```
+
 **说明**：
-- `cover_image` 优先使用 OpenLibrary 返回的 `cover.large`、`cover.medium`、`cover.small` URL。
-- 如仅返回旧式 `cover.id`，会回退为 OpenLibrary cover id URL；没有封面时返回空字符串。
-- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留 OpenLibrary 原始返回值。
+- `isbn` 可选；未传时使用该节点的默认测试 ISBN。
+- 接口始终返回测试结果对象；节点不可用时 `available` 为 `false`，并包含错误原因。
+- ShowAPI ISBN 节点需要后端环境变量 `SHOWAPI_ISBN_APP_KEY`，请求方式为 `application/x-www-form-urlencoded`，请求体包含 `isbn`。
+- 后端访问外部 ISBN API 时支持自动代理。默认配置为 `BACKEND_PROXY_MODE=auto`、`BACKEND_PROXY_HOST=127.0.0.1`、`BACKEND_PROXY_PORT=7890`。
+
+**响应**：
+```json
+{
+  "provider": "openlibrary",
+  "provider_name": "OpenLibrary",
+  "endpoint": "https://openlibrary.org/api/books",
+  "available": true,
+  "status": 200,
+  "latency_ms": 350,
+  "last_tested_at": "2026-05-24T01:00:00.000Z",
+  "test_isbn": "9780743273565"
+}
+```
+
+#### 3.2.15 GET /api/books/isbn/:isbn
+**功能**：通过ISBN查询书籍信息（调用选定 ISBN API 节点）
+**权限**：admin/librarian
+
+**查询参数**：
+- `provider`：可选，ISBN 查询节点 ID。当前支持 `openlibrary`、`googlebooks` 和 `showapi`，未传时默认 `openlibrary`。
+
+**说明**：
+- 前端单本 ISBN 查询和批量导入预览都会通过该接口，并传入当前选中的 provider。
+- `cover_image` 会根据 provider 返回值归一化；没有封面时返回空字符串。
+- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留原始返回值。
 
 **响应**：
 ```json
@@ -509,11 +574,13 @@
   "publish_date": "1925-04-10",
   "language": "English",
   "page_count": 180,
-  "cover_image": "https://covers.openlibrary.org/..."
+  "cover_image": "https://covers.openlibrary.org/...",
+  "provider": "openlibrary",
+  "provider_name": "OpenLibrary"
 }
 ```
 
-#### 3.2.14 POST /api/books/batch
+#### 3.2.16 POST /api/books/batch
 **功能**：批量导入书籍
 **权限**：admin/librarian
 
@@ -550,7 +617,7 @@
 }
 ```
 
-#### 3.2.15 PUT /api/books/copies/:id/location
+#### 3.2.17 PUT /api/books/copies/:id/location
 **功能**：更新副本位置
 **权限**：admin/librarian
 

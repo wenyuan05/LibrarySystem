@@ -1640,3 +1640,63 @@ This file documents all bug fixes applied to the project.
   - Updated docs and regression expectations to call out the base modal override.
 - **Reason**: The earlier wide modal style could still be constrained by the shared modal container rule, leaving the fine modal visually close to its old narrow width.
 
+### Fix 126: Add selectable ISBN lookup providers
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/routes/bookRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend ISBN provider definitions for OpenLibrary, Google Books, and ShowAPI ISBN.
+  - Added `SHOWAPI_ISBN_APP_KEY` environment configuration for the ShowAPI appKey.
+  - Added provider listing and health-test endpoints with availability, status, latency, timestamp, endpoint, and error details.
+  - Moved ISBN lookup behind the backend API and added provider selection through the `provider` query parameter.
+  - Added ISBN Lookup API selection and Test Node controls to Add New Book.
+  - Updated single ISBN search and batch import metadata preview to use the selected provider.
+  - Disabled ISBN lookup/import controls when the selected provider has been tested and is unavailable.
+  - Documented the new API endpoints and regression test case.
+- **Reason**: Complete the Release 3 ISBN node selection requirement and remove the hardcoded frontend OpenLibrary lookup path.
+
+### Fix 127: Keep ShowAPI appKey in backend environment
+- **Files modified**:
+  - `backend/server.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated backend startup to read `backend/.env` explicitly.
+  - Added the ShowAPI example variable to `backend/.env.example`.
+  - Documented that `SHOWAPI_ISBN_APP_KEY` belongs in `backend/.env` for separated frontend/backend deployments.
+- **Reason**: Keep backend-only provider secrets out of frontend/root environment files.
+
+### Fix 128: Preserve selected ISBN provider after node testing
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed ISBN provider loading so it preserves the current selected provider when the provider list refreshes.
+  - Only falls back to the first provider if the current selection no longer exists.
+  - Captured the provider being tested before the async request so returned test status is written to the correct provider entry.
+- **Reason**: Prevent the ISBN Lookup API selector from jumping back to the first provider after testing a non-default node.
+
+### Fix 129: Add automatic backend proxy for ISBN provider requests
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added automatic proxy detection for backend outbound ISBN provider requests.
+  - Added `BACKEND_PROXY_MODE`, `BACKEND_PROXY_HOST`, and `BACKEND_PROXY_PORT` backend environment settings.
+  - Defaulted proxy mode to `auto` with `127.0.0.1:7890`; requests use the proxy only when the port is reachable.
+  - Documented proxy configuration and the expected fallback behavior when the local proxy is disabled.
+- **Reason**: Allow ISBN metadata requests to use the local proxy when it is running without breaking default direct network access.
+

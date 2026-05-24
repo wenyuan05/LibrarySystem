@@ -373,12 +373,29 @@
 - **操作步骤**：
   1. 管理员或图书管理员进入书籍管理页面
   2. 打开 Add New Book 的 Batch Import
-  3. 输入有效 ISBN、重复 ISBN、格式错误 ISBN 和 OpenLibrary 查不到的 ISBN
+  3. 输入有效 ISBN、重复 ISBN、格式错误 ISBN 和当前 ISBN provider 查不到的 ISBN
   4. 执行导入
 - **预期结果**：
   - 有效书籍导入成功并生成副本
   - 失败项在导入结果中逐条展示 ISBN 和失败原因
   - 重复或无效 ISBN 不会被静默忽略
+
+### 测试用例 8.6.1：ISBN 查询 API 节点选择与测试
+- **测试场景**：管理员或图书管理员选择并测试 ISBN 查询节点
+- **操作步骤**：
+  1. 管理员或图书管理员进入书籍管理页面
+  2. 打开 Add New Book
+  3. 在 ISBN Lookup API 下拉框中切换 OpenLibrary、Google Books 和 ShowAPI ISBN
+  4. 点击 Test Node
+  5. 在 Single Book 输入 ISBN 并点击 Search ISBN
+  6. 切换到 Batch Import，输入 ISBN 列表并观察预览
+- **预期结果**：
+  - 节点测试显示 provider 名称、endpoint、可用/不可用、延迟、最后测试时间和失败原因
+  - ShowAPI ISBN 未配置 `SHOWAPI_ISBN_APP_KEY` 时显示 key required，测试结果为不可用且提示未配置
+  - 单本 ISBN 查询使用当前选定节点
+  - 批量导入预览和最终导入使用当前选定节点
+  - 如果当前节点测试为不可用，查询或导入入口被禁用或提示切换节点
+  - 当本机 `127.0.0.1:7890` 代理开启时，后端外部 ISBN API 请求可通过代理完成；关闭代理后请求回退默认网络
 
 ### 测试用例 8.7：添加书籍弹窗层级
 - **测试场景**：管理员在书籍管理页打开 Add New Book
