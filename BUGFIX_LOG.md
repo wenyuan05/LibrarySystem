@@ -1700,6 +1700,20 @@ This file documents all bug fixes applied to the project.
   - Documented proxy configuration and the expected fallback behavior when the local proxy is disabled.
 - **Reason**: Allow ISBN metadata requests to use the local proxy when it is running without breaking default direct network access.
 
+### Fix 130: Add backend undici dependency for ISBN proxy support
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `undici` to backend dependencies so `bookController.js` can load `ProxyAgent`.
+  - Chose the Node 18+ compatible v6 dependency range to keep release runtime compatibility with the project Node 20+ baseline.
+  - Documented that backend dependencies need to be installed after switching to the Release 3 branch.
+- **Reason**: The ISBN provider selection branch introduced `require('undici')` for proxy support, but the backend dependency manifest did not include it, causing startup to fail with `Cannot find module 'undici'`.
+
 ### Fix 111: Preserve ShowAPI description in single ISBN add
 - **Files modified**:
   - `src/components/Books/AddBookForm.jsx`

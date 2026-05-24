@@ -55,7 +55,7 @@
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 - Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
 - ShowAPI ISBN 返回值按系统书籍模型归一化，包含 `gist -> description`、`img -> cover_image`、`pubdate -> publish_date`、`page -> page_count`；当前模型未覆盖的 provider 专有字段不落库。
-- 后端 ISBN provider 出站请求支持自动代理：`BACKEND_PROXY_MODE=auto` 时检测 `BACKEND_PROXY_HOST:BACKEND_PROXY_PORT`，代理可用则使用代理，不可用则回退默认网络。
+- 后端 ISBN provider 出站请求支持自动代理：`BACKEND_PROXY_MODE=auto` 时检测 `BACKEND_PROXY_HOST:BACKEND_PROXY_PORT`，代理可用则通过 `undici.ProxyAgent` 使用代理，不可用则回退默认网络。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、ISBN provider 查询失败和数据库写入失败。
 
 ## 2. 前端设计
