@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
@@ -7,6 +8,12 @@ import Barcode from '../Barcode';
 import './Borrow.css';
 
 const getFineAmount = (fine) => Number(fine) || 0;
+const isActualPayableFine = (fine) => (
+  fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
+);
+const isEstimatedFine = (fine) => (
+  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+);
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
@@ -25,6 +32,7 @@ const BorrowRecords = () => {
   const [finePage, setFinePage] = useState(1);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   // 加载借阅记录
   useEffect(() => {
@@ -153,7 +161,7 @@ const BorrowRecords = () => {
       setFinePage(1);
       setTotalFine(
         fineRecords
-          .filter(fine => fine.fine_status === 'unpaid')
+          .filter(isActualPayableFine)
           .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0)
       );
       setShowFineModal(true);
@@ -163,18 +171,10 @@ const BorrowRecords = () => {
     }
   };
 
-  // 支付罚款
-  const handlePayFine = async () => {
-    try {
-      const result = await borrowAPI.payFine(user.id);
-      showToast(result.message, 'success');
-      setShowFineModal(false);
-      // 重新加载借阅记录
-      fetchBorrowRecords();
-    } catch (err) {
-      showToast(err.message, 'error');
-      console.error(err);
-    }
+  // 跳转到支付宝模拟支付页面
+  const handleGoToFinePayment = () => {
+    setShowFineModal(false);
+    navigate(`/fines/${user.id}`);
   };
 
   if (loading) {
@@ -188,6 +188,9 @@ const BorrowRecords = () => {
     safePage: currentRecordPage
   } = paginateRecords(sortedRecords, recordPage, DEFAULT_HISTORY_PAGE_SIZE);
   const sortedFines = sortFineRecords(fines, fineSortOrder);
+  const estimatedFine = fines
+    .filter(isEstimatedFine)
+    .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const {
     pageItems: visibleFines,
     totalPages: fineTotalPages,
@@ -467,9 +470,11 @@ const BorrowRecords = () => {
                           <td>{fine.id}</td>
                           <td>{fine.title}</td>
                           <td>{overdueDays}</td>
-                          <td>¥{(Number(fine.fine) || 0).toFixed(2)}</td>
-                          <td className={fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
-                            {fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                          <td>
+                            {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
+                          </td>
+                          <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                            {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
                           </td>
                         </tr>
                         );
@@ -477,7 +482,8 @@ const BorrowRecords = () => {
                     </tbody>
                   </table>
                   <div className="total-fine">
-                    <strong>Total Fine: ¥{totalFine.toFixed(2)}</strong>
+                    <strong>Payable Fine: ¥{totalFine.toFixed(2)}</strong>
+                    <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
                   </div>
                   {fines.length > DEFAULT_HISTORY_PAGE_SIZE && (
                     <div className="history-pagination">
@@ -501,9 +507,9 @@ const BorrowRecords = () => {
                   {totalFine > 0 && (
                     <button 
                       className="btn-danger"
-                      onClick={handlePayFine}
+                      onClick={handleGoToFinePayment}
                     >
-                      Pay Fine
+                      Pay with Alipay
                     </button>
                   )}
                 </div>

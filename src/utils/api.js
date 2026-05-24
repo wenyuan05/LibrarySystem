@@ -415,12 +415,37 @@ export const borrowAPI = {
     return request(`/borrow/fines/${userId}`);
   },
 
-  // 支付罚款
-  payFine: async (userId) => {
-    return request('/borrow/pay-fine', {
+};
+
+// 支付相关API
+export const paymentAPI = {
+  getAlipayStatus: async () => {
+    return request('/payments/alipay/status');
+  },
+
+  createFineAlipayPayment: async (userId) => {
+    return request('/payments/fines/alipay', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
     });
+  },
+
+  getPayment: async (paymentId) => {
+    return request(`/payments/${paymentId}`);
+  },
+
+  getPaymentByOutTradeNo: async (outTradeNo) => {
+    return request(`/payments/trade/${outTradeNo}`);
+  },
+
+  simulateAlipayNotify: async (outTradeNo) => {
+    return request(`/payments/alipay/simulate-notify/${outTradeNo}`, {
+      method: 'POST',
+    });
+  },
+
+  getIncomeSummary: async () => {
+    return request('/payments/income/summary');
   },
 };
 

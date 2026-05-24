@@ -539,3 +539,69 @@
   - `GET /api/system/feature-flags` returns `borrow_enabled: false`.
   - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.
   - Re-enabling the setting restores normal borrow controls and `borrow_enabled: true`.
+
+### Test Case: Alipay backend configuration
+
+- **Scenario**: Backend loads Alipay sandbox configuration without exposing secrets.
+- **Steps**:
+  1. Copy `backend/.env.example` to `backend/.env`.
+  2. Set `ALIPAY_ENABLED=true` and leave one required Alipay value empty.
+  3. Start the backend server.
+  4. Fill all required Alipay values and restart the backend server.
+- **Expected result**:
+  - Backend startup logs include a safe Alipay configuration summary.
+  - Local test configuration uses `http://localhost:3001/api/payments/alipay/notify` and `http://localhost:5173/payment-result`.
+  - Startup warns about missing required values only when `ALIPAY_ENABLED=true`.
+  - Startup logs do not print the application private key or Alipay public key contents.
+  - When all required values are present, no missing-configuration warning is shown.
+
+### Test Case: Alipay fine payment simulation API
+
+- **Scenario**: User creates a simulated Alipay fine payment and completes it through the local notify simulation endpoint.
+- **Steps**:
+  1. Prepare a user with one or more `borrow_records` where `fine > 0` and `fine_status = unpaid`.
+  2. Call `POST /api/payments/fines/alipay` as the same user with `{ "user_id": <userId> }`.
+  3. Confirm the response contains `out_trade_no`, `qr_code`, `payment_url`, `status = pending`, and linked `borrow_record_ids`.
+  4. Call `GET /api/payments/:id` and confirm the payment is still `pending`.
+  5. Call `POST /api/payments/alipay/simulate-notify/:out_trade_no`.
+  6. Reload the user's fine records and income summary.
+- **Expected result**:
+  - Creating a payment includes only `returning` / `returned` actual unpaid fines and excludes unreturned overdue estimated fines.
+  - Creating a payment does not immediately mark fines as paid.
+  - Simulated notify marks the payment as `paid`.
+  - Linked fine records become `fine_status = paid`.
+  - `users.total_fine` is recalculated from remaining unpaid fines.
+  - `GET /api/payments/income/summary` includes the paid amount for admin/librarian users.
+  - Repeating the simulated notify call is idempotent and does not duplicate income.
+  - If linked fines were already paid by another flow while the payment was pending, simulated notify is rejected and does not add income.
+
+### Test Case: Fine page Alipay simulation flow
+
+- **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.
+- **Steps**:
+  1. Log in as a user with unpaid fines.
+  2. Open the Fine Records page.
+  3. Click `Pay with Alipay`.
+  4. Confirm the Alipay payment panel appears with an order number, amount, QR image, and payment link.
+  5. Reload fine records before clicking simulate success.
+  6. Click `Simulate Payment Success`.
+- **Expected result**:
+  - Fine Records shows Payable Fine separately from Estimated Fine.
+  - Clicking `Pay with Alipay` creates a pending payment order only for actual unpaid fines and does not immediately mark fines as paid.
+  - The page shows the simulated Alipay payment UI instead of directly calling the legacy fine settlement API.
+  - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
+  - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
+  - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
+
+### Test Case: Borrow records fine modal payment route
+
+- **Scenario**: User starts fine payment from the My Borrow Records fine modal.
+- **Steps**:
+  1. Log in as a user with unpaid fines.
+  2. Open My Borrow Records.
+  3. Click `View Fines`.
+  4. Click `Pay with Alipay` in the fine modal.
+- **Expected result**:
+  - The modal closes and the app navigates to `/fines/:userId`.
+  - No direct `/api/borrow/pay-fine` request is made from the frontend.
+  - The user completes payment through the Fine Records Alipay simulation panel.

@@ -65,7 +65,12 @@ exports.borrowBook = function(req, res) {
 
           // 检查用户是否有未结清的罚款
           db.get(
-            'SELECT COALESCE(SUM(fine), 0) as total_fine FROM borrow_records WHERE user_id = ? AND fine > 0 AND fine_status = ?',
+            `SELECT COALESCE(SUM(fine), 0) as total_fine
+             FROM borrow_records
+             WHERE user_id = ?
+               AND fine > 0
+               AND fine_status = ?
+               AND status IN ('returning', 'returned')`,
             [user_id, 'unpaid'],
             function(err, user) {
             if (err) {
@@ -1202,14 +1207,16 @@ exports.getUserFines = function(req, res) {
   }
 
   const sql = `
-    SELECT br.id, br.book_id, b.title, b.author,
+    SELECT br.id, br.book_id, b.title, b.author, br.status,
            br.borrow_date, br.due_date, br.return_date, br.fine, br.fine_status,
            br.copy_id, bc.copy_code
     FROM borrow_records br
     JOIN books b ON br.book_id = b.id
     LEFT JOIN book_copies bc ON br.copy_id = bc.id
     WHERE br.user_id = ? AND br.fine > 0
-    ORDER BY br.fine_status = 'unpaid' DESC, br.return_date DESC
+    ORDER BY br.fine_status = 'unpaid' DESC,
+             br.status IN ('returning', 'returned') DESC,
+             br.return_date DESC
   `;
 
   db.all(sql, [user_id], function(err, fines) {
@@ -1239,9 +1246,14 @@ exports.payFine = function(req, res) {
         return;
       }
 
-      // 以未支付罚款记录为准，允许 returning 状态下立即付款。
+      // 以已归还后产生的实际未支付罚款记录为准。
       db.get(
-        'SELECT COALESCE(SUM(fine), 0) as total_fine FROM borrow_records WHERE user_id = ? AND fine > 0 AND fine_status = ?',
+        `SELECT COALESCE(SUM(fine), 0) as total_fine
+         FROM borrow_records
+         WHERE user_id = ?
+           AND fine > 0
+           AND fine_status = ?
+           AND status IN ('returning', 'returned')`,
         [user_id, 'unpaid'],
         function(err, user) {
         if (err) {
@@ -1256,7 +1268,14 @@ exports.payFine = function(req, res) {
         }
 
         // 更新用户所有未支付的罚款记录为已支付
-        db.run('UPDATE borrow_records SET fine_status = ? WHERE user_id = ? AND fine_status = ?', ['paid', user_id, 'unpaid'], function(err) {
+        db.run(
+          `UPDATE borrow_records
+           SET fine_status = ?
+           WHERE user_id = ?
+             AND fine_status = ?
+             AND status IN ('returning', 'returned')`,
+          ['paid', user_id, 'unpaid'],
+          function(err) {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
@@ -1269,7 +1288,10 @@ exports.payFine = function(req, res) {
              SET total_fine = (
                SELECT COALESCE(SUM(fine), 0)
                FROM borrow_records
-               WHERE user_id = ? AND fine > 0 AND fine_status = 'unpaid'
+               WHERE user_id = ?
+                 AND fine > 0
+                 AND fine_status = 'unpaid'
+                 AND status IN ('returning', 'returned')
              )
              WHERE id = ?`,
             [user_id, user_id],

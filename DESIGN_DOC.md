@@ -45,6 +45,8 @@
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
 - System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
 - Release 3 借阅功能开关通过 `borrow_enabled` 接入前后端：管理员可全局关闭借阅，普通登录用户通过 feature flags 接口读取开关，前端禁用借阅/确认入口，后端对借阅和确认借阅做强制拦截。
+- Release 3 支付宝沙箱接入先建立后端配置层：`backend/config/alipayConfig.js` 统一读取启用状态、沙箱/生产模式、APP_ID、应用私钥、支付宝公钥、网关、notify/return URL、签名和超时配置；本地测试默认使用 `localhost:3001` notify URL 和 `localhost:5173` return URL，启动时只输出安全摘要和缺失项。
+- Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，模拟支付成功后再标记支付单和关联罚款为 `paid`，管理员/图书管理员可读取收入 dashboard 汇总。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 
 ## 2. 前端设计
@@ -229,9 +231,12 @@ backend/
 │   ├── categoryController.js      # 分类控制器
 │   ├── logController.js           # 日志控制器
 │   ├── notificationController.js  # 站内通知控制器
+│   ├── paymentController.js       # 支付控制器
 │   ├── statsController.js         # 统计控制器
 │   ├── systemController.js        # 系统控制器
 │   └── userController.js          # 用户控制器
+├── config/           # 后端运行配置
+│   └── alipayConfig.js            # 支付宝沙箱/生产配置
 ├── middleware/       # 中间件
 │   ├── auth.js       # 认证中间件
 │   ├── error.js      # 错误处理中间件
@@ -243,6 +248,7 @@ backend/
 │   ├── categoryRoutes.js      # 分类路由
 │   ├── logRoutes.js           # 日志路由
 │   ├── notificationRoutes.js  # 站内通知路由
+│   ├── paymentRoutes.js       # 支付路由
 │   ├── statsRoutes.js         # 统计路由
 │   ├── systemRoutes.js        # 系统路由
 │   └── userRoutes.js          # 用户路由

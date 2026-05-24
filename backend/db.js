@@ -196,6 +196,29 @@ db.serialize(() => {
     )
   `);
 
+  // 创建支付记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'alipay',
+      payment_type TEXT NOT NULL DEFAULT 'fine',
+      out_trade_no TEXT NOT NULL UNIQUE,
+      provider_trade_no TEXT,
+      amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      subject TEXT,
+      qr_code TEXT,
+      payment_url TEXT,
+      borrow_record_ids TEXT,
+      raw_notify TEXT,
+      paid_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
   // 将已有用户的明文密码迁移为哈希（兼容旧数据）
   db.all('SELECT id, password FROM users', (err, rows) => {
     if (!err && Array.isArray(rows)) {
@@ -264,6 +287,29 @@ db.serialize(() => {
   db.run('ALTER TABLE users ADD COLUMN total_fine REAL DEFAULT 0', (err) => {
     // 字段已存在，忽略错误
   });
+
+  // 为现有数据库创建支付记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'alipay',
+      payment_type TEXT NOT NULL DEFAULT 'fine',
+      out_trade_no TEXT NOT NULL UNIQUE,
+      provider_trade_no TEXT,
+      amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      subject TEXT,
+      qr_code TEXT,
+      payment_url TEXT,
+      borrow_record_ids TEXT,
+      raw_notify TEXT,
+      paid_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
 
   // 插入一些示例数据
   const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -362,6 +408,11 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_user_id ON borrow_records(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_book_id ON borrow_records(book_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_status ON borrow_records(status)');
+
+  // 支付记录表索引
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_out_trade_no ON payments(out_trade_no)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)');
   
   // 预约记录表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_user_id ON reservation_records(user_id)');

@@ -22,6 +22,7 @@ import ReturnApprovalPage from './pages/ReturnApprovalPage';
 import ReservationsPage from './pages/ReservationsPage';
 import BookDetailsPage from './pages/BookDetailsPage';
 import FineDetailsPage from './pages/FineDetailsPage';
+import PaymentResultPage from './pages/PaymentResultPage';
 import NotificationsPage from './pages/NotificationsPage';
 import privacyConfig from './config/privacy';
 import './styles/global.css';
@@ -40,6 +41,7 @@ function App() {
               <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
               <Route path="/books/:id" element={<ProtectedRoute requiredRole={['user', 'librarian']}><MainLayout><BookDetailsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/fines/:user_id?" element={<ProtectedRoute><MainLayout><FineDetailsPage /></MainLayout></ProtectedRoute>} />
+              <Route path="/payment-result" element={<ProtectedRoute><MainLayout><PaymentResultPage /></MainLayout></ProtectedRoute>} />
               <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/reservations" element={<ProtectedRoute><MainLayout><ReservationsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><MainLayout><NotificationsPage /></MainLayout></ProtectedRoute>} />
