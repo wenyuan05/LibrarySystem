@@ -87,13 +87,13 @@
 
 .alipay-payment-body {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 280px 1fr;
   gap: var(--spacing-lg);
   align-items: stretch;
 }
 
 .alipay-qr-box {
-  min-height: 180px;
+  min-height: 280px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -117,8 +117,8 @@
 }
 
 .alipay-qr-box img {
-  width: 180px;
-  height: 180px;
+  width: min(280px, 100%);
+  height: auto;
   display: block;
   border-radius: var(--border-radius);
 }

@@ -602,7 +602,8 @@
   4. Open the returned `payment_url`.
 - **Expected result**:
   - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
-  - The URL contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
+  - `payment_url` contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
+  - `qr_code` uses the `alipay.trade.precreate` response when available, so the generated frontend QR is less dense and scannable by the Alipay sandbox app.
   - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
   - Single-line Alipay key bodies and PKCS#1 / PKCS#8 private key containers are accepted without `DECODER routines::unsupported` signing errors.
 

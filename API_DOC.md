@@ -864,7 +864,7 @@
 **权限**：本人或admin/librarian
 
 **说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
-当 `ALIPAY_ENABLED=true` 且配置完整时，`payment_url` / `qr_code` 为后端签名生成的支付宝沙箱 `alipay.trade.page.pay` 收银台 URL；未启用或配置缺失时为本地 `/payment-result` 模拟链接。
+当 `ALIPAY_ENABLED=true` 且配置完整时，`payment_url` 为后端签名生成的支付宝沙箱 `alipay.trade.page.pay` 收银台 URL，`qr_code` 优先使用 `alipay.trade.precreate` 返回的支付宝专用二维码内容；若 precreate 失败则临时回退到 page-pay URL。未启用或配置缺失时两者为本地 `/payment-result` 模拟链接。
 Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。前端创建订单后每 2.5 秒调用 `GET /api/payments/:id` 轮询最新状态，`paid` 时自动刷新罚款记录，`expired` 时提示重新创建订单。
 
 **请求体**：
@@ -887,7 +887,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "subject": "Library fine payment #ALI202605240101010000A1B2C3D4",
   "qr_code": "http://localhost:5173/payment-result?out_trade_no=...",
   "payment_url": "http://localhost:5173/payment-result?out_trade_no=...",
-  "payment_url_source": "local",
+  "payment_url_source": "alipay-precreate",
   "borrow_record_ids": [1, 2],
   "reused": false,
   "simulate_notify_path": "/api/payments/alipay/simulate-notify/ALI202605240101010000A1B2C3D4"

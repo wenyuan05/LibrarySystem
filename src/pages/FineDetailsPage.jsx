@@ -51,8 +51,9 @@ const FineDetailsPage = () => {
     }
 
     QRCode.toDataURL(paymentOrder.qr_code, {
-      width: 220,
-      margin: 1,
+      width: 280,
+      margin: 2,
+      errorCorrectionLevel: 'M',
       color: {
         dark: '#111827',
         light: '#FFFFFF'

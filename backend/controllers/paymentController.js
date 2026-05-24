@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const db = require('../db');
 const { getAlipayConfig, getSafeAlipayConfig, validateAlipayConfig } = require('../config/alipayConfig');
-const { buildPagePayUrl, queryTrade, verifyNotification } = require('../services/alipayClient');
+const { buildPagePayUrl, precreateTrade, queryTrade, verifyNotification } = require('../services/alipayClient');
 
 const ADMIN_ROLES = ['admin', 'librarian'];
 
@@ -36,7 +36,7 @@ const buildPaymentUrl = (payment) => {
   return `${baseUrl}?${params.toString()}`;
 };
 
-const buildProviderPaymentUrl = (payment, config = getAlipayConfig()) => {
+const buildProviderPaymentUrl = async (payment, config = getAlipayConfig()) => {
   const missing = validateAlipayConfig(config);
   if (!config.enabled || missing.length > 0) {
     return {
@@ -47,10 +47,24 @@ const buildProviderPaymentUrl = (payment, config = getAlipayConfig()) => {
   }
 
   const paymentUrl = buildPagePayUrl(config, payment);
+  let qrCode = paymentUrl;
+  let source = 'alipay-page-pay';
+  try {
+    const precreateResult = await precreateTrade(config, payment);
+    if (precreateResult.code === '10000' && precreateResult.qr_code) {
+      qrCode = precreateResult.qr_code;
+      source = 'alipay-precreate';
+    } else {
+      console.warn('Alipay precreate did not return a QR code:', precreateResult.sub_msg || precreateResult.msg || precreateResult.code);
+    }
+  } catch (precreateErr) {
+    console.warn('Failed to precreate Alipay QR code, falling back to page-pay URL:', precreateErr.message);
+  }
+
   return {
     paymentUrl,
-    qrCode: paymentUrl,
-    source: 'alipay-page-pay'
+    qrCode,
+    source
   };
 };
 
@@ -328,7 +342,7 @@ exports.createFineAlipayPayment = function(req, res) {
 
       const amount = roundMoney(fineRows.reduce((sum, row) => sum + (Number(row.fine) || 0), 0));
       const borrowRecordIds = fineRows.map(row => row.id);
-      findReusablePendingFinePayment(userId, borrowRecordIds, amount, (pendingErr, pendingPayment) => {
+      findReusablePendingFinePayment(userId, borrowRecordIds, amount, async (pendingErr, pendingPayment) => {
         if (pendingErr) {
           res.status(500).json({ error: pendingErr.message });
           return;
@@ -347,7 +361,7 @@ exports.createFineAlipayPayment = function(req, res) {
       const subject = `Library fine payment #${outTradeNo}`;
       let providerPayment;
       try {
-        providerPayment = buildProviderPaymentUrl({ out_trade_no: outTradeNo, amount, subject });
+        providerPayment = await buildProviderPaymentUrl({ out_trade_no: outTradeNo, amount, subject });
       } catch (paymentUrlErr) {
         res.status(500).json({ error: `Failed to build Alipay payment URL: ${paymentUrlErr.message}` });
         return;

@@ -61,6 +61,23 @@ const signParams = (params, privateKey, signType = 'RSA2') => {
   throw lastError;
 };
 
+const buildRequestParams = (config, method, bizContent, extraParams = {}) => ({
+  app_id: config.appId,
+  method,
+  format: config.format,
+  charset: config.charset,
+  sign_type: config.signType,
+  timestamp: formatTimestamp(),
+  version: '1.0',
+  biz_content: JSON.stringify(bizContent),
+  ...extraParams
+});
+
+const signRequestParams = (config, params) => ({
+  ...params,
+  sign: signParams(params, config.privateKey, config.signType)
+});
+
 const buildGatewayUrl = (gateway, params) => {
   const searchParams = new URLSearchParams();
   Object.keys(params).sort().forEach(key => {
@@ -79,41 +96,47 @@ const buildPagePayUrl = (config, payment) => {
     subject: payment.subject || `Library fine payment #${payment.out_trade_no}`
   };
 
-  const params = {
-    app_id: config.appId,
-    method: 'alipay.trade.page.pay',
-    format: config.format,
-    charset: config.charset,
-    sign_type: config.signType,
-    timestamp: formatTimestamp(),
-    version: '1.0',
+  const params = buildRequestParams(config, 'alipay.trade.page.pay', bizContent, {
     notify_url: config.notifyUrl,
-    return_url: config.returnUrl,
-    biz_content: JSON.stringify(bizContent)
-  };
-
-  return buildGatewayUrl(config.gateway, {
-    ...params,
-    sign: signParams(params, config.privateKey, config.signType)
+    return_url: config.returnUrl
   });
+
+  return buildGatewayUrl(config.gateway, signRequestParams(config, params));
 };
 
 const buildTradeQueryUrl = (config, outTradeNo) => {
-  const params = {
-    app_id: config.appId,
-    method: 'alipay.trade.query',
-    format: config.format,
-    charset: config.charset,
-    sign_type: config.signType,
-    timestamp: formatTimestamp(),
-    version: '1.0',
-    biz_content: JSON.stringify({ out_trade_no: outTradeNo })
-  };
+  const params = buildRequestParams(config, 'alipay.trade.query', { out_trade_no: outTradeNo });
 
-  return buildGatewayUrl(config.gateway, {
-    ...params,
-    sign: signParams(params, config.privateKey, config.signType)
+  return buildGatewayUrl(config.gateway, signRequestParams(config, params));
+};
+
+const precreateTrade = async (config, payment) => {
+  const bizContent = {
+    out_trade_no: payment.out_trade_no,
+    total_amount: Number(payment.amount).toFixed(2),
+    subject: payment.subject || `Library fine payment #${payment.out_trade_no}`
+  };
+  const params = buildRequestParams(config, 'alipay.trade.precreate', bizContent, {
+    notify_url: config.notifyUrl
   });
+  const body = new URLSearchParams(signRequestParams(config, params));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+  try {
+    const response = await fetch(config.gateway, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'
+      },
+      body,
+      signal: controller.signal
+    });
+    const payload = await response.json();
+    return payload.alipay_trade_precreate_response || payload;
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 const queryTrade = async (config, outTradeNo) => {
@@ -147,6 +170,7 @@ const verifyNotification = (payload, alipayPublicKey, signType = 'RSA2') => {
 
 module.exports = {
   buildPagePayUrl,
+  precreateTrade,
   queryTrade,
   verifyNotification
 };

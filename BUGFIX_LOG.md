@@ -1565,3 +1565,22 @@ This file documents all bug fixes applied to the project.
   - Documented that RSA2 is the default signing mode and private keys may be PKCS#8 or PKCS#1.
 - **Reason**: Some Alipay sandbox tools export PKCS#1 private keys, which fail if wrapped only as PKCS#8 even though the signing algorithm is correctly set to RSA2.
 
+### Fix 121: Use Alipay precreate QR content for scannable sandbox payments
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.precreate` requests to obtain Alipay's dedicated QR code payload for sandbox fine payments.
+  - Kept `alipay.trade.page.pay` as the browser payment link shown by `Open Alipay payment link`.
+  - Used precreate `qr_code` for the Fine Records QR image when available, falling back to the page-pay URL only if precreate fails.
+  - Increased the Fine Records QR image size and margin to improve scan reliability.
+  - Documented the QR source split between `qr_code` and `payment_url`.
+- **Reason**: Encoding the full signed page-pay URL produced an overly dense QR code that was difficult or impossible for Alipay clients to scan.
+
