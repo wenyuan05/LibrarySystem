@@ -651,6 +651,7 @@
   - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
   - Fine Records polls `GET /api/payments/:id` every 2-3 seconds while a payment order is open.
   - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
+  - When the payment status becomes `paid`, the QR image remains visible with the `public/打勾.png` completion mark overlaid.
   - If another page or dashboard expires the order, Fine Records updates the order status to `expired` and prompts the user to create a new order.
   - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
   - `/payment-result` can refresh manually and also polls automatically every 2-3 seconds.

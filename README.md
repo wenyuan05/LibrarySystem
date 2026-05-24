@@ -643,7 +643,7 @@ npm run dev
    - 当 `ALIPAY_ENABLED=true` 且沙箱配置完整时，支付单会生成支付宝沙箱 `alipay.trade.page.pay` 收银台签名链接，并优先调用 `alipay.trade.precreate` 获取支付宝专用二维码内容；未启用或配置缺失时继续使用本地 `/payment-result` 模拟链接
    - 借阅历史区分预计罚款和实际罚款：未归还逾期书籍只显示 Estimated Fine，提交还书后生成的 `returning/returned` 未付罚款才允许支付
    - Fine Records 页面点击 Pay with Alipay 后会显示支付宝模拟支付区域、订单号、二维码内容占位和收款链接，不再直接结清罚款
-   - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录，变为 `expired` 时提示重新创建订单
+   - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记，变为 `expired` 时提示重新创建订单
    - 启用支付宝沙箱配置后，订单查询接口会对 pending 订单主动调用 `alipay.trade.query`；即使本地没有公网 notify，刷新或轮询也能在沙箱支付完成后同步本地订单状态
    - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
    - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额

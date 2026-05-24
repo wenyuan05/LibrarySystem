@@ -93,6 +93,7 @@
 }
 
 .alipay-qr-box {
+  position: relative;
   min-height: 280px;
   display: flex;
   flex-direction: column;
@@ -109,6 +110,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   text-align: center;
+  overflow: hidden;
 }
 
 .alipay-qr-box span {
@@ -116,11 +118,27 @@
   font-weight: 700;
 }
 
-.alipay-qr-box img {
+.alipay-qr-image {
   width: min(280px, 100%);
   height: auto;
   display: block;
   border-radius: var(--border-radius);
+}
+
+.alipay-qr-box.is-paid .alipay-qr-image {
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+.alipay-paid-mark {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 8px 18px rgba(17, 24, 39, 0.2));
 }
 
 .alipay-qr-box strong {

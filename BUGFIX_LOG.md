@@ -1584,3 +1584,17 @@ This file documents all bug fixes applied to the project.
   - Documented the QR source split between `qr_code` and `payment_url`.
 - **Reason**: Encoding the full signed page-pay URL produced an overly dense QR code that was difficult or impossible for Alipay clients to scan.
 
+### Fix 122: Show completed mark over paid Alipay QR code
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a paid-state overlay on the Fine Records Alipay QR code using `public/打勾.png`.
+  - Dimmed the QR image after payment completion while keeping the original QR visible behind the completion mark.
+  - Documented the paid QR visual state and regression expectation.
+- **Reason**: Make successful payment state immediately visible in the payment panel after polling or simulation marks an order as paid.
+

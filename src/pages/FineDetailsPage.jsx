@@ -239,9 +239,14 @@ const FineDetailsPage = () => {
             </span>
           </div>
           <div className="alipay-payment-body">
-            <div className="alipay-qr-box" aria-label="Alipay QR code">
+            <div className={`alipay-qr-box ${paymentOrder.status === 'paid' ? 'is-paid' : ''}`} aria-label="Alipay QR code">
               {qrCodeDataUrl ? (
-                <img src={qrCodeDataUrl} alt="Alipay payment QR code" />
+                <>
+                  <img className="alipay-qr-image" src={qrCodeDataUrl} alt="Alipay payment QR code" />
+                  {paymentOrder.status === 'paid' && (
+                    <img className="alipay-paid-mark" src="/打勾.png" alt="Payment completed" />
+                  )}
+                </>
               ) : (
                 <span>Generating QR...</span>
               )}
