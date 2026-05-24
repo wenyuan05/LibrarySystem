@@ -54,6 +54,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 // 健康检查
 app.get('/api/health', (req, res) => {

@@ -864,6 +864,7 @@
 **权限**：本人或admin/librarian
 
 **说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
+当 `ALIPAY_ENABLED=true` 且配置完整时，`payment_url` / `qr_code` 为后端签名生成的支付宝沙箱 `alipay.trade.page.pay` 收银台 URL；未启用或配置缺失时为本地 `/payment-result` 模拟链接。
 Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。前端创建订单后每 2.5 秒调用 `GET /api/payments/:id` 轮询最新状态，`paid` 时自动刷新罚款记录，`expired` 时提示重新创建订单。
 
 **请求体**：
@@ -886,6 +887,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "subject": "Library fine payment #ALI202605240101010000A1B2C3D4",
   "qr_code": "http://localhost:5173/payment-result?out_trade_no=...",
   "payment_url": "http://localhost:5173/payment-result?out_trade_no=...",
+  "payment_url_source": "local",
   "borrow_record_ids": [1, 2],
   "reused": false,
   "simulate_notify_path": "/api/payments/alipay/simulate-notify/ALI202605240101010000A1B2C3D4"
@@ -913,7 +915,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **功能**：支付宝异步通知入口
 **权限**：公开入口
 
-**说明**：当前阶段保留真实支付宝 notify 路由形状，尚未实现支付宝签名验签。真实沙箱回调测试前需要接入验签逻辑。
+**说明**：接收支付宝沙箱/网关 `application/x-www-form-urlencoded` 异步通知，使用 `ALIPAY_PUBLIC_KEY` 验签，并校验 `app_id` 与 `total_amount`。`trade_status` 为 `TRADE_SUCCESS` 或 `TRADE_FINISHED` 时，按 `out_trade_no` 查询本地支付单并完成罚款结算，保存支付宝 `trade_no`；成功响应支付宝要求的纯文本 `success`，失败响应 `fail`。
 
 #### 3.4.8 GET /api/payments/income/summary
 **功能**：图书管理员收入 dashboard 数据

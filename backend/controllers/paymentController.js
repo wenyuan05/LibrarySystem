@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../db');
 const { getAlipayConfig, getSafeAlipayConfig, validateAlipayConfig } = require('../config/alipayConfig');
+const { buildPagePayUrl, verifyNotification } = require('../services/alipayClient');
 
 const ADMIN_ROLES = ['admin', 'librarian'];
 
@@ -33,6 +34,24 @@ const buildPaymentUrl = (payment) => {
     amount: roundMoney(payment.amount).toFixed(2)
   });
   return `${baseUrl}?${params.toString()}`;
+};
+
+const buildProviderPaymentUrl = (payment, config = getAlipayConfig()) => {
+  const missing = validateAlipayConfig(config);
+  if (!config.enabled || missing.length > 0) {
+    return {
+      paymentUrl: buildPaymentUrl(payment),
+      qrCode: buildPaymentUrl(payment),
+      source: 'local'
+    };
+  }
+
+  const paymentUrl = buildPagePayUrl(config, payment);
+  return {
+    paymentUrl,
+    qrCode: paymentUrl,
+    source: 'alipay-page-pay'
+  };
 };
 
 const mapPaymentRow = (row) => {
@@ -149,11 +168,12 @@ const completePayment = (payment, rawNotify, callback) => {
           db.run(
             `UPDATE payments
              SET status = 'paid',
+                 provider_trade_no = COALESCE(?, provider_trade_no),
                  raw_notify = ?,
                  paid_at = ?,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [JSON.stringify(rawNotify || {}), paidAt, payment.id],
+            [rawNotify?.trade_no || null, JSON.stringify(rawNotify || {}), paidAt, payment.id],
             (paymentErr) => {
               if (paymentErr) {
                 db.run('ROLLBACK');
@@ -177,6 +197,7 @@ const completePayment = (payment, rawNotify, callback) => {
                   callback(null, mapPaymentRow({
                     ...payment,
                     status: 'paid',
+                    provider_trade_no: rawNotify?.trade_no || payment.provider_trade_no,
                     raw_notify: JSON.stringify(rawNotify || {}),
                     paid_at: paidAt
                   }));
@@ -244,8 +265,13 @@ exports.createFineAlipayPayment = function(req, res) {
 
       const outTradeNo = generateOutTradeNo();
       const subject = `Library fine payment #${outTradeNo}`;
-      const paymentUrl = buildPaymentUrl({ out_trade_no: outTradeNo, amount });
-      const qrCode = paymentUrl;
+      let providerPayment;
+      try {
+        providerPayment = buildProviderPaymentUrl({ out_trade_no: outTradeNo, amount, subject });
+      } catch (paymentUrlErr) {
+        res.status(500).json({ error: `Failed to build Alipay payment URL: ${paymentUrlErr.message}` });
+        return;
+      }
 
       db.run(
         `INSERT INTO payments
@@ -259,8 +285,8 @@ exports.createFineAlipayPayment = function(req, res) {
           amount,
           'pending',
           subject,
-          qrCode,
-          paymentUrl,
+          providerPayment.qrCode,
+          providerPayment.paymentUrl,
           JSON.stringify(borrowRecordIds)
         ],
         function(insertErr) {
@@ -278,8 +304,9 @@ exports.createFineAlipayPayment = function(req, res) {
             amount,
             status: 'pending',
             subject,
-            qr_code: qrCode,
-            payment_url: paymentUrl,
+            qr_code: providerPayment.qrCode,
+            payment_url: providerPayment.paymentUrl,
+            payment_url_source: providerPayment.source,
             borrow_record_ids: borrowRecordIds,
             simulate_notify_path: `/api/payments/alipay/simulate-notify/${outTradeNo}`
           });
@@ -486,8 +513,48 @@ exports.expirePayment = function(req, res) {
 };
 
 exports.alipayNotify = function(req, res) {
-  res.status(501).json({
-    error: 'Real Alipay notify verification is not implemented yet. Use the authenticated simulate-notify endpoint for local testing.'
+  const config = getAlipayConfig();
+  const payload = req.body || {};
+
+  if (!config.enabled) {
+    res.status(400).send('fail');
+    return;
+  }
+
+  if (!verifyNotification(payload, config.alipayPublicKey, config.signType)) {
+    res.status(400).send('fail');
+    return;
+  }
+
+  if (!['TRADE_SUCCESS', 'TRADE_FINISHED'].includes(payload.trade_status)) {
+    res.send('success');
+    return;
+  }
+
+  db.get('SELECT * FROM payments WHERE out_trade_no = ?', [payload.out_trade_no], (err, payment) => {
+    if (err || !payment) {
+      res.status(400).send('fail');
+      return;
+    }
+
+    if (payload.app_id && payload.app_id !== config.appId) {
+      res.status(400).send('fail');
+      return;
+    }
+
+    if (payload.total_amount && roundMoney(payload.total_amount) !== roundMoney(payment.amount)) {
+      res.status(400).send('fail');
+      return;
+    }
+
+    completePayment(payment, payload, (completeErr) => {
+      if (completeErr) {
+        res.status(400).send('fail');
+        return;
+      }
+
+      res.send('success');
+    });
   });
 };
 

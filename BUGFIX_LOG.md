@@ -1499,3 +1499,23 @@ This file documents all bug fixes applied to the project.
   - Documented that expired pending orders are not reused and a new order is created for the same fines after expiration.
 - **Reason**: Make the local Alipay-shaped flow observable from both Fine Records and the payment result page while preventing invalid order state transitions before sandbox gateway integration.
 
+### Fix 117: Generate Alipay sandbox cashier links and verify notify callbacks
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/server.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added an Alipay client helper for `alipay.trade.page.pay` request signing with the backend app private key.
+  - Changed fine payment creation to generate a signed Alipay sandbox cashier URL when `ALIPAY_ENABLED=true` and all required Alipay settings are present.
+  - Kept the local `/payment-result` payment URL as a fallback when Alipay is disabled or incomplete.
+  - Added form-urlencoded parsing so Alipay notify callbacks can be read by Express.
+  - Implemented Alipay notify signature verification with the configured Alipay public key.
+  - Completed the local payment order through the existing fine settlement path when a verified notify reports `TRADE_SUCCESS` or `TRADE_FINISHED`, while checking app ID and amount and storing Alipay `trade_no` when present.
+  - Documented sandbox link generation, notify behavior, and related manual test cases.
+- **Reason**: Move from local-only simulation toward usable Alipay sandbox integration while preserving the existing local demo workflow.
+

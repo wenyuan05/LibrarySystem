@@ -592,6 +592,31 @@
   - Expired orders cannot be simulated as paid.
   - Paid orders cannot be expired.
 
+### Test Case: Alipay sandbox page-pay link generation
+
+- **Scenario**: Backend creates a sandbox Alipay cashier link when Alipay is enabled and configured.
+- **Steps**:
+  1. Configure backend `.env` with `ALIPAY_ENABLED=true`, `ALIPAY_MODE=sandbox`, sandbox `ALIPAY_APP_ID`, app private key, Alipay public key, notify URL, and return URL.
+  2. Restart the backend.
+  3. Create a payable fine payment with `POST /api/payments/fines/alipay`.
+  4. Open the returned `payment_url`.
+- **Expected result**:
+  - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
+  - The URL contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
+  - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
+
+### Test Case: Alipay sandbox notify verification
+
+- **Scenario**: Backend receives a verified sandbox notify and completes the linked fine payment.
+- **Steps**:
+  1. Complete or simulate a sandbox payment so Alipay sends `POST /api/payments/alipay/notify`.
+  2. Confirm the backend receives form fields including `out_trade_no`, `trade_status`, and `sign`.
+  3. Reload `GET /api/payments/trade/:out_trade_no` and the user's fine records.
+- **Expected result**:
+  - Valid signed notifications with `TRADE_SUCCESS` or `TRADE_FINISHED` mark the payment as `paid`.
+  - Linked actual unpaid fines become `fine_status = paid`.
+  - Invalid signatures or unknown order numbers return `fail` and do not change fine state.
+
 ### Test Case: Fine page Alipay simulation flow
 
 - **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.
