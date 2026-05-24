@@ -1519,3 +1519,21 @@ This file documents all bug fixes applied to the project.
   - Documented sandbox link generation, notify behavior, and related manual test cases.
 - **Reason**: Move from local-only simulation toward usable Alipay sandbox integration while preserving the existing local demo workflow.
 
+### Fix 118: Sync pending payments with Alipay sandbox trade query
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.query` request generation and gateway querying to the backend Alipay helper.
+  - Updated `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` to actively synchronize pending orders when Alipay sandbox configuration is enabled and complete.
+  - Completed local fine payment records when Alipay query returns `TRADE_SUCCESS` or `TRADE_FINISHED`.
+  - Expired local pending orders when Alipay query returns `TRADE_CLOSED`.
+  - Preserved the local pending state if the Alipay query times out or fails, keeping Fine Records and payment-result polling from breaking during local demos.
+  - Documented active sandbox status synchronization and manual verification steps.
+- **Reason**: Let local deployments without a public notify callback still observe sandbox payment completion through the existing polling and refresh UI.
+

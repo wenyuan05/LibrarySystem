@@ -617,6 +617,20 @@
   - Linked actual unpaid fines become `fine_status = paid`.
   - Invalid signatures or unknown order numbers return `fail` and do not change fine state.
 
+### Test Case: Alipay sandbox active status query
+
+- **Scenario**: Local deployment has no public notify URL, so the frontend polling path synchronizes payment status by querying Alipay.
+- **Steps**:
+  1. Enable and configure Alipay sandbox settings in backend `.env`.
+  2. Create a payable fine payment and open the returned sandbox cashier URL.
+  3. Complete payment in the sandbox cashier.
+  4. Refresh Fine Records or `/payment-result`, or wait for their polling interval.
+- **Expected result**:
+  - `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` query `alipay.trade.query` for pending orders.
+  - If Alipay reports `TRADE_SUCCESS` or `TRADE_FINISHED`, the local payment becomes `paid` and linked fines become paid.
+  - If Alipay reports `TRADE_CLOSED`, the local payment becomes `expired`.
+  - If the Alipay query times out or fails, the local payment remains pending and the frontend polling keeps working.
+
 ### Test Case: Fine page Alipay simulation flow
 
 - **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.

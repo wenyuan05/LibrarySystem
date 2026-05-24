@@ -898,12 +898,14 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **功能**：查询支付单状态
 **权限**：本人或admin/librarian
 
+**说明**：当订单为 `pending` 且支付宝配置完整时，接口会先调用 `alipay.trade.query` 主动同步沙箱订单状态。支付宝返回 `TRADE_SUCCESS` / `TRADE_FINISHED` 时本地订单会变为 `paid` 并结清关联罚款；返回 `TRADE_CLOSED` 时本地订单会变为 `expired`。支付宝查询失败时保留本地状态返回，避免前端轮询中断。
+
 #### 3.4.5 GET /api/payments/trade/:out_trade_no
 **功能**：按商户订单号查询支付单状态
 **权限**：本人或admin/librarian
 
 **说明**：本地 `/payment-result` 页面使用该接口根据 `out_trade_no` 读取最新支付状态，而不是信任 URL 中的静态状态参数。
-支付结果页支持手动刷新并每 2.5 秒轮询该接口，便于本地模拟时验证订单状态变化。
+支付结果页支持手动刷新并每 2.5 秒轮询该接口，便于本地模拟或支付宝沙箱支付后验证订单状态变化。该接口同样会对 pending 沙箱订单主动执行 `alipay.trade.query` 状态同步。
 
 #### 3.4.6 POST /api/payments/alipay/simulate-notify/:out_trade_no
 **功能**：模拟支付宝支付成功通知

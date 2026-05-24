@@ -71,6 +71,40 @@ const buildPagePayUrl = (config, payment) => {
   });
 };
 
+const buildTradeQueryUrl = (config, outTradeNo) => {
+  const params = {
+    app_id: config.appId,
+    method: 'alipay.trade.query',
+    format: config.format,
+    charset: config.charset,
+    sign_type: config.signType,
+    timestamp: formatTimestamp(),
+    version: '1.0',
+    biz_content: JSON.stringify({ out_trade_no: outTradeNo })
+  };
+
+  return buildGatewayUrl(config.gateway, {
+    ...params,
+    sign: signParams(params, config.privateKey, config.signType)
+  });
+};
+
+const queryTrade = async (config, outTradeNo) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+  try {
+    const response = await fetch(buildTradeQueryUrl(config, outTradeNo), {
+      method: 'GET',
+      signal: controller.signal
+    });
+    const payload = await response.json();
+    return payload.alipay_trade_query_response || payload;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const verifyNotification = (payload, alipayPublicKey, signType = 'RSA2') => {
   const { sign, sign_type: payloadSignType, ...params } = payload;
   if (!sign) {
@@ -86,5 +120,6 @@ const verifyNotification = (payload, alipayPublicKey, signType = 'RSA2') => {
 
 module.exports = {
   buildPagePayUrl,
+  queryTrade,
   verifyNotification
 };

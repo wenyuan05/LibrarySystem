@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const db = require('../db');
 const { getAlipayConfig, getSafeAlipayConfig, validateAlipayConfig } = require('../config/alipayConfig');
-const { buildPagePayUrl, verifyNotification } = require('../services/alipayClient');
+const { buildPagePayUrl, queryTrade, verifyNotification } = require('../services/alipayClient');
 
 const ADMIN_ROLES = ['admin', 'librarian'];
 
@@ -211,6 +211,86 @@ const completePayment = (payment, rawNotify, callback) => {
   });
 };
 
+const expirePaymentRow = (payment, callback) => {
+  if (payment.status !== 'pending') {
+    callback(new Error('Only pending payments can be expired'));
+    return;
+  }
+
+  db.run(
+    `UPDATE payments
+     SET status = 'expired',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [payment.id],
+    (updateErr) => {
+      if (updateErr) {
+        callback(updateErr);
+        return;
+      }
+
+      callback(null, mapPaymentRow({ ...payment, status: 'expired' }));
+    }
+  );
+};
+
+const syncPendingAlipayPayment = async (payment) => {
+  const config = getAlipayConfig();
+  if (payment.status !== 'pending' || !config.enabled || validateAlipayConfig(config).length > 0) {
+    return mapPaymentRow(payment);
+  }
+
+  let queryResult;
+  try {
+    queryResult = await queryTrade(config, payment.out_trade_no);
+  } catch (queryErr) {
+    console.error('Failed to query Alipay trade status:', queryErr.message);
+    return mapPaymentRow(payment);
+  }
+  if (queryResult.code !== '10000') {
+    return mapPaymentRow(payment);
+  }
+
+  if (queryResult.total_amount && roundMoney(queryResult.total_amount) !== roundMoney(payment.amount)) {
+    throw new Error('Alipay query amount does not match local payment');
+  }
+
+  if (['TRADE_SUCCESS', 'TRADE_FINISHED'].includes(queryResult.trade_status)) {
+    return await new Promise((resolve, reject) => {
+      completePayment(payment, {
+        source: 'alipay-trade-query',
+        ...queryResult
+      }, (completeErr, paidPayment) => {
+        if (completeErr) {
+          reject(completeErr);
+          return;
+        }
+        resolve(paidPayment);
+      });
+    });
+  }
+
+  if (queryResult.trade_status === 'TRADE_CLOSED') {
+    return await new Promise((resolve, reject) => {
+      expirePaymentRow(payment, (expireErr, expiredPayment) => {
+        if (expireErr) {
+          reject(expireErr);
+          return;
+        }
+        resolve(expiredPayment);
+      });
+    });
+  }
+
+  return mapPaymentRow(payment);
+};
+
+const respondWithSyncedPayment = (res, payment) => {
+  syncPendingAlipayPayment(payment)
+    .then(syncedPayment => res.json(syncedPayment))
+    .catch(err => res.status(500).json({ error: err.message }));
+};
+
 exports.getAlipayStatus = function(req, res) {
   const config = getAlipayConfig();
   res.json({
@@ -400,7 +480,7 @@ exports.getPayment = function(req, res) {
       return;
     }
 
-    res.json(mapPaymentRow(payment));
+    respondWithSyncedPayment(res, payment);
   });
 };
 
@@ -421,7 +501,7 @@ exports.getPaymentByOutTradeNo = function(req, res) {
       return;
     }
 
-    res.json(mapPaymentRow(payment));
+    respondWithSyncedPayment(res, payment);
   });
 };
 
@@ -491,24 +571,17 @@ exports.expirePayment = function(req, res) {
       return;
     }
 
-    db.run(
-      `UPDATE payments
-       SET status = 'expired',
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [payment.id],
-      (updateErr) => {
-        if (updateErr) {
-          res.status(500).json({ error: updateErr.message });
-          return;
-        }
-
-        res.json({
-          message: 'Payment expired successfully',
-          payment: mapPaymentRow({ ...payment, status: 'expired' })
-        });
+    expirePaymentRow(payment, (expireErr, expiredPayment) => {
+      if (expireErr) {
+        res.status(500).json({ error: expireErr.message });
+        return;
       }
-    );
+
+      res.json({
+        message: 'Payment expired successfully',
+        payment: expiredPayment
+      });
+    });
   });
 };
 

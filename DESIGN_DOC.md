@@ -47,6 +47,7 @@
 - Release 3 借阅功能开关通过 `borrow_enabled` 接入前后端：管理员可全局关闭借阅，普通登录用户通过 feature flags 接口读取开关，前端禁用借阅/确认入口，后端对借阅和确认借阅做强制拦截。
 - Release 3 支付宝沙箱接入先建立后端配置层：`backend/config/alipayConfig.js` 统一读取启用状态、沙箱/生产模式、APP_ID、应用私钥、支付宝公钥、网关、notify/return URL、签名和超时配置；本地测试默认使用 `localhost:3001` notify URL 和 `localhost:5173` return URL，启动时只输出安全摘要和缺失项。
 - Release 3 支付宝沙箱收银台链接由 `backend/services/alipayClient.js` 生成：后端使用应用私钥按 `alipay.trade.page.pay` 参数排序签名，配置完整时支付单保存支付宝沙箱网关 URL 并由前端生成二维码；配置未启用或缺失时保留本地 `/payment-result` 模拟链接作为课程演示兜底。`/api/payments/alipay/notify` 已支持表单回调解析和支付宝公钥验签，验签通过且交易成功后复用统一支付完成逻辑。
+- Release 3 支付宝沙箱订单状态同步支持主动查询：当 `GET /api/payments/:id` 或 `GET /api/payments/trade/:out_trade_no` 读取 pending 订单且支付宝配置完整时，后端会调用 `alipay.trade.query` 同步沙箱交易状态；`TRADE_SUCCESS/TRADE_FINISHED` 会完成罚款支付，`TRADE_CLOSED` 会过期本地订单，查询失败时保留本地状态以避免前端轮询中断。
 - Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，并每 2.5 秒轮询订单状态，`paid` 自动刷新罚款记录、`expired` 提示重新创建订单；模拟支付成功按钮受 `ALIPAY_MODE=sandbox` / `ALIPAY_SIMULATION_ENABLED` 控制，模拟成功后再标记支付单和关联罚款为 `paid`；同一批罚款复用 pending 订单，expired 订单不能模拟成功，paid 订单不能过期，管理员/图书管理员可通过 Income Dashboard 查看收入汇总、订单列表并过期待支付订单。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
