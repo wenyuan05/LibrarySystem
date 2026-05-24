@@ -398,9 +398,9 @@
 }
 
 .fine-modal-content {
-  width: min(960px, calc(100vw - 48px));
-  max-width: 960px;
-  max-height: min(82vh, 760px);
+  width: min(1280px, calc(100vw - 64px));
+  max-width: 1280px;
+  max-height: min(86vh, 820px);
   padding: var(--spacing-xl);
 }
 
@@ -452,30 +452,30 @@
 
 .fines-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
   table-layout: fixed;
   margin-bottom: 0;
 }
 
 .fines-table .fine-col-id {
-  width: 110px;
+  width: 130px;
 }
 
 .fines-table .fine-col-title {
-  width: 300px;
+  width: 440px;
 }
 
 .fines-table .fine-col-days {
-  width: 140px;
+  width: 160px;
 }
 
 .fines-table .fine-col-amount {
-  width: 150px;
+  width: 180px;
 }
 
 .fines-table .fine-col-status {
-  width: 140px;
+  width: 160px;
 }
 
 .fines-table th,

@@ -1614,3 +1614,16 @@ This file documents all bug fixes applied to the project.
   - Kept fine amount and status cells on one line while allowing long book titles to wrap naturally.
 - **Reason**: The fine modal was visually centered inside the borrow-records container and too narrow for dense fine rows, causing poor readability and awkward text wrapping.
 
+### Fix 124: Stretch borrow fine modal for wide desktop layouts
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Increased the My Fines modal desktop width from 960px to 1280px.
+  - Expanded the fine table minimum width and individual column widths to use the wider modal.
+  - Updated docs and regression expectations for the wide modal layout.
+- **Reason**: The centered fine modal still felt too narrow for dense overdue/fine records after the first layout fix.
+
