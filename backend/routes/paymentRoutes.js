@@ -3,7 +3,7 @@ const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
-router.get('/alipay/status', authenticateToken, requireRole(['admin', 'librarian']), paymentController.getAlipayStatus);
+router.get('/alipay/status', authenticateToken, paymentController.getAlipayStatus);
 router.get('/', authenticateToken, paymentController.listPayments);
 router.post('/fines/alipay', authenticateToken, paymentController.createFineAlipayPayment);
 router.post('/alipay/simulate-notify/:out_trade_no', authenticateToken, paymentController.simulateAlipayNotify);

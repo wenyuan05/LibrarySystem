@@ -826,9 +826,9 @@
 
 #### 3.4.1 GET /api/payments/alipay/status
 **功能**：获取支付宝后端配置状态
-**权限**：admin/librarian
+**权限**：已登录用户
 
-**说明**：只返回安全摘要和缺失项，不返回应用私钥或支付宝公钥内容。
+**说明**：只返回安全摘要和缺失项，不返回应用私钥或支付宝公钥内容。Fine Records 用该接口判断本地模拟按钮是否应显示。
 
 **响应**：
 ```json
@@ -838,6 +838,7 @@
   "gateway": "https://openapi-sandbox.dl.alipaydev.com/gateway.do",
   "notifyUrl": "http://localhost:3001/api/payments/alipay/notify",
   "returnUrl": "http://localhost:5173/payment-result",
+  "simulationEnabled": true,
   "hasAppId": true,
   "hasPrivateKey": true,
   "hasAlipayPublicKey": true,
@@ -863,7 +864,7 @@
 **权限**：本人或admin/librarian
 
 **说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
-Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。
+Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。前端创建订单后每 2.5 秒调用 `GET /api/payments/:id` 轮询最新状态，`paid` 时自动刷新罚款记录，`expired` 时提示重新创建订单。
 
 **请求体**：
 ```json
@@ -900,12 +901,13 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **权限**：本人或admin/librarian
 
 **说明**：本地 `/payment-result` 页面使用该接口根据 `out_trade_no` 读取最新支付状态，而不是信任 URL 中的静态状态参数。
+支付结果页支持手动刷新并每 2.5 秒轮询该接口，便于本地模拟时验证订单状态变化。
 
 #### 3.4.6 POST /api/payments/alipay/simulate-notify/:out_trade_no
 **功能**：模拟支付宝支付成功通知
 **权限**：本人或admin/librarian
 
-**说明**：本地测试用接口。调用后将支付单标记为 `paid`，关联的罚款记录标记为 `paid`，并重新同步用户 `total_fine`。接口具备幂等性，已支付订单重复调用不会重复入账。
+**说明**：本地测试用接口，仅当 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时允许调用。调用后将支付单标记为 `paid`，关联的罚款记录标记为 `paid`，并重新同步用户 `total_fine`。接口具备幂等性，已支付订单重复调用不会重复入账；`expired` 订单不能模拟成功。
 
 #### 3.4.7 POST /api/payments/alipay/notify
 **功能**：支付宝异步通知入口
@@ -933,7 +935,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **功能**：手动过期待支付订单
 **权限**：本人或admin/librarian
 
-**说明**：仅 `pending` 订单可以过期。过期订单不会改变罚款状态，用户可重新创建支付单。
+**说明**：仅 `pending` 订单可以过期。过期订单不会改变罚款状态，已支付订单不能过期；已有 `pending` 订单被过期后，用户再次创建同一批罚款支付单会生成新订单。
 
 ### 3.5 分类管理接口
 

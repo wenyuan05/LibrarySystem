@@ -1475,3 +1475,27 @@ This file documents all bug fixes applied to the project.
   - Documented the fallback and regression case.
 - **Reason**: Avoid temporarily rendering every book card as `Borrowed` because an unloaded copy list was treated as an empty list.
 
+### Fix 116: Poll Alipay payment status and enforce local simulation state rules
+- **Files modified**:
+  - `backend/.env.example`
+  - `backend/config/alipayConfig.js`
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `ALIPAY_SIMULATION_ENABLED`, defaulting local simulation to enabled in sandbox mode and exposing the safe flag through the Alipay status endpoint.
+  - Allowed logged-in users to read the safe Alipay status summary so Fine Records can decide whether to show the local simulation button.
+  - Added Fine Records polling of `GET /api/payments/:id` every 2.5 seconds, refreshing fines when an order becomes `paid` and prompting users to create a new order when it becomes `expired`.
+  - Added `/payment-result` manual refresh and automatic polling by `out_trade_no`.
+  - Hid `Simulate Payment Success` unless local simulation is enabled and the payment is still `pending`.
+  - Rejected simulated success for expired orders and preserved the existing restriction that only pending orders can be expired, so paid orders cannot be expired.
+  - Documented that expired pending orders are not reused and a new order is created for the same fines after expiration.
+- **Reason**: Make the local Alipay-shaped flow observable from both Fine Records and the payment result page while preventing invalid order state transitions before sandbox gateway integration.
+

@@ -195,6 +195,7 @@ ALIPAY_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nyour_alipay_public_key\n-----END 
 ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
 ALIPAY_NOTIFY_URL=http://localhost:3001/api/payments/alipay/notify
 ALIPAY_RETURN_URL=http://localhost:5173/payment-result
+ALIPAY_SIMULATION_ENABLED=true
 ALIPAY_SIGN_TYPE=RSA2
 ALIPAY_CHARSET=utf-8
 ALIPAY_FORMAT=json
@@ -228,6 +229,7 @@ JWT_SECRET=your-secret-key-here
 - `ALIPAY_PUBLIC_KEY`：支付宝公钥，用于后续回调验签
 - `ALIPAY_NOTIFY_URL`：支付宝异步通知地址；本地模拟配置为 `http://localhost:3001/api/payments/alipay/notify`，真实沙箱回调测试需要换成公网或内网穿透地址
 - `ALIPAY_RETURN_URL`：支付完成后的前端返回地址；本地测试默认 `http://localhost:5173/payment-result`
+- `ALIPAY_SIMULATION_ENABLED`：是否显示并允许本地模拟支付成功按钮；默认在 `ALIPAY_MODE=sandbox` 时开启，生产环境应设为 `false`
 - `ALIPAY_GATEWAY`：支付宝网关；沙箱默认 `https://openapi-sandbox.dl.alipaydev.com/gateway.do`
 - `ALIPAY_SIGN_TYPE` / `ALIPAY_CHARSET` / `ALIPAY_FORMAT` / `ALIPAY_TIMEOUT_MS`：支付宝请求签名、编码、格式和超时配置
 
@@ -638,11 +640,12 @@ npm run dev
    - 后端新增 `/api/payments/fines/alipay` 创建支付宝罚款支付单，返回二维码内容和收款链接
    - 借阅历史区分预计罚款和实际罚款：未归还逾期书籍只显示 Estimated Fine，提交还书后生成的 `returning/returned` 未付罚款才允许支付
    - Fine Records 页面点击 Pay with Alipay 后会显示支付宝模拟支付区域、订单号、二维码内容占位和收款链接，不再直接结清罚款
+   - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录，变为 `expired` 时提示重新创建订单
    - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
-   - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，支付成功后同步更新罚款状态和用户实际未付罚款总额
-   - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，模拟支付成功后再次打开链接会显示最新状态
+   - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额
+   - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，支持手动刷新并每 2.5 秒轮询，模拟支付成功后会显示最新状态
    - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
-   - 支持支付订单列表查询和手动过期 pending 订单，便于本地验证订单状态流转
+   - 支持支付订单列表查询和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
    - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
    - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
    - 真实支付宝 notify 路由已预留为 `/api/payments/alipay/notify`，后续接入签名验签后可替换模拟流程

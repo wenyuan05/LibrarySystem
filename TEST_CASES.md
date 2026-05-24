@@ -578,6 +578,8 @@
   4. Call `GET /api/payments/:id` and confirm the payment is still `pending`.
   5. Call `POST /api/payments/alipay/simulate-notify/:out_trade_no`.
   6. Reload the user's fine records and income summary.
+  7. Create another payment, expire it with `POST /api/payments/:id/expire`, then try to simulate success for the expired order.
+  8. Try to expire an already paid order.
 - **Expected result**:
   - Creating a payment includes only `returning` / `returned` actual unpaid fines and excludes unreturned overdue estimated fines.
   - Creating a payment does not immediately mark fines as paid.
@@ -587,6 +589,8 @@
   - `GET /api/payments/income/summary` includes the paid amount for admin/librarian users.
   - Repeating the simulated notify call is idempotent and does not duplicate income.
   - If linked fines were already paid by another flow while the payment was pending, simulated notify is rejected and does not add income.
+  - Expired orders cannot be simulated as paid.
+  - Paid orders cannot be expired.
 
 ### Test Case: Fine page Alipay simulation flow
 
@@ -596,15 +600,19 @@
   2. Open the Fine Records page.
   3. Click `Pay with Alipay`.
   4. Confirm the Alipay payment panel appears with an order number, amount, QR image, and payment link.
-  5. Reload fine records before clicking simulate success.
-  6. Click `Simulate Payment Success`.
+  5. Confirm `Simulate Payment Success` is visible only when `ALIPAY_MODE=sandbox` or `ALIPAY_SIMULATION_ENABLED=true`.
+  6. Reload fine records before clicking simulate success.
+  7. Click `Simulate Payment Success`.
 - **Expected result**:
   - Fine Records shows Payable Fine separately from Estimated Fine.
   - Clicking `Pay with Alipay` creates a pending payment order only for actual unpaid fines and does not immediately mark fines as paid.
   - The page shows the simulated Alipay payment UI instead of directly calling the legacy fine settlement API.
   - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
+  - Fine Records polls `GET /api/payments/:id` every 2-3 seconds while a payment order is open.
   - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
+  - If another page or dashboard expires the order, Fine Records updates the order status to `expired` and prompts the user to create a new order.
   - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
+  - `/payment-result` can refresh manually and also polls automatically every 2-3 seconds.
 
 ### Test Case: Payment order management and income dashboard
 
@@ -616,11 +624,13 @@
   4. Filter payments by `Pending`.
   5. Expire a pending payment order.
   6. Complete another payment with `Simulate Payment Success` and refresh the dashboard.
+  7. Create the same payment again after the first pending order was expired.
 - **Expected result**:
   - The second create call reuses the existing pending order for the same fine records instead of creating a duplicate.
   - `/income-dashboard` shows total income, today income, month income, paid count, pending count, and payment rows.
   - Pending rows can be marked expired.
   - Expired payments do not mark fines as paid.
+  - After a pending order is expired, creating the payment again creates a new pending order rather than reusing the expired one.
   - Paid payments appear in the income totals after simulated success.
 
 ### Test Case: Borrow records fine modal payment route

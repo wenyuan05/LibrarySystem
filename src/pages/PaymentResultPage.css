@@ -54,9 +54,16 @@
   color: var(--danger-color) !important;
 }
 
+.payment-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-top: var(--spacing-md);
+}
+
 .payment-result-action {
   display: inline-flex;
-  margin-top: var(--spacing-md);
   text-decoration: none;
 }
 

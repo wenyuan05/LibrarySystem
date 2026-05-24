@@ -98,6 +98,16 @@ const completePayment = (payment, rawNotify, callback) => {
     return;
   }
 
+  if (payment.status === 'expired') {
+    callback(new Error('Expired payments cannot be completed'));
+    return;
+  }
+
+  if (payment.status !== 'pending') {
+    callback(new Error(`Payment status ${payment.status} cannot be completed`));
+    return;
+  }
+
   const borrowRecordIds = payment.borrow_record_ids ? JSON.parse(payment.borrow_record_ids) : [];
   if (borrowRecordIds.length === 0) {
     callback(new Error('Payment has no linked fine records'));
@@ -390,6 +400,12 @@ exports.getPaymentByOutTradeNo = function(req, res) {
 
 exports.simulateAlipayNotify = function(req, res) {
   const { out_trade_no } = req.params;
+  const config = getAlipayConfig();
+
+  if (!config.simulationEnabled) {
+    res.status(403).json({ error: 'Alipay simulation is disabled' });
+    return;
+  }
 
   db.get('SELECT * FROM payments WHERE out_trade_no = ?', [out_trade_no], (err, payment) => {
     if (err) {

@@ -1,48 +1,77 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { paymentAPI } from '../utils/api';
 import './PaymentResultPage.css';
 
 const PaymentResultPage = () => {
   const [searchParams] = useSearchParams();
-  const outTradeNo = searchParams.get('out_trade_no') || '-';
+  const outTradeNoParam = searchParams.get('out_trade_no') || '';
+  const outTradeNo = outTradeNoParam || '-';
   const fallbackAmount = Number(searchParams.get('amount') || 0);
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(Boolean(searchParams.get('out_trade_no')));
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadPayment = useCallback(async ({ showLoading = true } = {}) => {
+    if (!outTradeNoParam) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (showLoading) setLoading(true);
+      const data = await paymentAPI.getPaymentByOutTradeNo(outTradeNoParam);
+      setPayment(data);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to load payment status');
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [outTradeNoParam]);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadPayment = async () => {
-      if (!searchParams.get('out_trade_no')) {
-        setLoading(false);
+    let cancelled = false;
+    const pollPayment = async ({ showLoading = false } = {}) => {
+      if (!outTradeNoParam) {
+        if (!cancelled) setLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
-        const data = await paymentAPI.getPaymentByOutTradeNo(searchParams.get('out_trade_no'));
-        if (isMounted) {
+        if (showLoading && !cancelled) setLoading(true);
+        const data = await paymentAPI.getPaymentByOutTradeNo(outTradeNoParam);
+        if (!cancelled) {
           setPayment(data);
           setError('');
         }
       } catch (err) {
-        if (isMounted) {
+        if (!cancelled) {
           setError(err.message || 'Failed to load payment status');
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (showLoading && !cancelled) setLoading(false);
       }
     };
 
-    loadPayment();
+    pollPayment({ showLoading: true });
+    const timer = setInterval(() => pollPayment(), 2500);
 
     return () => {
-      isMounted = false;
+      cancelled = true;
+      clearInterval(timer);
     };
-  }, [searchParams]);
+  }, [outTradeNoParam]);
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await loadPayment({ showLoading: false });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const amount = Number(payment?.amount ?? fallbackAmount);
   const status = payment?.status || (loading ? 'loading' : 'pending');
@@ -69,9 +98,14 @@ const PaymentResultPage = () => {
         This is the local Alipay sandbox simulation page. The status is loaded from the
         backend payment order whenever an order number is present.
       </p>
-      <Link className="btn-primary payment-result-action" to="/fines">
-        Back to Fine Records
-      </Link>
+      <div className="payment-result-actions">
+        <button type="button" className="btn-secondary" onClick={handleRefresh} disabled={refreshing || loading}>
+          {refreshing ? 'Refreshing...' : 'Refresh Status'}
+        </button>
+        <Link className="btn-primary payment-result-action" to="/fines">
+          Back to Fine Records
+        </Link>
+      </div>
     </div>
   );
 };

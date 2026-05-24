@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -7,11 +7,19 @@ import { borrowAPI, paymentAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortFineRecords } from '../utils/historyList';
 import './FineDetailsPage.css';
 
+const isActualPayableFine = (fine) => (
+  fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
+);
+const isEstimatedFine = (fine) => (
+  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+);
+
 const FineDetailsPage = () => {
   const { user_id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const targetUserId = user_id || user?.id;
   const [fines, setFines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
@@ -21,16 +29,11 @@ const FineDetailsPage = () => {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [paymentConfig, setPaymentConfig] = useState(null);
 
-  const isActualPayableFine = (fine) => (
-    fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
-  );
-  const isEstimatedFine = (fine) => (
-    fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
-  );
-
-  const loadFines = async () => {
-    const data = await borrowAPI.getUserFines(user_id || user.id);
+  const loadFines = useCallback(async () => {
+    if (!targetUserId) return [];
+    const data = await borrowAPI.getUserFines(targetUserId);
     setFines(data);
     setPage(1);
     const total = data
@@ -38,7 +41,7 @@ const FineDetailsPage = () => {
       .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
     setTotalFine(total);
     return data;
-  };
+  }, [targetUserId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,6 +71,58 @@ const FineDetailsPage = () => {
     };
   }, [paymentOrder?.qr_code]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadPaymentConfig = async () => {
+      try {
+        const config = await paymentAPI.getAlipayStatus();
+        if (isMounted) setPaymentConfig(config);
+      } catch (err) {
+        console.error('Failed to load payment configuration:', err);
+      }
+    };
+
+    loadPaymentConfig();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!paymentOrder?.id || !['pending', 'paid', 'expired'].includes(paymentOrder.status)) {
+      return undefined;
+    }
+
+    let isMounted = true;
+    const pollPayment = async () => {
+      try {
+        const latest = await paymentAPI.getPayment(paymentOrder.id);
+        if (!isMounted) return;
+
+        if (latest.status !== paymentOrder.status) {
+          setPaymentOrder(latest);
+          if (latest.status === 'paid') {
+            showToast('Payment completed. Fine records refreshed.', 'success');
+            await loadFines();
+          } else if (latest.status === 'expired') {
+            showToast('Payment expired. Please create a new payment order.', 'warning');
+          }
+        } else if (latest.status === 'paid') {
+          await loadFines();
+        }
+      } catch (err) {
+        console.error('Failed to poll payment status:', err);
+      }
+    };
+
+    const timer = setInterval(pollPayment, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [paymentOrder?.id, paymentOrder?.status, showToast, loadFines]);
+
   // 加载用户的罚款记录
   useEffect(() => {
     const fetchFines = async () => {
@@ -82,10 +137,10 @@ const FineDetailsPage = () => {
       }
     };
 
-    if (user_id || user) {
+    if (targetUserId) {
       fetchFines();
     }
-  }, [user_id, user, showToast]);
+  }, [targetUserId, showToast, loadFines]);
 
   // 创建支付宝模拟支付单
   const handleCreatePayment = async () => {
@@ -94,9 +149,9 @@ const FineDetailsPage = () => {
         return; // 防止重复点击
       }
       setIsPaying(true);
-      const result = await paymentAPI.createFineAlipayPayment(user_id || user.id);
+      const result = await paymentAPI.createFineAlipayPayment(targetUserId);
       setPaymentOrder(result);
-      showToast(`Alipay payment created: ¥${Number(result.amount).toFixed(2)}`, 'success');
+      showToast(`${result.reused ? 'Existing' : 'New'} Alipay payment ready: ¥${Number(result.amount).toFixed(2)}`, 'success');
     } catch (err) {
       showToast(err.message, 'error');
       console.error(err);
@@ -202,7 +257,7 @@ const FineDetailsPage = () => {
               <a className="payment-link" href={paymentOrder.payment_url} target="_blank" rel="noreferrer">
                 Open Alipay payment link
               </a>
-              {paymentOrder.status === 'pending' && (
+              {paymentOrder.status === 'pending' && paymentConfig?.simulationEnabled && (
                 <button
                   type="button"
                   className="btn-primary simulate-pay-button"
