@@ -656,6 +656,19 @@
   - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
   - `/payment-result` can refresh manually and also polls automatically every 2-3 seconds.
 
+### Test Case: Borrow records fine modal layout
+
+- **Scenario**: User opens the fine modal from My Borrow Records with many overdue records.
+- **Steps**:
+  1. Log in as a user with many fine records and open My Borrow Records.
+  2. Click `View Fines`.
+  3. Resize or scroll the borrow records page while the modal is open.
+- **Expected result**:
+  - The modal is centered against the browser viewport, not the borrow-records card/container.
+  - The modal is wide enough for the fine table on desktop.
+  - Fine table columns keep readable widths; long book titles wrap naturally while status and amount columns stay on one line.
+  - On narrow screens, the table scrolls horizontally inside the modal instead of squeezing columns into unreadable vertical text.
+
 ### Test Case: Payment order management and income dashboard
 
 - **Scenario**: Librarian manages simulated Alipay fine payment orders locally.

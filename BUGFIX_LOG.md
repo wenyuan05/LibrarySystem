@@ -1598,3 +1598,19 @@ This file documents all bug fixes applied to the project.
   - Documented the paid QR visual state and regression expectation.
 - **Reason**: Make successful payment state immediately visible in the payment panel after polling or simulation marks an order as paid.
 
+### Fix 123: Center and widen the borrow-records fine modal
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Rendered the borrow confirm and fine modals through React portals attached to `document.body`.
+  - Updated the modal overlay to fill and center against the viewport instead of being constrained by the borrow-records container.
+  - Added a wider `fine-modal-content` layout for the My Fines modal.
+  - Wrapped the fine table in a horizontal scroll container and assigned stable column widths.
+  - Kept fine amount and status cells on one line while allowing long book titles to wrap naturally.
+- **Reason**: The fine modal was visually centered inside the borrow-records container and too narrow for dense fine rows, causing poor readability and awkward text wrapping.
+

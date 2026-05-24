@@ -371,18 +371,17 @@
 /* 弹窗样式 */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--spacing-lg);
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.3s ease;
-  /* 确保在任何情况下都居中 */
-  min-height: 100vh;
   box-sizing: border-box;
 }
 
@@ -396,6 +395,13 @@
   max-height: 80vh;
   overflow-y: auto;
   animation: slideIn 0.3s ease;
+}
+
+.fine-modal-content {
+  width: min(960px, calc(100vw - 48px));
+  max-width: 960px;
+  max-height: min(82vh, 760px);
+  padding: var(--spacing-xl);
 }
 
 .modal-header {
@@ -436,23 +442,72 @@
 }
 
 /* 罚款表格样式 */
+.fines-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-md);
+}
+
 .fines-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
-  margin-bottom: var(--spacing-md);
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.fines-table .fine-col-id {
+  width: 110px;
+}
+
+.fines-table .fine-col-title {
+  width: 300px;
+}
+
+.fines-table .fine-col-days {
+  width: 140px;
+}
+
+.fines-table .fine-col-amount {
+  width: 150px;
+}
+
+.fines-table .fine-col-status {
+  width: 140px;
 }
 
 .fines-table th,
 .fines-table td {
-  padding: var(--spacing-sm);
+  padding: 14px 16px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
 }
 
 .fines-table th {
   background-color: var(--bg-tertiary);
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.fines-table td {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.fines-table .fine-title-cell {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.fines-table .fine-amount-cell,
+.fines-table .status-paid,
+.fines-table .status-unpaid,
+.fines-table .status-estimated {
+  white-space: nowrap;
 }
 
 .fines-table tr:hover {
@@ -565,6 +620,12 @@
 
   .modal-content {
     width: 95%;
+    padding: var(--spacing-md);
+  }
+
+  .fine-modal-content {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
     padding: var(--spacing-md);
   }
 

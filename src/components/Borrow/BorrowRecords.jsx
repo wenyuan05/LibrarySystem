@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -355,7 +356,7 @@ const BorrowRecords = () => {
       )}
 
       {/* 确认借阅弹窗 */}
-      {showConfirmModal && confirmRecord && (
+      {showConfirmModal && confirmRecord && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
@@ -413,12 +414,12 @@ const BorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* 罚款信息弹窗 */}
-      {showFineModal && (
+      {showFineModal && createPortal((
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content fine-modal-content">
             <div className="modal-header">
               <h3>My Fines</h3>
               <button 
@@ -446,41 +447,50 @@ const BorrowRecords = () => {
                       {fineSortOrder === 'desc' ? 'Ascending' : 'Descending'}
                     </button>
                   </div>
-                  <table className="fines-table">
-                    <thead>
-                      <tr>
-                        <th>Record ID</th>
-                        <th>Book Title</th>
-                        <th>Overdue Days</th>
-                        <th>Fine Amount</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleFines.map(fine => {
-                        const dueDate = new Date(fine.due_date);
-                        const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
-                        const overdueDays = Math.max(
-                          0,
-                          Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
-                        );
-
-                        return (
-                        <tr key={fine.id}>
-                          <td>{fine.id}</td>
-                          <td>{fine.title}</td>
-                          <td>{overdueDays}</td>
-                          <td>
-                            {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
-                          </td>
-                          <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
-                            {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
-                          </td>
+                  <div className="fines-table-wrap">
+                    <table className="fines-table">
+                      <colgroup>
+                        <col className="fine-col-id" />
+                        <col className="fine-col-title" />
+                        <col className="fine-col-days" />
+                        <col className="fine-col-amount" />
+                        <col className="fine-col-status" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Record ID</th>
+                          <th>Book Title</th>
+                          <th>Overdue Days</th>
+                          <th>Fine Amount</th>
+                          <th>Status</th>
                         </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {visibleFines.map(fine => {
+                          const dueDate = new Date(fine.due_date);
+                          const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
+                          const overdueDays = Math.max(
+                            0,
+                            Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
+                          );
+
+                          return (
+                          <tr key={fine.id}>
+                            <td>{fine.id}</td>
+                            <td className="fine-title-cell">{fine.title}</td>
+                            <td>{overdueDays}</td>
+                            <td className="fine-amount-cell">
+                              {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
+                            </td>
+                            <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                              {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                   <div className="total-fine">
                     <strong>Payable Fine: ¥{totalFine.toFixed(2)}</strong>
                     <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
@@ -517,7 +527,7 @@ const BorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };
