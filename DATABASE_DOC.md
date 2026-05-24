@@ -15,6 +15,7 @@
 | users | 用户信息 |
 | borrow_records | 借阅记录 |
 | reservation_records | 预约记录 |
+| payments | 支付记录 |
 | notifications | 站内通知 |
 | system_logs | 系统日志 |
 | announcements | 公告信息 |
@@ -138,7 +139,7 @@
 | email | TEXT | NOT NULL | 邮箱 |
 | phone | TEXT | | 电话 |
 | address | TEXT | | 地址 |
-| total_fine | REAL | DEFAULT 0 | 累计未付罚款总额 |
+| total_fine | REAL | DEFAULT 0 | 实际未付罚款总额（仅统计已归还/归还中记录，不统计未归还逾期书籍的预计罚款） |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
@@ -163,7 +164,8 @@
 
 **说明**：
 - 归还申请提交时会立即计算并写入 `borrow_records.fine` / `fine_status`。
-- 若产生未支付罚款，`users.total_fine` 会同步增加；支付罚款时以 `borrow_records` 中 `fine_status='unpaid'` 的记录为准，并重新同步 `users.total_fine`。
+- `status='overdue'` 且未归还的记录只用于预计罚款展示，不能直接创建支付订单。
+- 若归还后产生实际未支付罚款，`users.total_fine` 会同步增加；支付罚款时以 `borrow_records` 中 `status IN ('returning','returned') AND fine_status='unpaid'` 的记录为准，并重新同步 `users.total_fine`。
 - 图书管理员审批归还只确认归还状态和释放副本，不重复累计罚款。
 
 ### 2.9 reservation_records 表
@@ -179,7 +181,35 @@
 | status | TEXT | DEFAULT 'pending' | 状态（pending/confirmed/canceled） |
 | notification_sent | INTEGER | DEFAULT 0 | 是否已发送通知 |
 
-### 2.10 system_logs 表
+### 2.10 payments 表
+
+**功能**：存储支付宝罚款支付单和本地模拟支付结果
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | NOT NULL | 用户ID，外键关联users表 |
+| provider | TEXT | DEFAULT 'alipay' | 支付渠道 |
+| payment_type | TEXT | DEFAULT 'fine' | 支付类型 |
+| out_trade_no | TEXT | NOT NULL UNIQUE | 商户订单号 |
+| provider_trade_no | TEXT | | 支付宝交易号，真实接入后写入 |
+| amount | REAL | NOT NULL | 支付金额 |
+| status | TEXT | DEFAULT 'pending' | 支付状态（pending/paid/failed/expired） |
+| subject | TEXT | | 订单标题 |
+| qr_code | TEXT | | 二维码内容或收款链接 |
+| payment_url | TEXT | | 支付链接 |
+| borrow_record_ids | TEXT | | 关联罚款借阅记录ID JSON |
+| raw_notify | TEXT | | 支付通知原始数据 |
+| paid_at | TEXT | | 支付完成时间 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+**说明**：
+- 创建支付宝罚款支付单时写入 `pending` 记录，不立即改变罚款状态。
+- 本地模拟支付成功后，关联 `borrow_records.fine_status` 改为 `paid`，并重新同步 `users.total_fine`。
+- 真实支付宝 notify 接入后应继续复用该表的 `out_trade_no`、`provider_trade_no`、`raw_notify` 和 `paid_at` 字段。
+
+### 2.11 system_logs 表
 
 **功能**：存储系统操作日志
 
@@ -244,6 +274,9 @@
 | idx_borrow_records_user_id | borrow_records | user_id | | 加速用户借阅记录查询 |
 | idx_borrow_records_book_id | borrow_records | book_id | | 加速书籍借阅记录查询 |
 | idx_borrow_records_status | borrow_records | status | | 加速借阅状态查询 |
+| idx_payments_out_trade_no | payments | out_trade_no | UNIQUE | 加速支付宝订单号查询 |
+| idx_payments_user_id | payments | user_id | | 加速用户支付记录查询 |
+| idx_payments_status | payments | status | | 加速收入统计和状态查询 |
 | idx_reservation_records_user_id | reservation_records | user_id | | 加速用户预约记录查询 |
 | idx_reservation_records_book_id | reservation_records | book_id | | 加速书籍预约记录查询 |
 | idx_reservation_records_status | reservation_records | status | | 加速预约状态查询 |
@@ -266,6 +299,7 @@
 ```
 users ── user_status
 users ── borrow_records ── books ── book_copies
+users ── payments ── borrow_records
 users ── reservation_records ── books
 users ── notifications
 reservation_records ── notifications.related_id

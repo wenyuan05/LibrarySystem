@@ -1309,3 +1309,334 @@ This file documents all bug fixes applied to the project.
   - Added Release 3 requirements for selectable ISBN lookup API nodes with provider health testing and explicit node switching.
 - **Reason**: Capture newly requested Release 3 external-service integration scope in the release plan without changing implementation code.
 
+### Fix 107: Add backend Alipay sandbox configuration
+- **Files modified**:
+  - `backend/config/alipayConfig.js`
+  - `backend/server.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a backend Alipay configuration module for sandbox/production mode, app ID, application private key, Alipay public key, gateway, notify URL, return URL, signing, encoding, response format, and timeout.
+  - Added safe startup logging that reports enabled mode and whether required secret fields are present without printing key contents.
+  - Added missing-configuration warnings when `ALIPAY_ENABLED=true`.
+  - Added backend `.env.example` entries for Alipay sandbox integration.
+  - Documented required Alipay resources and configuration validation behavior.
+- **Reason**: Prepare Release 3 Alipay sandbox integration with backend-only secret handling before adding payment APIs.
+
+### Fix 108: Use local Alipay callback URLs for test deployment
+- **Files modified**:
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the default Alipay notify URL to `http://localhost:3001/api/payments/alipay/notify` for local backend testing.
+  - Changed the default Alipay return URL to `http://localhost:5173/payment-result` for local frontend testing.
+  - Documented that real sandbox callback testing still needs a public or tunneled notify URL because Alipay cannot call a developer machine's localhost directly.
+- **Reason**: Align the current Alipay sandbox setup with the local deployment test environment.
+
+### Fix 109: Add simulated Alipay fine payment APIs
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `backend/server.js`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a `payments` table for Alipay fine payment orders, linked borrow record IDs, payment URLs, QR-code content, status, and notify payloads.
+  - Added backend payment routes for Alipay configuration status, fine payment creation, payment lookup, local simulate-notify completion, real notify placeholder, and librarian/admin income summary.
+  - Updated backend startup to load environment values from `backend/.env` explicitly so Alipay secrets stay backend-only.
+  - Kept payment creation separate from fine settlement; fines are marked paid only after simulated notify succeeds.
+  - Rejected simulated notify completion when linked pending-payment fines are no longer unpaid, avoiding duplicate income after another payment flow settles the same fines.
+  - Recalculated `users.total_fine` after simulated payment completion.
+  - Added frontend API wrappers for the new payment endpoints.
+  - Documented the API, database schema, design behavior, and regression test case.
+- **Reason**: Provide a local Alipay-shaped payment flow for Release 3 demos before wiring the real Alipay SDK and signature verification.
+
+### Fix 110: Route Fine Records payment through Alipay simulation UI
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the Fine Records page's direct `borrowAPI.payFine` button flow with `paymentAPI.createFineAlipayPayment`.
+  - Added a simulated Alipay payment panel showing order number, amount, QR area, and payment link.
+  - Added a local `Simulate Payment Success` action that calls the simulated notify endpoint before refreshing fine records.
+  - Documented that creating a payment order no longer immediately settles fines from the frontend.
+- **Reason**: Make the user-facing payment flow match the new Alipay-shaped backend flow instead of bypassing it through the legacy direct fine settlement endpoint.
+
+### Fix 111: Remove direct fine settlement from borrow records modal
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the My Borrow Records fine modal's direct `borrowAPI.payFine` call with navigation to `/fines/:userId`.
+  - Renamed the modal action to `Pay with Alipay`.
+  - Removed the unused frontend `borrowAPI.payFine` wrapper so new UI code cannot accidentally use the legacy direct settlement endpoint.
+  - Documented that user-visible fine payment now goes through the Fine Records Alipay simulation panel.
+- **Reason**: Prevent the borrow records modal from bypassing the new Alipay payment flow and immediately marking fines as paid.
+
+### Fix 112: Separate estimated fines from payable actual fines
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/paymentController.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `src/App.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `package.json`
+  - `package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Limited Alipay fine payment creation to actual unpaid fines from `returning` and `returned` borrow records.
+  - Kept unreturned overdue records as estimated fines only, visible in borrow/fine history but excluded from payment orders.
+  - Updated fine history responses to include borrow record status so the frontend can label Estimated, Unpaid, and Paid correctly.
+  - Changed `users.total_fine` synchronization to count only actual unpaid fines.
+  - Added QR code generation for the simulated Alipay payment link using `qrcode`.
+  - Added a local `/payment-result` page so Open Alipay payment link opens in the browser during local simulation.
+- **Reason**: Prevent users from paying estimated fines before returning books, include already-returned unpaid actual fines in payable totals, and make the simulated Alipay UI behave like a real QR/link payment surface.
+
+### Fix 113: Refresh local payment-result status from backend
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed the static `status=pending` query parameter from generated local payment links.
+  - Added `GET /api/payments/trade/:out_trade_no` for querying a payment by merchant order number.
+  - Updated `/payment-result` to load the latest payment status from the backend using `out_trade_no`.
+  - Kept generated QR/payment links stable so reopening them after simulated payment shows the updated backend state.
+- **Reason**: Prevent the local payment result page from showing stale `pending` status after simulated payment completion.
+
+### Fix 114: Add payment order management dashboard
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/App.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `GET /api/payments` with user, status, provider, payment type, and date filters.
+  - Added `POST /api/payments/:id/expire` for expiring pending orders without settling fines.
+  - Reused existing pending fine payment orders when the same user attempts to pay the same actual fine records again.
+  - Added frontend payment list and expire API wrappers.
+  - Added `/income-dashboard` for admin/librarian users with income cards, status filtering, payment rows, and pending-order expiration.
+  - Added sidebar navigation for Income Dashboard.
+- **Reason**: Complete local payment-management support before replacing the simulated provider with real Alipay gateway calls.
+
+### Fix 115: Prevent Books list from showing all cards as borrowed during copy loading
+- **Files modified**:
+  - `src/components/Books/BookList.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed Books list availability calculation to use `book.available_copies` and `book.total_copies` while per-book copy details are still loading.
+  - Continued to use loaded copy details once they are available.
+  - Documented the fallback and regression case.
+- **Reason**: Avoid temporarily rendering every book card as `Borrowed` because an unloaded copy list was treated as an empty list.
+
+### Fix 116: Poll Alipay payment status and enforce local simulation state rules
+- **Files modified**:
+  - `backend/.env.example`
+  - `backend/config/alipayConfig.js`
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `ALIPAY_SIMULATION_ENABLED`, defaulting local simulation to enabled in sandbox mode and exposing the safe flag through the Alipay status endpoint.
+  - Allowed logged-in users to read the safe Alipay status summary so Fine Records can decide whether to show the local simulation button.
+  - Added Fine Records polling of `GET /api/payments/:id` every 2.5 seconds, refreshing fines when an order becomes `paid` and prompting users to create a new order when it becomes `expired`.
+  - Added `/payment-result` manual refresh and automatic polling by `out_trade_no`.
+  - Hid `Simulate Payment Success` unless local simulation is enabled and the payment is still `pending`.
+  - Rejected simulated success for expired orders and preserved the existing restriction that only pending orders can be expired, so paid orders cannot be expired.
+  - Documented that expired pending orders are not reused and a new order is created for the same fines after expiration.
+- **Reason**: Make the local Alipay-shaped flow observable from both Fine Records and the payment result page while preventing invalid order state transitions before sandbox gateway integration.
+
+### Fix 117: Generate Alipay sandbox cashier links and verify notify callbacks
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/server.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added an Alipay client helper for `alipay.trade.page.pay` request signing with the backend app private key.
+  - Changed fine payment creation to generate a signed Alipay sandbox cashier URL when `ALIPAY_ENABLED=true` and all required Alipay settings are present.
+  - Kept the local `/payment-result` payment URL as a fallback when Alipay is disabled or incomplete.
+  - Added form-urlencoded parsing so Alipay notify callbacks can be read by Express.
+  - Implemented Alipay notify signature verification with the configured Alipay public key.
+  - Completed the local payment order through the existing fine settlement path when a verified notify reports `TRADE_SUCCESS` or `TRADE_FINISHED`, while checking app ID and amount and storing Alipay `trade_no` when present.
+  - Documented sandbox link generation, notify behavior, and related manual test cases.
+- **Reason**: Move from local-only simulation toward usable Alipay sandbox integration while preserving the existing local demo workflow.
+
+### Fix 118: Sync pending payments with Alipay sandbox trade query
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.query` request generation and gateway querying to the backend Alipay helper.
+  - Updated `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` to actively synchronize pending orders when Alipay sandbox configuration is enabled and complete.
+  - Completed local fine payment records when Alipay query returns `TRADE_SUCCESS` or `TRADE_FINISHED`.
+  - Expired local pending orders when Alipay query returns `TRADE_CLOSED`.
+  - Preserved the local pending state if the Alipay query times out or fails, keeping Fine Records and payment-result polling from breaking during local demos.
+  - Documented active sandbox status synchronization and manual verification steps.
+- **Reason**: Let local deployments without a public notify callback still observe sandbox payment completion through the existing polling and refresh UI.
+
+### Fix 119: Normalize Alipay key bodies before signing
+- **Files modified**:
+  - `backend/config/alipayConfig.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added PEM normalization for Alipay private and public keys.
+  - Supported both full PEM values and the single-line base64 key body commonly copied from Alipay sandbox tooling.
+  - Automatically wraps bare private key bodies with `BEGIN/END PRIVATE KEY` and public key bodies with `BEGIN/END PUBLIC KEY`.
+  - Updated environment examples and docs to explain the supported key formats.
+- **Reason**: Prevent Node crypto signing from failing with `DECODER routines::unsupported` when the sandbox private key is configured without PEM headers.
+
+### Fix 120: Fallback between PKCS#8 and PKCS#1 Alipay private key containers
+- **Files modified**:
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Kept `ALIPAY_SIGN_TYPE=RSA2` mapped to Node's `RSA-SHA256` signing algorithm.
+  - Added signing fallback that tries both `PRIVATE KEY` and `RSA PRIVATE KEY` PEM containers for the configured application private key.
+  - Documented that RSA2 is the default signing mode and private keys may be PKCS#8 or PKCS#1.
+- **Reason**: Some Alipay sandbox tools export PKCS#1 private keys, which fail if wrapped only as PKCS#8 even though the signing algorithm is correctly set to RSA2.
+
+### Fix 121: Use Alipay precreate QR content for scannable sandbox payments
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.precreate` requests to obtain Alipay's dedicated QR code payload for sandbox fine payments.
+  - Kept `alipay.trade.page.pay` as the browser payment link shown by `Open Alipay payment link`.
+  - Used precreate `qr_code` for the Fine Records QR image when available, falling back to the page-pay URL only if precreate fails.
+  - Increased the Fine Records QR image size and margin to improve scan reliability.
+  - Documented the QR source split between `qr_code` and `payment_url`.
+- **Reason**: Encoding the full signed page-pay URL produced an overly dense QR code that was difficult or impossible for Alipay clients to scan.
+
+### Fix 122: Show completed mark over paid Alipay QR code
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a paid-state overlay on the Fine Records Alipay QR code using `public/打勾.png`.
+  - Dimmed the QR image after payment completion while keeping the original QR visible behind the completion mark.
+  - Documented the paid QR visual state and regression expectation.
+- **Reason**: Make successful payment state immediately visible in the payment panel after polling or simulation marks an order as paid.
+
+### Fix 123: Center and widen the borrow-records fine modal
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Rendered the borrow confirm and fine modals through React portals attached to `document.body`.
+  - Updated the modal overlay to fill and center against the viewport instead of being constrained by the borrow-records container.
+  - Added a wider `fine-modal-content` layout for the My Fines modal.
+  - Wrapped the fine table in a horizontal scroll container and assigned stable column widths.
+  - Kept fine amount and status cells on one line while allowing long book titles to wrap naturally.
+- **Reason**: The fine modal was visually centered inside the borrow-records container and too narrow for dense fine rows, causing poor readability and awkward text wrapping.
+
+### Fix 124: Stretch borrow fine modal for wide desktop layouts
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Increased the My Fines modal desktop width from 960px to 1280px.
+  - Expanded the fine table minimum width and individual column widths to use the wider modal.
+  - Updated docs and regression expectations for the wide modal layout.
+- **Reason**: The centered fine modal still felt too narrow for dense overdue/fine records after the first layout fix.
+
+### Fix 125: Override base modal width for My Fines
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the My Fines modal selector to `.modal-content.fine-modal-content` so it overrides the base `.modal-content` 600px maximum width.
+  - Set the fine modal width to `min(1240px, calc(100vw - 32px))` with no inherited max-width cap.
+  - Updated docs and regression expectations to call out the base modal override.
+- **Reason**: The earlier wide modal style could still be constrained by the shared modal container rule, leaving the fine modal visually close to its old narrow width.
+

@@ -16,12 +16,14 @@ import AnnouncementsPage from './pages/AnnouncementsPage';
 import AnnouncementManagementPage from './pages/AnnouncementManagementPage';
 import CategoryManagementPage from './pages/CategoryManagementPage';
 import StatsPage from './pages/StatsPage';
+import IncomeDashboardPage from './pages/IncomeDashboardPage';
 import LogsPage from './pages/LogsPage';
 import UserBorrowRecords from './components/Borrow/UserBorrowRecords';
 import ReturnApprovalPage from './pages/ReturnApprovalPage';
 import ReservationsPage from './pages/ReservationsPage';
 import BookDetailsPage from './pages/BookDetailsPage';
 import FineDetailsPage from './pages/FineDetailsPage';
+import PaymentResultPage from './pages/PaymentResultPage';
 import NotificationsPage from './pages/NotificationsPage';
 import privacyConfig from './config/privacy';
 import './styles/global.css';
@@ -40,6 +42,7 @@ function App() {
               <Route path="/books" element={<ProtectedRoute requiredRole="user"><MainLayout><BooksPage /></MainLayout></ProtectedRoute>} />
               <Route path="/books/:id" element={<ProtectedRoute requiredRole={['user', 'librarian']}><MainLayout><BookDetailsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/fines/:user_id?" element={<ProtectedRoute><MainLayout><FineDetailsPage /></MainLayout></ProtectedRoute>} />
+              <Route path="/payment-result" element={<ProtectedRoute><MainLayout><PaymentResultPage /></MainLayout></ProtectedRoute>} />
               <Route path="/borrow-records" element={<ProtectedRoute><MainLayout><BorrowRecordsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/reservations" element={<ProtectedRoute><MainLayout><ReservationsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><MainLayout><NotificationsPage /></MainLayout></ProtectedRoute>} />
@@ -51,6 +54,7 @@ function App() {
               <Route path="/announcement-management" element={<ProtectedRoute requiredRole="admin"><MainLayout><AnnouncementManagementPage /></MainLayout></ProtectedRoute>} />
               <Route path="/category-management" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><CategoryManagementPage /></MainLayout></ProtectedRoute>} />
               <Route path="/stats" element={<ProtectedRoute><MainLayout><StatsPage /></MainLayout></ProtectedRoute>} />
+              <Route path="/income-dashboard" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><IncomeDashboardPage /></MainLayout></ProtectedRoute>} />
               <Route path="/return-approval" element={<ProtectedRoute requiredRole={['admin', 'librarian']}><MainLayout><ReturnApprovalPage /></MainLayout></ProtectedRoute>} />
               <Route path="/logs" element={<ProtectedRoute requiredRole="admin"><MainLayout><LogsPage /></MainLayout></ProtectedRoute>} />
               <Route path="/system-settings" element={<ProtectedRoute requiredRole="admin"><MainLayout><SystemSettingsPage /></MainLayout></ProtectedRoute>} />

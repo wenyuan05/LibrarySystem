@@ -524,6 +524,19 @@
   - Clicking the button reruns the search using the current input value.
   - Clearing the input and clicking the button reloads the full book list.
 
+### Test Case: Books list availability fallback
+
+- **Scenario**: Reader opens Books while per-book copy details are still loading.
+- **Steps**:
+  1. Log in as a reader.
+  2. Open the Books page.
+  3. Observe book cards immediately after the main book list loads.
+  4. Wait for copy details to finish loading.
+- **Expected result**:
+  - Book cards use `available_copies` from the book list response until copy details are available.
+  - Available books are not temporarily marked as `Borrowed` while copy details are loading.
+  - Once copy details load, card status matches the actual available copy count.
+
 ### Test Case: Borrowing feature toggle
 
 - **Scenario**: Admin globally disables and re-enables reader borrowing.
@@ -539,3 +552,151 @@
   - `GET /api/system/feature-flags` returns `borrow_enabled: false`.
   - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.
   - Re-enabling the setting restores normal borrow controls and `borrow_enabled: true`.
+
+### Test Case: Alipay backend configuration
+
+- **Scenario**: Backend loads Alipay sandbox configuration without exposing secrets.
+- **Steps**:
+  1. Copy `backend/.env.example` to `backend/.env`.
+  2. Set `ALIPAY_ENABLED=true` and leave one required Alipay value empty.
+  3. Start the backend server.
+  4. Fill all required Alipay values and restart the backend server.
+- **Expected result**:
+  - Backend startup logs include a safe Alipay configuration summary.
+  - Local test configuration uses `http://localhost:3001/api/payments/alipay/notify` and `http://localhost:5173/payment-result`.
+  - Startup warns about missing required values only when `ALIPAY_ENABLED=true`.
+  - Startup logs do not print the application private key or Alipay public key contents.
+  - When all required values are present, no missing-configuration warning is shown.
+
+### Test Case: Alipay fine payment simulation API
+
+- **Scenario**: User creates a simulated Alipay fine payment and completes it through the local notify simulation endpoint.
+- **Steps**:
+  1. Prepare a user with one or more `borrow_records` where `fine > 0` and `fine_status = unpaid`.
+  2. Call `POST /api/payments/fines/alipay` as the same user with `{ "user_id": <userId> }`.
+  3. Confirm the response contains `out_trade_no`, `qr_code`, `payment_url`, `status = pending`, and linked `borrow_record_ids`.
+  4. Call `GET /api/payments/:id` and confirm the payment is still `pending`.
+  5. Call `POST /api/payments/alipay/simulate-notify/:out_trade_no`.
+  6. Reload the user's fine records and income summary.
+  7. Create another payment, expire it with `POST /api/payments/:id/expire`, then try to simulate success for the expired order.
+  8. Try to expire an already paid order.
+- **Expected result**:
+  - Creating a payment includes only `returning` / `returned` actual unpaid fines and excludes unreturned overdue estimated fines.
+  - Creating a payment does not immediately mark fines as paid.
+  - Simulated notify marks the payment as `paid`.
+  - Linked fine records become `fine_status = paid`.
+  - `users.total_fine` is recalculated from remaining unpaid fines.
+  - `GET /api/payments/income/summary` includes the paid amount for admin/librarian users.
+  - Repeating the simulated notify call is idempotent and does not duplicate income.
+  - If linked fines were already paid by another flow while the payment was pending, simulated notify is rejected and does not add income.
+  - Expired orders cannot be simulated as paid.
+  - Paid orders cannot be expired.
+
+### Test Case: Alipay sandbox page-pay link generation
+
+- **Scenario**: Backend creates a sandbox Alipay cashier link when Alipay is enabled and configured.
+- **Steps**:
+  1. Configure backend `.env` with `ALIPAY_ENABLED=true`, `ALIPAY_MODE=sandbox`, sandbox `ALIPAY_APP_ID`, app private key, Alipay public key, notify URL, and return URL. Use either full PEM keys or the single-line base64 key body copied from Alipay sandbox.
+  2. Restart the backend.
+  3. Create a payable fine payment with `POST /api/payments/fines/alipay`.
+  4. Open the returned `payment_url`.
+- **Expected result**:
+  - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
+  - `payment_url` contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
+  - `qr_code` uses the `alipay.trade.precreate` response when available, so the generated frontend QR is less dense and scannable by the Alipay sandbox app.
+  - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
+  - Single-line Alipay key bodies and PKCS#1 / PKCS#8 private key containers are accepted without `DECODER routines::unsupported` signing errors.
+
+### Test Case: Alipay sandbox notify verification
+
+- **Scenario**: Backend receives a verified sandbox notify and completes the linked fine payment.
+- **Steps**:
+  1. Complete or simulate a sandbox payment so Alipay sends `POST /api/payments/alipay/notify`.
+  2. Confirm the backend receives form fields including `out_trade_no`, `trade_status`, and `sign`.
+  3. Reload `GET /api/payments/trade/:out_trade_no` and the user's fine records.
+- **Expected result**:
+  - Valid signed notifications with `TRADE_SUCCESS` or `TRADE_FINISHED` mark the payment as `paid`.
+  - Linked actual unpaid fines become `fine_status = paid`.
+  - Invalid signatures or unknown order numbers return `fail` and do not change fine state.
+
+### Test Case: Alipay sandbox active status query
+
+- **Scenario**: Local deployment has no public notify URL, so the frontend polling path synchronizes payment status by querying Alipay.
+- **Steps**:
+  1. Enable and configure Alipay sandbox settings in backend `.env`.
+  2. Create a payable fine payment and open the returned sandbox cashier URL.
+  3. Complete payment in the sandbox cashier.
+  4. Refresh Fine Records or `/payment-result`, or wait for their polling interval.
+- **Expected result**:
+  - `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` query `alipay.trade.query` for pending orders.
+  - If Alipay reports `TRADE_SUCCESS` or `TRADE_FINISHED`, the local payment becomes `paid` and linked fines become paid.
+  - If Alipay reports `TRADE_CLOSED`, the local payment becomes `expired`.
+  - If the Alipay query times out or fails, the local payment remains pending and the frontend polling keeps working.
+
+### Test Case: Fine page Alipay simulation flow
+
+- **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.
+- **Steps**:
+  1. Log in as a user with unpaid fines.
+  2. Open the Fine Records page.
+  3. Click `Pay with Alipay`.
+  4. Confirm the Alipay payment panel appears with an order number, amount, QR image, and payment link.
+  5. Confirm `Simulate Payment Success` is visible only when `ALIPAY_MODE=sandbox` or `ALIPAY_SIMULATION_ENABLED=true`.
+  6. Reload fine records before clicking simulate success.
+  7. Click `Simulate Payment Success`.
+- **Expected result**:
+  - Fine Records shows Payable Fine separately from Estimated Fine.
+  - Clicking `Pay with Alipay` creates a pending payment order only for actual unpaid fines and does not immediately mark fines as paid.
+  - The page shows the simulated Alipay payment UI instead of directly calling the legacy fine settlement API.
+  - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
+  - Fine Records polls `GET /api/payments/:id` every 2-3 seconds while a payment order is open.
+  - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
+  - When the payment status becomes `paid`, the QR image remains visible with the `public/打勾.png` completion mark overlaid.
+  - If another page or dashboard expires the order, Fine Records updates the order status to `expired` and prompts the user to create a new order.
+  - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
+  - `/payment-result` can refresh manually and also polls automatically every 2-3 seconds.
+
+### Test Case: Borrow records fine modal layout
+
+- **Scenario**: User opens the fine modal from My Borrow Records with many overdue records.
+- **Steps**:
+  1. Log in as a user with many fine records and open My Borrow Records.
+  2. Click `View Fines`.
+  3. Resize or scroll the borrow records page while the modal is open.
+- **Expected result**:
+  - The modal is centered against the browser viewport, not the borrow-records card/container.
+  - The fine modal overrides the base 600px modal limit and stretches horizontally on desktop, up to the wide modal limit, so the fine table has room to breathe.
+  - Fine table columns keep readable widths; long book titles wrap naturally while status and amount columns stay on one line.
+  - On narrow screens, the table scrolls horizontally inside the modal instead of squeezing columns into unreadable vertical text.
+
+### Test Case: Payment order management and income dashboard
+
+- **Scenario**: Librarian manages simulated Alipay fine payment orders locally.
+- **Steps**:
+  1. Create a payable fine payment for a user.
+  2. Create the same payment again before completing or expiring the first order.
+  3. Log in as librarian or admin and open `/income-dashboard`.
+  4. Filter payments by `Pending`.
+  5. Expire a pending payment order.
+  6. Complete another payment with `Simulate Payment Success` and refresh the dashboard.
+  7. Create the same payment again after the first pending order was expired.
+- **Expected result**:
+  - The second create call reuses the existing pending order for the same fine records instead of creating a duplicate.
+  - `/income-dashboard` shows total income, today income, month income, paid count, pending count, and payment rows.
+  - Pending rows can be marked expired.
+  - Expired payments do not mark fines as paid.
+  - After a pending order is expired, creating the payment again creates a new pending order rather than reusing the expired one.
+  - Paid payments appear in the income totals after simulated success.
+
+### Test Case: Borrow records fine modal payment route
+
+- **Scenario**: User starts fine payment from the My Borrow Records fine modal.
+- **Steps**:
+  1. Log in as a user with unpaid fines.
+  2. Open My Borrow Records.
+  3. Click `View Fines`.
+  4. Click `Pay with Alipay` in the fine modal.
+- **Expected result**:
+  - The modal closes and the app navigates to `/fines/:userId`.
+  - No direct `/api/borrow/pay-fine` request is made from the frontend.
+  - The user completes payment through the Fine Records Alipay simulation panel.

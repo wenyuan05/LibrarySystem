@@ -779,7 +779,7 @@
 **功能**：获取用户罚款历史记录
 **权限**：本人或admin/librarian
 
-**说明**：返回 `fine > 0` 的罚款历史，包含未支付和已支付记录；未支付记录优先，再按记录 ID 倒序。前端总额只统计 `fine_status = "unpaid"`。
+**说明**：返回 `fine > 0` 的罚款历史，包含预计罚款、实际未支付罚款和已支付罚款。`status = "overdue"` 且未归还的记录只作为预计罚款展示，不能创建支付订单；`status = "returning"` 或 `"returned"` 且 `fine_status = "unpaid"` 的记录才是可支付的实际罚款。
 
 **响应**：
 ```json
@@ -792,6 +792,7 @@
     "borrow_date": "2024-01-01",
     "due_date": "2024-01-15",
     "return_date": "2024-01-20",
+    "status": "returning",
     "fine": 2.5,
     "fine_status": "unpaid",
     "copy_id": 1,
@@ -821,9 +822,128 @@
 }
 ```
 
-### 3.4 分类管理接口
+### 3.4 支付接口
 
-#### 3.4.1 GET /api/categories
+#### 3.4.1 GET /api/payments/alipay/status
+**功能**：获取支付宝后端配置状态
+**权限**：已登录用户
+
+**说明**：只返回安全摘要和缺失项，不返回应用私钥或支付宝公钥内容。Fine Records 用该接口判断本地模拟按钮是否应显示。
+
+**响应**：
+```json
+{
+  "enabled": true,
+  "mode": "sandbox",
+  "gateway": "https://openapi-sandbox.dl.alipaydev.com/gateway.do",
+  "notifyUrl": "http://localhost:3001/api/payments/alipay/notify",
+  "returnUrl": "http://localhost:5173/payment-result",
+  "simulationEnabled": true,
+  "hasAppId": true,
+  "hasPrivateKey": true,
+  "hasAlipayPublicKey": true,
+  "missing": []
+}
+```
+
+#### 3.4.2 GET /api/payments
+**功能**：查询支付订单列表
+**权限**：本人订单或admin/librarian查看全部
+
+**查询参数**：
+- `user_id`：可选，admin/librarian 可按用户筛选
+- `status`：可选，`pending`、`paid`、`expired`、`failed`
+- `provider`：可选，默认 `alipay`
+- `payment_type`：可选，例如 `fine`
+- `date_from` / `date_to`：可选，按创建日期筛选
+
+**说明**：普通用户只能看到自己的支付订单；admin/librarian 可查看全部或按用户筛选。
+
+#### 3.4.3 POST /api/payments/fines/alipay
+**功能**：创建支付宝罚款支付单（本地模拟）
+**权限**：本人或admin/librarian
+
+**说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
+当 `ALIPAY_ENABLED=true` 且配置完整时，`payment_url` 为后端签名生成的支付宝沙箱 `alipay.trade.page.pay` 收银台 URL，`qr_code` 优先使用 `alipay.trade.precreate` 返回的支付宝专用二维码内容；若 precreate 失败则临时回退到 page-pay URL。未启用或配置缺失时两者为本地 `/payment-result` 模拟链接。
+Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。前端创建订单后每 2.5 秒调用 `GET /api/payments/:id` 轮询最新状态，`paid` 时自动刷新罚款记录，`expired` 时提示重新创建订单。
+
+**请求体**：
+```json
+{
+  "user_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "id": 1,
+  "user_id": 2,
+  "provider": "alipay",
+  "payment_type": "fine",
+  "out_trade_no": "ALI202605240101010000A1B2C3D4",
+  "amount": 2.5,
+  "status": "pending",
+  "subject": "Library fine payment #ALI202605240101010000A1B2C3D4",
+  "qr_code": "http://localhost:5173/payment-result?out_trade_no=...",
+  "payment_url": "http://localhost:5173/payment-result?out_trade_no=...",
+  "payment_url_source": "alipay-precreate",
+  "borrow_record_ids": [1, 2],
+  "reused": false,
+  "simulate_notify_path": "/api/payments/alipay/simulate-notify/ALI202605240101010000A1B2C3D4"
+}
+```
+
+#### 3.4.4 GET /api/payments/:id
+**功能**：查询支付单状态
+**权限**：本人或admin/librarian
+
+**说明**：当订单为 `pending` 且支付宝配置完整时，接口会先调用 `alipay.trade.query` 主动同步沙箱订单状态。支付宝返回 `TRADE_SUCCESS` / `TRADE_FINISHED` 时本地订单会变为 `paid` 并结清关联罚款；返回 `TRADE_CLOSED` 时本地订单会变为 `expired`。支付宝查询失败时保留本地状态返回，避免前端轮询中断。
+
+#### 3.4.5 GET /api/payments/trade/:out_trade_no
+**功能**：按商户订单号查询支付单状态
+**权限**：本人或admin/librarian
+
+**说明**：本地 `/payment-result` 页面使用该接口根据 `out_trade_no` 读取最新支付状态，而不是信任 URL 中的静态状态参数。
+支付结果页支持手动刷新并每 2.5 秒轮询该接口，便于本地模拟或支付宝沙箱支付后验证订单状态变化。该接口同样会对 pending 沙箱订单主动执行 `alipay.trade.query` 状态同步。
+
+#### 3.4.6 POST /api/payments/alipay/simulate-notify/:out_trade_no
+**功能**：模拟支付宝支付成功通知
+**权限**：本人或admin/librarian
+
+**说明**：本地测试用接口，仅当 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时允许调用。调用后将支付单标记为 `paid`，关联的罚款记录标记为 `paid`，并重新同步用户 `total_fine`。接口具备幂等性，已支付订单重复调用不会重复入账；`expired` 订单不能模拟成功。
+
+#### 3.4.7 POST /api/payments/alipay/notify
+**功能**：支付宝异步通知入口
+**权限**：公开入口
+
+**说明**：接收支付宝沙箱/网关 `application/x-www-form-urlencoded` 异步通知，使用 `ALIPAY_PUBLIC_KEY` 验签，并校验 `app_id` 与 `total_amount`。`trade_status` 为 `TRADE_SUCCESS` 或 `TRADE_FINISHED` 时，按 `out_trade_no` 查询本地支付单并完成罚款结算，保存支付宝 `trade_no`；成功响应支付宝要求的纯文本 `success`，失败响应 `fail`。
+
+#### 3.4.8 GET /api/payments/income/summary
+**功能**：图书管理员收入 dashboard 数据
+**权限**：admin/librarian
+
+**响应**：
+```json
+{
+  "total_income": 20,
+  "today_income": 5,
+  "month_income": 20,
+  "paid_count": 4,
+  "pending_count": 1,
+  "recent_payments": []
+}
+```
+
+#### 3.4.9 POST /api/payments/:id/expire
+**功能**：手动过期待支付订单
+**权限**：本人或admin/librarian
+
+**说明**：仅 `pending` 订单可以过期。过期订单不会改变罚款状态，已支付订单不能过期；已有 `pending` 订单被过期后，用户再次创建同一批罚款支付单会生成新订单。
+
+### 3.5 分类管理接口
+
+#### 3.5.1 GET /api/categories
 **功能**：获取分类列表
 
 **响应**：
@@ -837,7 +957,7 @@
 ]
 ```
 
-#### 3.4.2 GET /api/categories/:id
+#### 3.5.2 GET /api/categories/:id
 **功能**：获取单个分类
 
 **响应**：
@@ -849,7 +969,7 @@
 }
 ```
 
-#### 3.4.3 POST /api/categories
+#### 3.5.3 POST /api/categories
 **功能**：添加分类
 **权限**：admin/librarian
 
@@ -870,7 +990,7 @@
 }
 ```
 
-#### 3.4.4 PUT /api/categories/:id
+#### 3.5.4 PUT /api/categories/:id
 **功能**：更新分类
 **权限**：admin/librarian
 
@@ -891,7 +1011,7 @@
 }
 ```
 
-#### 3.4.5 DELETE /api/categories/:id
+#### 3.5.5 DELETE /api/categories/:id
 **功能**：删除分类
 **权限**：admin/librarian
 
@@ -902,7 +1022,7 @@
 }
 ```
 
-#### 3.4.6 GET /api/categories/book/:bookId
+#### 3.5.6 GET /api/categories/book/:bookId
 **功能**：获取图书的分类
 
 **响应**：
@@ -916,7 +1036,7 @@
 ]
 ```
 
-#### 3.4.7 POST /api/categories/book/:bookId
+#### 3.5.7 POST /api/categories/book/:bookId
 **功能**：为图书添加分类
 **权限**：admin/librarian
 
@@ -934,7 +1054,7 @@
 }
 ```
 
-#### 3.4.8 DELETE /api/categories/book/:bookId/:categoryId
+#### 3.5.8 DELETE /api/categories/book/:bookId/:categoryId
 **功能**：从图书中移除分类
 **权限**：admin/librarian
 
@@ -945,9 +1065,9 @@
 }
 ```
 
-### 3.5 系统管理接口
+### 3.6 系统管理接口
 
-#### 3.5.1 GET /api/system/settings
+#### 3.6.1 GET /api/system/settings
 **功能**：获取系统设置
 **权限**：admin
 
@@ -968,7 +1088,7 @@
 }
 ```
 
-#### 3.5.2 PUT /api/system/settings
+#### 3.6.2 PUT /api/system/settings
 **功能**：更新系统设置（支持部分更新）
 **权限**：admin
 
@@ -994,7 +1114,7 @@
 }
 ```
 
-#### 3.5.3 GET /api/system/feature-flags
+#### 3.6.3 GET /api/system/feature-flags
 **功能**：获取当前登录用户可见的功能开关
 **权限**：任意已登录用户
 
@@ -1009,7 +1129,7 @@
 }
 ```
 
-#### 3.5.4 GET /api/announcements
+#### 3.6.4 GET /api/announcements
 **功能**：获取公告列表
 
 **响应**：
@@ -1026,7 +1146,7 @@
 ]
 ```
 
-#### 3.5.5 GET /api/announcements/:id
+#### 3.6.5 GET /api/announcements/:id
 **功能**：获取单个公告
 
 **响应**：
@@ -1041,7 +1161,7 @@
 }
 ```
 
-#### 3.5.6 POST /api/announcements
+#### 3.6.6 POST /api/announcements
 **功能**：添加公告
 **权限**：admin
 
@@ -1065,7 +1185,7 @@
 }
 ```
 
-#### 3.5.7 PUT /api/announcements/:id
+#### 3.6.7 PUT /api/announcements/:id
 **功能**：更新公告
 **权限**：admin
 
@@ -1088,7 +1208,7 @@
 }
 ```
 
-#### 3.5.8 DELETE /api/announcements/:id
+#### 3.6.8 DELETE /api/announcements/:id
 **功能**：删除公告
 **权限**：admin
 
@@ -1099,7 +1219,7 @@
 }
 ```
 
-#### 3.5.9 GET /api/announcements/unread/mine
+#### 3.6.9 GET /api/announcements/unread/mine
 **功能**：获取当前登录用户未读的已发布公告，用于全局公告弹窗提醒
 **权限**：登录用户
 
@@ -1117,7 +1237,7 @@
 ]
 ```
 
-#### 3.5.10 PUT /api/announcements/read
+#### 3.6.10 PUT /api/announcements/read
 **功能**：批量标记公告已读，写入 `announcement_reads`，已读公告不会再次触发弹窗
 **权限**：登录用户
 
@@ -1136,7 +1256,7 @@
 }
 ```
 
-#### 3.5.11 PUT /api/announcements/:id/read
+#### 3.6.11 PUT /api/announcements/:id/read
 **功能**：标记单条公告已读
 **权限**：登录用户
 
@@ -1148,7 +1268,7 @@
 }
 ```
 
-#### 3.5.12 GET /api/logs
+#### 3.6.12 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -1172,7 +1292,7 @@
 ]
 ```
 
-#### 3.5.13 DELETE /api/logs/clear
+#### 3.6.13 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 
@@ -1183,9 +1303,9 @@
 }
 ```
 
-### 3.6 统计分析接口
+### 3.7 统计分析接口
 
-#### 3.6.1 GET /api/stats/borrow-stats
+#### 3.7.1 GET /api/stats/borrow-stats
 **功能**：获取借阅统计
 **权限**：admin/librarian
 
@@ -1199,7 +1319,7 @@
 }
 ```
 
-#### 3.6.2 GET /api/stats/monthly-stats
+#### 3.7.2 GET /api/stats/monthly-stats
 **功能**：获取月度借阅统计
 **权限**：admin/librarian
 
@@ -1211,7 +1331,7 @@
 }
 ```
 
-#### 3.6.3 GET /api/stats/popular-books
+#### 3.7.3 GET /api/stats/popular-books
 **功能**：获取热门图书统计
 **权限**：所有登录用户
 
@@ -1227,9 +1347,9 @@
 ]
 ```
 
-### 3.7 站内通知接口
+### 3.8 站内通知接口
 
-#### 3.7.1 GET /api/notifications/:user_id
+#### 3.8.1 GET /api/notifications/:user_id
 **功能**：获取用户通知列表
 **权限**：本人/admin/librarian
 
@@ -1249,7 +1369,7 @@
 ]
 ```
 
-#### 3.7.2 GET /api/notifications/:user_id/unread-count
+#### 3.8.2 GET /api/notifications/:user_id/unread-count
 **功能**：获取用户未读通知数量
 **权限**：本人/admin/librarian
 
@@ -1260,7 +1380,7 @@
 }
 ```
 
-#### 3.7.3 PUT /api/notifications/:id/read
+#### 3.8.3 PUT /api/notifications/:id/read
 **功能**：标记单条通知已读
 **权限**：通知接收者/admin/librarian
 
@@ -1271,7 +1391,7 @@
 }
 ```
 
-#### 3.7.4 PUT /api/notifications/read-all
+#### 3.8.4 PUT /api/notifications/read-all
 **功能**：标记用户全部通知已读
 **权限**：本人/admin/librarian
 

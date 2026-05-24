@@ -94,6 +94,12 @@ const Sidebar = ({ isOpen, onClose }) => {
               </Link>
                 </li>
               )}
+              <li className={location.pathname === '/income-dashboard' ? 'active' : ''}>
+                <Link to="/income-dashboard" onClick={onClose}>
+                <span className="nav-icon"><img src="/统计.svg" alt="Income Dashboard" /></span>
+                <span className="nav-text">Income Dashboard</span>
+              </Link>
+              </li>
               {user.role !== 'admin' && (
                 <li className={location.pathname === '/book-management' ? 'active' : ''}>
                   <Link to="/book-management" onClick={onClose}>

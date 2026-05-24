@@ -111,6 +111,8 @@ LibrarySystem/
 │   │   ├── statsRoutes.js         # 统计路由
 │   │   ├── systemRoutes.js        # 系统路由
 │   │   └── userRoutes.js          # 用户路由
+│   ├── config/        # 后端运行配置
+│   │   └── alipayConfig.js        # 支付宝沙箱/生产配置
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
 │   ├── check_borrow_records.js  # 借阅记录检查工具
@@ -183,6 +185,22 @@ FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
+
+# Alipay sandbox payment configuration
+ALIPAY_ENABLED=false
+ALIPAY_MODE=sandbox
+ALIPAY_APP_ID=your_sandbox_app_id
+# 支持完整 PEM，也支持直接粘贴支付宝沙箱里的一行 base64 key body
+ALIPAY_PRIVATE_KEY=your_app_private_key_body
+ALIPAY_PUBLIC_KEY=your_alipay_public_key_body
+ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+ALIPAY_NOTIFY_URL=http://localhost:3001/api/payments/alipay/notify
+ALIPAY_RETURN_URL=http://localhost:5173/payment-result
+ALIPAY_SIMULATION_ENABLED=true
+ALIPAY_SIGN_TYPE=RSA2
+ALIPAY_CHARSET=utf-8
+ALIPAY_FORMAT=json
+ALIPAY_TIMEOUT_MS=10000
 ```
 
 **backend 目录 .env 文件示例**：
@@ -205,6 +223,17 @@ JWT_SECRET=your-secret-key-here
 - `VITE_API_BASE_URL`：后端 API 的基础 URL
 - `FRONTEND_URL`：前端应用的 URL，用于 CORS 配置
 - `JWT_SECRET`：用于生成和验证 JWT token 的密钥
+- `ALIPAY_ENABLED`：是否启用支付宝支付配置校验；沙箱调试时设为 `true`
+- `ALIPAY_MODE`：支付宝模式，支持 `sandbox` 和 `production`，默认 `sandbox`
+- `ALIPAY_APP_ID`：支付宝开放平台应用 ID，需要由你从沙箱应用提供
+- `ALIPAY_PRIVATE_KEY`：应用私钥，只能保存在 `backend/.env` 后端环境变量中；可填写完整 PEM，也可直接粘贴支付宝工具/沙箱生成的一行私钥 body
+- `ALIPAY_PUBLIC_KEY`：支付宝公钥，用于回调验签；可填写完整 PEM，也可直接粘贴支付宝沙箱的一行公钥 body
+- `ALIPAY_SIGN_TYPE`：签名算法，默认 `RSA2`，后端会使用 `RSA-SHA256`；应用私钥支持 PKCS#8 `PRIVATE KEY` 和 PKCS#1 `RSA PRIVATE KEY` 两种 PEM 容器
+- `ALIPAY_NOTIFY_URL`：支付宝异步通知地址；本地模拟配置为 `http://localhost:3001/api/payments/alipay/notify`，真实沙箱回调测试需要换成公网或内网穿透地址
+- `ALIPAY_RETURN_URL`：支付完成后的前端返回地址；本地测试默认 `http://localhost:5173/payment-result`
+- `ALIPAY_SIMULATION_ENABLED`：是否显示并允许本地模拟支付成功按钮；默认在 `ALIPAY_MODE=sandbox` 时开启，生产环境应设为 `false`
+- `ALIPAY_GATEWAY`：支付宝网关；沙箱默认 `https://openapi-sandbox.dl.alipaydev.com/gateway.do`
+- `ALIPAY_SIGN_TYPE` / `ALIPAY_CHARSET` / `ALIPAY_FORMAT` / `ALIPAY_TIMEOUT_MS`：支付宝请求签名、编码、格式和超时配置
 
 ## 运行方法
 
@@ -408,6 +437,7 @@ npm run dev
    - 内容区域：根据路由显示不同的页面内容
 5. **书籍管理**：
    - 书籍列表展示，采用现代 dashboard 网格布局
+   - 书籍列表在副本详情加载完成前使用 `available_copies` 缓存展示可用状态，避免加载中误标记为 Borrowed
    - 搜索功能（支持按标题、作者、ISBN搜索），搜索栏提供输入框与统一图标按钮，支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
    - 点击书籍查看详情
    - 借阅和归还书籍
@@ -607,6 +637,23 @@ npm run dev
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
 8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
+   - 后端集中读取支付宝配置，启动时只输出是否已配置必要字段，不会打印 app 私钥或支付宝公钥内容
+9. **支付宝罚款支付模拟接口**：
+   - 后端新增 `/api/payments/fines/alipay` 创建支付宝罚款支付单，返回二维码内容和收款链接
+   - 当 `ALIPAY_ENABLED=true` 且沙箱配置完整时，支付单会生成支付宝沙箱 `alipay.trade.page.pay` 收银台签名链接，并优先调用 `alipay.trade.precreate` 获取支付宝专用二维码内容；未启用或配置缺失时继续使用本地 `/payment-result` 模拟链接
+   - 借阅历史区分预计罚款和实际罚款：未归还逾期书籍只显示 Estimated Fine，提交还书后生成的 `returning/returned` 未付罚款才允许支付
+   - Fine Records 页面点击 Pay with Alipay 后会显示支付宝模拟支付区域、订单号、二维码内容占位和收款链接，不再直接结清罚款
+   - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记，变为 `expired` 时提示重新创建订单
+   - 启用支付宝沙箱配置后，订单查询接口会对 pending 订单主动调用 `alipay.trade.query`；即使本地没有公网 notify，刷新或轮询也能在沙箱支付完成后同步本地订单状态
+   - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
+   - My Borrow Records 的罚款弹窗通过 portal 挂到页面根节点，确保始终按浏览器视口居中，并使用覆盖基础弹窗宽度限制的宽屏表格布局展示大量罚款记录
+   - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额
+   - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，支持手动刷新并每 2.5 秒轮询，模拟支付成功后会显示最新状态
+   - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
+   - 支持支付订单列表查询和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
+   - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
+   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
+   - `/api/payments/alipay/notify` 支持支付宝表单回调验签；沙箱回调成功后会按 `out_trade_no` 完成对应罚款支付单
 
 ## 示例数据
 

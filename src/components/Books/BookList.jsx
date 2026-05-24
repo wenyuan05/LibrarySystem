@@ -511,9 +511,14 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
           // 检查书籍是否正在借阅中
           const isBorrowing = borrowRecordsMap.has(book.id);
           const borrowRecord = borrowRecordsMap.get(book.id);
-          const bookCopies = copies.get(book.id) || [];
-          const availableCount = bookCopies.filter(c => c.status === 'available').length;
-          const totalCount = bookCopies.length || Number(book.total_copies || 0);
+          const bookCopies = copies.get(book.id);
+          const hasLoadedCopies = Array.isArray(bookCopies);
+          const availableCount = hasLoadedCopies
+            ? bookCopies.filter(c => c.status === 'available').length
+            : Number(book.available_copies || 0);
+          const totalCount = hasLoadedCopies
+            ? bookCopies.length
+            : Number(book.total_copies || 0);
           const availabilityPercent = totalCount ? Math.round((availableCount / totalCount) * 100) : 0;
 
           return (

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
@@ -7,6 +9,12 @@ import Barcode from '../Barcode';
 import './Borrow.css';
 
 const getFineAmount = (fine) => Number(fine) || 0;
+const isActualPayableFine = (fine) => (
+  fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
+);
+const isEstimatedFine = (fine) => (
+  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+);
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
@@ -25,6 +33,7 @@ const BorrowRecords = () => {
   const [finePage, setFinePage] = useState(1);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   // 加载借阅记录
   useEffect(() => {
@@ -153,7 +162,7 @@ const BorrowRecords = () => {
       setFinePage(1);
       setTotalFine(
         fineRecords
-          .filter(fine => fine.fine_status === 'unpaid')
+          .filter(isActualPayableFine)
           .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0)
       );
       setShowFineModal(true);
@@ -163,18 +172,10 @@ const BorrowRecords = () => {
     }
   };
 
-  // 支付罚款
-  const handlePayFine = async () => {
-    try {
-      const result = await borrowAPI.payFine(user.id);
-      showToast(result.message, 'success');
-      setShowFineModal(false);
-      // 重新加载借阅记录
-      fetchBorrowRecords();
-    } catch (err) {
-      showToast(err.message, 'error');
-      console.error(err);
-    }
+  // 跳转到支付宝模拟支付页面
+  const handleGoToFinePayment = () => {
+    setShowFineModal(false);
+    navigate(`/fines/${user.id}`);
   };
 
   if (loading) {
@@ -188,6 +189,9 @@ const BorrowRecords = () => {
     safePage: currentRecordPage
   } = paginateRecords(sortedRecords, recordPage, DEFAULT_HISTORY_PAGE_SIZE);
   const sortedFines = sortFineRecords(fines, fineSortOrder);
+  const estimatedFine = fines
+    .filter(isEstimatedFine)
+    .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const {
     pageItems: visibleFines,
     totalPages: fineTotalPages,
@@ -352,7 +356,7 @@ const BorrowRecords = () => {
       )}
 
       {/* 确认借阅弹窗 */}
-      {showConfirmModal && confirmRecord && (
+      {showConfirmModal && confirmRecord && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
@@ -410,12 +414,12 @@ const BorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* 罚款信息弹窗 */}
-      {showFineModal && (
+      {showFineModal && createPortal((
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content fine-modal-content">
             <div className="modal-header">
               <h3>My Fines</h3>
               <button 
@@ -443,41 +447,53 @@ const BorrowRecords = () => {
                       {fineSortOrder === 'desc' ? 'Ascending' : 'Descending'}
                     </button>
                   </div>
-                  <table className="fines-table">
-                    <thead>
-                      <tr>
-                        <th>Record ID</th>
-                        <th>Book Title</th>
-                        <th>Overdue Days</th>
-                        <th>Fine Amount</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleFines.map(fine => {
-                        const dueDate = new Date(fine.due_date);
-                        const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
-                        const overdueDays = Math.max(
-                          0,
-                          Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
-                        );
-
-                        return (
-                        <tr key={fine.id}>
-                          <td>{fine.id}</td>
-                          <td>{fine.title}</td>
-                          <td>{overdueDays}</td>
-                          <td>¥{(Number(fine.fine) || 0).toFixed(2)}</td>
-                          <td className={fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
-                            {fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
-                          </td>
+                  <div className="fines-table-wrap">
+                    <table className="fines-table">
+                      <colgroup>
+                        <col className="fine-col-id" />
+                        <col className="fine-col-title" />
+                        <col className="fine-col-days" />
+                        <col className="fine-col-amount" />
+                        <col className="fine-col-status" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Record ID</th>
+                          <th>Book Title</th>
+                          <th>Overdue Days</th>
+                          <th>Fine Amount</th>
+                          <th>Status</th>
                         </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {visibleFines.map(fine => {
+                          const dueDate = new Date(fine.due_date);
+                          const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
+                          const overdueDays = Math.max(
+                            0,
+                            Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
+                          );
+
+                          return (
+                          <tr key={fine.id}>
+                            <td>{fine.id}</td>
+                            <td className="fine-title-cell">{fine.title}</td>
+                            <td>{overdueDays}</td>
+                            <td className="fine-amount-cell">
+                              {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
+                            </td>
+                            <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                              {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                   <div className="total-fine">
-                    <strong>Total Fine: ¥{totalFine.toFixed(2)}</strong>
+                    <strong>Payable Fine: ¥{totalFine.toFixed(2)}</strong>
+                    <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
                   </div>
                   {fines.length > DEFAULT_HISTORY_PAGE_SIZE && (
                     <div className="history-pagination">
@@ -501,9 +517,9 @@ const BorrowRecords = () => {
                   {totalFine > 0 && (
                     <button 
                       className="btn-danger"
-                      onClick={handlePayFine}
+                      onClick={handleGoToFinePayment}
                     >
-                      Pay Fine
+                      Pay with Alipay
                     </button>
                   )}
                 </div>
@@ -511,7 +527,7 @@ const BorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };
