@@ -277,12 +277,21 @@ const SystemSettingsPage = () => {
                       <span className="settings-input-wrap">
                         {setting.prefix && <span className="settings-affix">{setting.prefix}</span>}
                         {isCheckbox ? (
-                          <input
-                            type="checkbox"
-                            checked={String(value) !== '0'}
-                            disabled={!isEditable || saving}
-                            onChange={event => handleFieldChange(setting.key, event.target.checked ? '1' : '0')}
-                          />
+                          <span className="settings-switch-field">
+                            <input
+                              className="settings-switch-input"
+                              type="checkbox"
+                              checked={String(value) !== '0'}
+                              disabled={!isEditable || saving}
+                              onChange={event => handleFieldChange(setting.key, event.target.checked ? '1' : '0')}
+                            />
+                            <span className="settings-switch-control" aria-hidden="true">
+                              <span className="settings-switch-thumb"></span>
+                            </span>
+                            <span className="settings-switch-text">
+                              {String(value) !== '0' ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </span>
                         ) : (
                           <input
                             type={setting.type}

@@ -43,7 +43,7 @@
 - Release 2 站内通知由后端持久化：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后写入 `notifications`，侧边栏通过共享通知状态即时显示未读数量，通知中心支持单条/全部已读。
 - 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
-- System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
+- System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项，布尔功能开关使用滑动式 toggle 控件而非原生打勾 checkbox。
 - Release 3 借阅功能开关通过 `borrow_enabled` 接入前后端：管理员可全局关闭借阅，普通登录用户通过 feature flags 接口读取开关，前端禁用借阅/确认入口，后端对借阅和确认借阅做强制拦截。
 - Release 3 支付宝沙箱接入先建立后端配置层：`backend/config/alipayConfig.js` 统一读取启用状态、沙箱/生产模式、APP_ID、应用私钥、支付宝公钥、网关、notify/return URL、签名和超时配置；本地测试默认使用 `localhost:3001` notify URL 和 `localhost:5173` return URL，启动时只输出安全摘要和缺失项。
 - 支付宝 key 配置层兼容完整 PEM 和支付宝沙箱常见的一行 base64 key body：后端会自动补齐 `BEGIN/END PRIVATE KEY` 或 `BEGIN/END PUBLIC KEY` 包装并按 64 字符换行；签名层在 RSA2 (`RSA-SHA256`) 下会同时尝试 PKCS#8 `PRIVATE KEY` 与 PKCS#1 `RSA PRIVATE KEY` 私钥容器，避免 Node `crypto` 因 key 格式报 `DECODER routines::unsupported`。

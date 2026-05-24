@@ -316,6 +316,80 @@
   cursor: default;
 }
 
+.settings-switch-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.settings-input-wrap .settings-switch-input {
+  position: absolute;
+  inset: 0;
+  flex: none;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-switch-input:disabled {
+  cursor: not-allowed;
+}
+
+.settings-switch-control {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.28);
+  transition: transform 0.2s ease;
+}
+
+.settings-switch-input:checked + .settings-switch-control {
+  background: #2563eb;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.22);
+}
+
+.settings-switch-input:checked + .settings-switch-control .settings-switch-thumb {
+  transform: translateX(22px);
+}
+
+.settings-switch-input:focus-visible + .settings-switch-control {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.settings-switch-input:disabled + .settings-switch-control {
+  opacity: 0.62;
+}
+
+.settings-switch-text {
+  color: #334155;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
 .settings-affix {
   display: inline-flex;
   align-items: center;

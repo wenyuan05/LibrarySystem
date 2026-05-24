@@ -567,6 +567,7 @@
   5. Call `POST /api/borrow/borrow` and `POST /api/borrow/confirm-borrow` directly while the setting is off.
   6. Re-enable `Borrowing Enabled` and save changes.
 - **Expected result**:
+  - `Borrowing Enabled` is displayed as a sliding toggle with Enabled/Disabled text instead of a native checkmark checkbox.
   - Reader-facing borrow and confirm-borrow buttons are disabled and show `Borrowing Disabled` while the setting is off.
   - `GET /api/system/feature-flags` returns `borrow_enabled: false`.
   - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.

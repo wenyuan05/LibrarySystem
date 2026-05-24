@@ -1744,3 +1744,18 @@ This file documents all bug fixes applied to the project.
   - Documented the ShowAPI field mapping and noted that `edition`, `paper`, `format`, `price`, `binding`, and `produce` currently have no matching book-table fields.
 - **Reason**: Prevent ShowAPI book summaries from being dropped during single-book add while keeping unsupported provider-specific fields explicitly documented.
 
+### Fix 132: Replace system feature checkbox with toggle switch
+- **Files modified**:
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the raw checkbox rendering for boolean system settings with a sliding toggle control.
+  - Added Enabled/Disabled status text next to the switch.
+  - Hid the native checkbox while preserving keyboard focus and disabled behavior.
+  - Kept numeric settings on the existing input layout.
+- **Reason**: The native checkmark checkbox looked visually inconsistent with the dashboard-style System Settings page.
+
