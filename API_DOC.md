@@ -562,6 +562,8 @@
 
 **说明**：
 - 前端单本 ISBN 查询和批量导入预览都会通过该接口，并传入当前选中的 provider。
+- ShowAPI ISBN 的 `showapi_res_body.data` 会归一化为系统书籍字段：`title`、`author`、`publisher`、`pubdate -> publish_date`、`gist -> description`、`img -> cover_image`、`page -> page_count`、`isbn`。
+- ShowAPI 样例中的 `edition`、`paper`、`format`、`price`、`binding`、`produce` 当前没有对应书籍表字段，暂不落库。
 - `cover_image` 会根据 provider 返回值归一化；没有封面时返回空字符串。
 - `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留原始返回值。
 
@@ -572,6 +574,7 @@
   "author": "F. Scott Fitzgerald",
   "publisher": "Scribner",
   "publish_date": "1925-04-10",
+  "description": "Book description",
   "language": "English",
   "page_count": 180,
   "cover_image": "https://covers.openlibrary.org/...",

@@ -569,7 +569,9 @@ npm run dev
    - Add New Book 弹窗中提供节点下拉选择与 Test Node 操作，显示节点是否可用、延迟、最后测试时间和失败原因
    - ShowAPI ISBN 节点通过后端环境变量 `SHOWAPI_ISBN_APP_KEY` 配置 appKey，未配置时会显示 key required 并在节点测试中返回不可用
    - 后端外部 ISBN API 请求支持自动代理，默认检测 `127.0.0.1:7890` 可用时走代理，不可用时走默认网络
-   - 自动填充书籍详情（标题、作者、出版社、封面等）
+   - 自动填充书籍详情（标题、作者、出版社、简介、封面等）
+   - ShowAPI ISBN 字段映射为：`pubdate -> publish_date`、`gist -> description`、`img -> cover_image`、`page -> page_count`
+   - ShowAPI 返回的 `edition`、`paper`、`format`、`price`、`binding`、`produce` 当前没有对应书籍字段，暂不落库
    - 出版日期会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，无法解析时显示原始返回值
    - 支持单个和批量 ISBN 导入
    - 批量导入时通过 Copy Settings 指定默认位置、每本副本数和分类，后端自动生成副本编号与条形码编号

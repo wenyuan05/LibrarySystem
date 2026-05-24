@@ -1700,3 +1700,17 @@ This file documents all bug fixes applied to the project.
   - Documented proxy configuration and the expected fallback behavior when the local proxy is disabled.
 - **Reason**: Allow ISBN metadata requests to use the local proxy when it is running without breaking default direct network access.
 
+### Fix 111: Preserve ShowAPI description in single ISBN add
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Compared `showapi_sample.json` with the ShowAPI normalization code.
+  - Kept the existing backend mapping from `showapi_res_body.data.gist` to `description`.
+  - Updated single-book ISBN lookup form state so fetched `description` and `cover_image` are preserved when submitting the book.
+  - Documented the ShowAPI field mapping and noted that `edition`, `paper`, `format`, `price`, `binding`, and `produce` currently have no matching book-table fields.
+- **Reason**: Prevent ShowAPI book summaries from being dropped during single-book add while keeping unsupported provider-specific fields explicitly documented.
+
