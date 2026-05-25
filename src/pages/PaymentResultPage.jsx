@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { paymentAPI } from '../utils/api';
 import './PaymentResultPage.css';
 
+const isTerminalStatus = (status) => ['paid', 'expired', 'failed'].includes(status);
+
 const PaymentResultPage = () => {
   const [searchParams] = useSearchParams();
   const outTradeNoParam = searchParams.get('out_trade_no') || '';
@@ -32,6 +34,11 @@ const PaymentResultPage = () => {
   }, [outTradeNoParam]);
 
   useEffect(() => {
+    if (!outTradeNoParam || isTerminalStatus(payment?.status)) {
+      if (!outTradeNoParam) setLoading(false);
+      return undefined;
+    }
+
     let cancelled = false;
     const pollPayment = async ({ showLoading = false } = {}) => {
       if (!outTradeNoParam) {
@@ -62,7 +69,7 @@ const PaymentResultPage = () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [outTradeNoParam]);
+  }, [outTradeNoParam, payment?.status]);
 
   const handleRefresh = async () => {
     try {

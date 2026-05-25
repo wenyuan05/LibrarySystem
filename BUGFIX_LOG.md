@@ -1890,3 +1890,26 @@ This file documents all bug fixes applied to the project.
   - Kept current Release 3 documentation, environment examples, runtime source, dependency manifests, and build configuration.
 - **Reason**: Reduce release package clutter and avoid shipping stale scripts or obsolete documents.
 
+### Fix 138: Stop payment polling after terminal status
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/PaymentResultPage.jsx`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed Fine Records payment polling to run only while the active order is `pending`.
+  - Changed Payment Result polling to stop once the order reaches `paid`, `expired`, or `failed`.
+  - Kept manual refresh available on the Payment Result page after polling stops.
+- **Reason**: Avoid unnecessary network traffic and state updates after payment orders reach a terminal state.
+
+### Fix 139: Parse log clear days before validation
+- **Files modified**:
+  - `backend/controllers/logController.js`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Parsed `days` before comparing it with zero in `clearSystemLogs`.
+  - Allowed both numeric `0` and string `"0"` to clear all logs.
+  - Kept positive integer validation for age-filtered cleanup and rejected invalid values.
+- **Reason**: JSON bodies can send `days` as a string, and `"0"` should behave the same as numeric `0`.
+

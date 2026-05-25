@@ -503,6 +503,19 @@
   - 根目录不再包含旧优化计划、重构计划、Release 2 备注、旧 release plan v2、示例 JSON 和 Vite 日志
   - `backend` 目录不再包含一次性数据库检查、迁移、清理和修复脚本
   - 当前运行时代码、环境变量示例、Release 3 文档和构建流程保持可用
+
+### 测试用例 8.14：支付订单终态停止轮询
+- **测试场景**：Fine Records 和 Payment Result 页面监听支付订单状态
+- **操作步骤**：
+  1. 创建一个支付宝罚款支付订单
+  2. 保持订单 pending，观察页面会定时刷新状态
+  3. 将订单变为 paid、expired 或 failed
+  4. 继续停留在页面观察网络请求
+- **预期结果**：
+  - pending 状态下页面继续轮询订单状态
+  - paid 状态后 Fine Records 自动刷新罚款记录并停止轮询
+  - expired 或 failed 状态后停止轮询
+  - `/payment-result` 页面在终态后不再继续发起定时状态请求
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state
@@ -579,10 +592,11 @@
 - **Steps**:
   1. Call `DELETE /api/logs/clear` with `days = 7`.
   2. Call it with `days = 0`.
-  3. Call it with invalid values such as `-1`, `1.5`, or a string.
+  3. Call it with `days = "0"`.
+  4. Call it with invalid values such as `-1`, `1.5`, or a non-numeric string.
 - **Expected result**:
   - Valid values clear matching logs.
-  - `0` clears all logs.
+  - Numeric `0` and string `"0"` clear all logs.
   - Invalid values return HTTP 400 and do not delete logs.
 
 ### Test Case: Books page Reserved filter

@@ -91,7 +91,7 @@ const FineDetailsPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!paymentOrder?.id || !['pending', 'paid', 'expired'].includes(paymentOrder.status)) {
+    if (!paymentOrder?.id || paymentOrder.status !== 'pending') {
       return undefined;
     }
 
@@ -109,8 +109,6 @@ const FineDetailsPage = () => {
           } else if (latest.status === 'expired') {
             showToast('Payment expired. Please create a new payment order.', 'warning');
           }
-        } else if (latest.status === 'paid') {
-          await loadFines();
         }
       } catch (err) {
         console.error('Failed to poll payment status:', err);
