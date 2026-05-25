@@ -5,8 +5,8 @@
 }
 
 .category-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 1640px;
+  margin: 0;
   padding: 2rem;
   width: 100%;
 }
@@ -21,7 +21,7 @@
 /* 双栏布局 */
 .category-grid {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
 }
@@ -49,15 +49,19 @@
 /* 表单样式 */
 .category-form {
   grid-column: 1;
+  align-self: start;
 }
 
-.category-form form {
+.category-form > form {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
 }
 
-.category-form input {
+.category-form input,
+.category-search-panel input {
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--spacing-md);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -65,10 +69,57 @@
   transition: border-color var(--transition);
 }
 
-.category-form input:focus {
+.category-form input:focus,
+.category-search-panel input:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+}
+
+.category-search-panel {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.category-search-panel h3 {
+  margin-bottom: var(--spacing-md);
+}
+
+.category-search-panel .btn {
+  width: 100%;
+  margin-top: var(--spacing-md);
+}
+
+.category-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+}
+
+.category-search-form input {
+  min-width: 0;
+}
+
+.category-search-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  background: var(--primary-color);
+  cursor: pointer;
+}
+
+.category-search-button img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 /* 按钮样式 */
@@ -122,20 +173,26 @@
 /* 分类列表 */
 .category-list {
   grid-column: 2;
+  min-width: 0;
 }
 
 .category-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
 }
 
 .category-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 224px;
   align-items: center;
+  gap: var(--spacing-md);
   padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 76px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: #ffffff;
   transition: background-color var(--transition);
   animation: slideIn 0.3s ease-out;
 }
@@ -144,18 +201,21 @@
   background-color: var(--bg-tertiary);
 }
 
-.category-item:last-child {
-  border-bottom: none;
-}
-
 .category-item span {
+  display: -webkit-box;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   font-size: var(--font-size-base);
   color: var(--text-primary);
-  flex: 1;
-  padding-right: var(--spacing-lg);
   font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   background: linear-gradient(90deg, rgba(94, 106, 210, 0.1) 0%, transparent 100%);
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
   border-radius: var(--border-radius);
   border-left: 3px solid var(--primary-color);
 }
@@ -164,9 +224,14 @@
 .actions {
   display: flex;
   gap: var(--spacing-sm);
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .action-btn {
+  flex: 0 0 104px;
+  min-width: 0;
+  justify-content: center;
   padding: var(--spacing-sm) var(--spacing-md);
   border: none;
   border-radius: var(--border-radius);
@@ -204,7 +269,9 @@
 
 /* 编辑表单 */
 .edit-form {
-  display: flex;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px 92px;
   align-items: center;
   gap: var(--spacing-sm);
   width: 100%;
@@ -215,7 +282,7 @@
 }
 
 .edit-form input {
-  flex: 1;
+  min-width: 0;
   padding: var(--spacing-sm);
   border: 2px solid var(--primary-color);
   border-radius: var(--border-radius);
@@ -225,6 +292,71 @@
 .edit-form input:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+}
+
+.edit-form button {
+  min-width: 0;
+  height: 42px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  white-space: nowrap;
+}
+
+.category-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-tertiary);
+}
+
+.category-pagination > span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.category-pagination div {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.category-pagination button {
+  min-width: 72px;
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.category-pagination button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.category-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.category-pagination strong {
+  min-width: 92px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* 空状态 */
@@ -283,6 +415,10 @@
   .category-content {
     padding: var(--spacing-lg);
   }
+
+  .category-items {
+    grid-template-columns: 1fr;
+  }
   
   .category-item {
     flex-direction: column;
@@ -301,6 +437,20 @@
   
   .edit-form input {
     width: 100%;
+  }
+
+  .category-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .category-pagination div {
+    flex-wrap: wrap;
+  }
+
+  .category-pagination button,
+  .category-pagination strong {
+    flex: 1 1 88px;
   }
 }
 

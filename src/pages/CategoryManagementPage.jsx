@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { categoryAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import './CategoryManagementPage.css';
 
 const CategoryManagementPage = () => {
+  const CATEGORIES_PER_PAGE = 8;
   const { showToast } = useToast();
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState('');
+  const [categorySearchInput, setCategorySearchInput] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef(null);
 
   // Get all categories
@@ -39,6 +43,7 @@ const CategoryManagementPage = () => {
       await categoryAPI.create({ name: newCategory.trim() });
       showToast('Category created successfully', 'success');
       setNewCategory('');
+      setCurrentPage(1);
       fetchCategories();
     } catch (error) {
       showToast('Failed to create category', 'error');
@@ -87,6 +92,30 @@ const CategoryManagementPage = () => {
     }
   };
 
+  const filteredCategories = useMemo(() => {
+    const keyword = categorySearch.trim().toLowerCase();
+    if (!keyword) return categories;
+    return categories.filter(category => String(category.name || '').toLowerCase().includes(keyword));
+  }, [categories, categorySearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / CATEGORIES_PER_PAGE));
+  const pagedCategories = useMemo(() => {
+    const startIndex = (currentPage - 1) * CATEGORIES_PER_PAGE;
+    return filteredCategories.slice(startIndex, startIndex + CATEGORIES_PER_PAGE);
+  }, [filteredCategories, currentPage]);
+  const pageStart = filteredCategories.length === 0 ? 0 : (currentPage - 1) * CATEGORIES_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * CATEGORIES_PER_PAGE, filteredCategories.length);
+
+  useEffect(() => {
+    setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
+
+  const handleSearchCategories = (e) => {
+    e.preventDefault();
+    setCategorySearch(categorySearchInput);
+    setCurrentPage(1);
+  };
+
   if (isLoading) {
     return <div className="loading">Loading...</div>;
   }
@@ -110,20 +139,47 @@ const CategoryManagementPage = () => {
               />
               <button type="submit" className="btn btn-primary">Create</button>
             </form>
+            <div className="category-search-panel">
+              <h3>Search Categories</h3>
+              <form className="category-search-form" onSubmit={handleSearchCategories}>
+                <input
+                  type="search"
+                  placeholder="Search category name"
+                  value={categorySearchInput}
+                  onChange={(e) => setCategorySearchInput(e.target.value)}
+                />
+                <button type="submit" className="category-search-button" aria-label="Search categories">
+                  <img src="/放大镜.svg" alt="" aria-hidden="true" />
+                </button>
+              </form>
+              {(categorySearch || categorySearchInput) && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setCategorySearchInput('');
+                    setCategorySearch('');
+                    setCurrentPage(1);
+                  }}
+                >
+                  Clear Search
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Category List */}
           <div className="category-list card">
             <h3>Category List</h3>
-            {categories.length === 0 ? (
+            {filteredCategories.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">📁</div>
-                <p>No categories yet</p>
-                <p>Click on the left to create your first category</p>
+                <p>{categories.length === 0 ? 'No categories yet' : 'No matching categories'}</p>
+                <p>{categories.length === 0 ? 'Click on the left to create your first category' : 'Try a different search keyword'}</p>
               </div>
             ) : (
               <div className="category-items">
-                {categories.map((category) => (
+                {pagedCategories.map((category) => (
                   <div key={category.id} className="category-item">
                     {editingCategory && editingCategory.id === category.id ? (
                       <form onSubmit={handleSaveCategory} className="edit-form">
@@ -135,16 +191,16 @@ const CategoryManagementPage = () => {
                           required
                         />
                         <button type="submit" className="btn btn-primary">Save</button>
-                        <button type="button" className="btn btn-secondary" onClick={() => setEditingCategory(null)}>Cancel</button>
-                      </form>
-                    ) : (
-                      <>
-                        <span>{category.name}</span>
-                        <div className="actions">
-                          <button onClick={() => handleEditCategory(category)} className="action-btn edit-btn">
+                          <button type="button" className="btn btn-secondary" onClick={() => setEditingCategory(null)}>Cancel</button>
+                        </form>
+                      ) : (
+                        <>
+                        <span title={category.name}>{category.name}</span>
+                          <div className="actions">
+                          <button type="button" onClick={() => handleEditCategory(category)} className="action-btn edit-btn">
                             ✏️ Edit
                           </button>
-                          <button onClick={() => handleDeleteCategory(category.id)} className="action-btn delete-btn">
+                          <button type="button" onClick={() => handleDeleteCategory(category.id)} className="action-btn delete-btn">
                             🗑️ Delete
                           </button>
                         </div>
@@ -152,6 +208,42 @@ const CategoryManagementPage = () => {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+            {filteredCategories.length > 0 && (
+              <div className="category-pagination" aria-label="Category pagination">
+                <span>Showing {pageStart}-{pageEnd} of {filteredCategories.length}</span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  <strong>Page {currentPage} of {totalPages}</strong>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Last
+                  </button>
+                </div>
               </div>
             )}
           </div>

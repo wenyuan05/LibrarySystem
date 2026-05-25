@@ -1832,3 +1832,23 @@ This file documents all bug fixes applied to the project.
   - Passed only the current page of books to `BookList`, reducing per-page copy-detail loading work.
 - **Reason**: Large book lists made the Books page dense and caused unnecessary detail loading for every filtered book at once.
 
+### Fix 136: Redesign category management list layout with pagination
+- **Files modified**:
+  - `src/pages/CategoryManagementPage.jsx`
+  - `src/pages/CategoryManagementPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Shifted the Category Management content left by removing the centered content container.
+  - Expanded the page layout to a narrower left create/search card and a larger right list panel.
+  - Changed the category list from a single vertical list to a two-column card grid.
+  - Fixed category name badges to use a bounded grid column with two-line wrapping so long names cannot push action buttons outside the card.
+  - Added hover tooltips for full category names.
+  - Added a left-side category search input with a magnifier button that filters the right-side list and resets pagination.
+  - Widened the right-side list area and changed edit mode to fixed input/action columns so Save and Cancel stay visible.
+  - Added frontend pagination with 8 categories per page and First/Previous/Next/Last controls.
+  - Added responsive fallback to a single-column list on smaller screens.
+- **Reason**: The previous category list was too narrow and vertically long for librarian workflows with many categories.
+

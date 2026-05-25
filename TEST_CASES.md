@@ -471,6 +471,27 @@
   - 分页摘要显示当前范围和筛选后的总数
   - 首页禁用 First/Previous，末页禁用 Next/Last
   - 搜索、分类或快速筛选变化后自动回到第一页
+
+### 测试用例 8.12：分类管理双栏与分页
+- **测试场景**：图书管理员管理大量分类
+- **操作步骤**：
+  1. 登录图书管理员账号
+  2. 打开 `/category-management`
+  3. 创建多个分类，使分类数量超过 8 个
+  4. 查看 Category List 区域
+  5. 鼠标悬停长分类名
+  6. 在左侧 Search Categories 中输入关键词并点击放大镜按钮
+  7. 点击 First、Previous、Next、Last 分页按钮
+- **预期结果**：
+  - Create New Category 卡片位于页面左侧
+  - Category List 以双栏显示分类条目
+  - 长分类名限制在名称区域内最多两行换行显示，不会把 Edit/Delete 按钮挤出卡片
+  - 鼠标悬停分类名可查看完整分类名
+  - 点击搜索按钮后右侧只展示匹配分类，并自动回到第一页
+  - 编辑分类时 Save 和 Cancel 按钮完整显示
+  - 每页最多显示 8 个分类
+  - 分页摘要显示当前范围和分类总数
+  - 首页禁用 First/Previous，末页禁用 Next/Last
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state

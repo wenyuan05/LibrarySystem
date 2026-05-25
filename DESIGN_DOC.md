@@ -53,6 +53,7 @@
 - My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
 - Books 页面在搜索、分类和可用性筛选后按每页 12 本进行前端分页，只向 `BookList` 传入当前页数据，减少列表副本详情加载压力。
+- Category Management 页面采用更窄的左侧创建/搜索卡片和更宽的右侧双栏分类列表布局；分类列表每页展示 8 个条目并提供分页控制，分类名支持悬停查看完整名称，搜索框通过放大镜按钮执行过滤并重置分页，编辑态使用固定按钮列避免 Save/Cancel 被裁切。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 - Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
 - ShowAPI ISBN 返回值按系统书籍模型归一化，包含 `gist -> description`、`img -> cover_image`、`pubdate -> publish_date`、`page -> page_count`；当前模型未覆盖的 provider 专有字段不落库。
