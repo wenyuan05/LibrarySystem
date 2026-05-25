@@ -195,7 +195,7 @@ export const booksAPI = {
     });
   },
   
-  // 更新副本状态
+  // 删除单个副本
   deleteCopy: async (copyId) => {
     return request(`/books/copies/${copyId}`, {
       method: 'DELETE',

@@ -1924,3 +1924,11 @@ This file documents all bug fixes applied to the project.
   - Kept existing index creation for payment, email log, and email verification tables.
 - **Reason**: Duplicate table definitions made schema maintenance harder even though `IF NOT EXISTS` prevented runtime failures.
 
+### Fix 141: Correct delete copy API comment
+- **Files modified**:
+  - `src/utils/api.js`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated the `deleteCopy` wrapper comment from updating copy status to deleting a single copy.
+- **Reason**: Keep API wrapper comments aligned with behavior for easier maintenance.
+
