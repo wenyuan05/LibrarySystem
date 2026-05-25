@@ -433,6 +433,27 @@
   - 仅显示 `borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day` 对应设置
   - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
   - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
+
+### 测试用例 8.10：QQ 邮箱邮件功能
+- **测试场景**：验证注册、密码重置、通知和测试邮件的发信触发
+- **前置条件**：
+  - 本地演示可配置 `EMAIL_ENABLED=true`、`EMAIL_MODE=log`
+  - 真实 QQ 邮箱发信需配置 `EMAIL_MODE=smtp`、`SMTP_USER` 和 QQ 邮箱 SMTP 授权码 `SMTP_PASS`
+- **操作步骤**：
+  1. 启动后端并查看启动日志中的 Email configuration
+  2. 管理员打开 `/system-settings`，查看右侧 Email Test 卡片
+  3. 在 Email Test 中输入测试收件邮箱并点击 Send Test Email
+  4. 注册一个新账号
+  5. 发起密码重置请求
+  6. 点击密码重置邮件中的 `/login?token=...` 链接
+  7. 触发预约到书通知
+- **预期结果**：
+  - 配置状态接口不返回 SMTP 授权码明文，只返回 `hasPass`
+  - 前端 Email Test 卡片显示邮件模式、启用状态和 SMTP 授权是否就绪
+  - log 模式下控制台输出邮件摘要，`email_logs` 写入 `logged`
+  - smtp 模式且 QQ 邮箱配置正确时可以收到测试、注册、密码重置和通知邮件
+  - 密码重置链接进入现有登录页重置密码表单，并能提交新密码
+  - 配置缺失或发信失败时接口/日志返回明确错误，业务主流程不因通知邮件失败而中断
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state

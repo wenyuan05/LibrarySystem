@@ -17,6 +17,7 @@
 | reservation_records | 预约记录 |
 | payments | 支付记录 |
 | notifications | 站内通知 |
+| email_logs | 邮件发送记录 |
 | system_logs | 系统日志 |
 | announcements | 公告信息 |
 | announcement_reads | 公告已读记录 |
@@ -209,7 +210,27 @@
 - 本地模拟支付成功后，关联 `borrow_records.fine_status` 改为 `paid`，并重新同步 `users.total_fine`。
 - 真实支付宝 notify 接入后应继续复用该表的 `out_trade_no`、`provider_trade_no`、`raw_notify` 和 `paid_at` 字段。
 
-### 2.11 system_logs 表
+### 2.11 email_logs 表
+
+**功能**：记录注册、密码重置、通知和测试邮件的处理结果
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | | 关联用户ID，外键关联users表 |
+| to_email | TEXT | NOT NULL | 收件邮箱 |
+| subject | TEXT | NOT NULL | 邮件标题 |
+| scenario | TEXT | | 发送场景（registration/password_reset/notification/test/general） |
+| status | TEXT | NOT NULL | 处理状态（skipped/logged/sent/failed） |
+| error_message | TEXT | | 失败或跳过原因 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**说明**：
+- `EMAIL_ENABLED=false` 时不会发信，但会记录 `skipped`，便于本地确认触发点。
+- `EMAIL_MODE=log` 时只写日志和控制台输出，不连接 QQ 邮箱 SMTP。
+- `EMAIL_MODE=smtp` 且配置完整时通过 QQ 邮箱 SMTP 发信，失败原因写入 `error_message`。
+
+### 2.12 system_logs 表
 
 **功能**：存储系统操作日志
 
@@ -222,7 +243,7 @@
 | ip_address | TEXT | | 操作IP地址 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 操作时间 |
 
-### 2.11 notifications 表
+### 2.13 notifications 表
 
 **功能**：存储站内通知，当前用于预约书籍可借提醒
 
@@ -237,7 +258,7 @@
 | related_id | INTEGER | | 关联业务记录ID，如 reservation_records.id |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.12 announcements 表
+### 2.14 announcements 表
 
 **功能**：存储系统公告
 
@@ -251,7 +272,7 @@
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.13 announcement_reads 表
+### 2.15 announcement_reads 表
 
 **功能**：按用户记录已读公告，避免已读公告重复触发弹窗提醒
 
@@ -277,6 +298,9 @@
 | idx_payments_out_trade_no | payments | out_trade_no | UNIQUE | 加速支付宝订单号查询 |
 | idx_payments_user_id | payments | user_id | | 加速用户支付记录查询 |
 | idx_payments_status | payments | status | | 加速收入统计和状态查询 |
+| idx_email_logs_user_id | email_logs | user_id | | 加速用户邮件记录查询 |
+| idx_email_logs_status | email_logs | status | | 加速邮件状态筛选 |
+| idx_email_logs_created_at | email_logs | created_at | | 加速邮件发送时间排序 |
 | idx_reservation_records_user_id | reservation_records | user_id | | 加速用户预约记录查询 |
 | idx_reservation_records_book_id | reservation_records | book_id | | 加速书籍预约记录查询 |
 | idx_reservation_records_status | reservation_records | status | | 加速预约状态查询 |
@@ -302,6 +326,7 @@ users ── borrow_records ── books ── book_copies
 users ── payments ── borrow_records
 users ── reservation_records ── books
 users ── notifications
+users ── email_logs
 reservation_records ── notifications.related_id
 announcements ── announcement_reads ── users
 books ── book_categories ── categories

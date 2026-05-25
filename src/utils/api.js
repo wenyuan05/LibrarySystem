@@ -436,6 +436,19 @@ export const systemAPI = {
   getFeatureFlags: async () => {
     return request('/system/feature-flags');
   },
+
+  // 获取邮件配置状态
+  getEmailStatus: async () => {
+    return request('/system/email/status');
+  },
+
+  // 发送测试邮件
+  sendTestEmail: async (to) => {
+    return request('/system/email/test', {
+      method: 'POST',
+      body: JSON.stringify({ to }),
+    });
+  },
   
   // 更新系统设置
   updateSettings: async (settings) => {

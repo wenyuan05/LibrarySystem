@@ -245,7 +245,7 @@
 **响应**：
 ```json
 {
-  "message": "User found. You can now reset your password.",
+  "message": "User found. Password reset email sent if email delivery is enabled.",
   "token": "<reset_token>",
   "user": {
     "id": 2,
@@ -254,6 +254,10 @@
   }
 }
 ```
+
+**说明**：
+- 当后端 `EMAIL_ENABLED=true` 时会向账户邮箱发送重置链接。
+- 当前版本仍返回 `token`，用于兼容现有前端本地重置流程。
 
 ### 3.2 书籍管理接口
 
@@ -1199,7 +1203,53 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.4 GET /api/announcements
+#### 3.6.4 GET /api/system/email/status
+**功能**：查看邮件服务安全配置摘要
+**权限**：admin
+
+**说明**：
+- 不返回 `SMTP_PASS` 等敏感配置值。
+- `missing` 仅在启用 SMTP 模式且缺少必需配置时列出缺失项。
+
+**响应**：
+```json
+{
+  "enabled": true,
+  "mode": "smtp",
+  "host": "smtp.qq.com",
+  "port": 465,
+  "secure": true,
+  "from": "Library System <example@qq.com>",
+  "appPublicUrl": "http://localhost:5173",
+  "hasUser": true,
+  "hasPass": true,
+  "missing": []
+}
+```
+
+#### 3.6.5 POST /api/system/email/test
+**功能**：发送测试邮件
+**权限**：admin
+
+**请求体**：
+```json
+{
+  "to": "user@example.com"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Test email processed",
+  "result": {
+    "sent": true,
+    "mode": "smtp"
+  }
+}
+```
+
+#### 3.6.6 GET /api/announcements
 **功能**：获取公告列表
 
 **响应**：
@@ -1216,7 +1266,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 ]
 ```
 
-#### 3.6.5 GET /api/announcements/:id
+#### 3.6.7 GET /api/announcements/:id
 **功能**：获取单个公告
 
 **响应**：
@@ -1231,7 +1281,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.6 POST /api/announcements
+#### 3.6.8 POST /api/announcements
 **功能**：添加公告
 **权限**：admin
 
@@ -1255,7 +1305,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.7 PUT /api/announcements/:id
+#### 3.6.9 PUT /api/announcements/:id
 **功能**：更新公告
 **权限**：admin
 
@@ -1278,7 +1328,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.8 DELETE /api/announcements/:id
+#### 3.6.10 DELETE /api/announcements/:id
 **功能**：删除公告
 **权限**：admin
 
@@ -1289,7 +1339,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.9 GET /api/announcements/unread/mine
+#### 3.6.11 GET /api/announcements/unread/mine
 **功能**：获取当前登录用户未读的已发布公告，用于全局公告弹窗提醒
 **权限**：登录用户
 
@@ -1307,7 +1357,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 ]
 ```
 
-#### 3.6.10 PUT /api/announcements/read
+#### 3.6.12 PUT /api/announcements/read
 **功能**：批量标记公告已读，写入 `announcement_reads`，已读公告不会再次触发弹窗
 **权限**：登录用户
 
@@ -1326,7 +1376,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.11 PUT /api/announcements/:id/read
+#### 3.6.13 PUT /api/announcements/:id/read
 **功能**：标记单条公告已读
 **权限**：登录用户
 
@@ -1338,7 +1388,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.6.12 GET /api/logs
+#### 3.6.14 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -1362,7 +1412,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 ]
 ```
 
-#### 3.6.13 DELETE /api/logs/clear
+#### 3.6.15 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 

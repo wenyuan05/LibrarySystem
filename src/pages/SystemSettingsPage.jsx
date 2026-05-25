@@ -95,6 +95,9 @@ const defaultSettings = settingDefinitions.reduce((acc, setting) => {
 const SystemSettingsPage = () => {
   const [settings, setSettings] = useState({});
   const [draftSettings, setDraftSettings] = useState({});
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [emailTo, setEmailTo] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditable, setIsEditable] = useState(false);
@@ -104,10 +107,17 @@ const SystemSettingsPage = () => {
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await systemAPI.getSettings();
+      const [data, emailData] = await Promise.all([
+        systemAPI.getSettings(),
+        systemAPI.getEmailStatus().catch(err => {
+          console.error('Failed to load email status', err);
+          return null;
+        })
+      ]);
       const mergedSettings = { ...defaultSettings, ...data };
       setSettings(mergedSettings);
       setDraftSettings(mergedSettings);
+      setEmailStatus(emailData);
       setIsEditable(false);
     } catch (err) {
       showToast('Failed to load system settings', 'error');
@@ -184,6 +194,34 @@ const SystemSettingsPage = () => {
   const handleResetDefaults = () => {
     setDraftSettings(defaultSettings);
     setIsEditable(true);
+  };
+
+  const handleSendTestEmail = async (event) => {
+    event.preventDefault();
+    const target = emailTo.trim();
+    if (!target) {
+      showToast('Enter a recipient email address', 'error');
+      return;
+    }
+
+    setTestingEmail(true);
+    try {
+      const response = await systemAPI.sendTestEmail(target);
+      const mode = response?.result?.mode || emailStatus?.mode || 'current';
+      const resultLabel = response?.result?.sent
+        ? 'sent'
+        : response?.result?.logged
+          ? 'logged'
+          : response?.result?.skipped
+            ? 'skipped'
+            : 'processed';
+      showToast(`Test email ${resultLabel} in ${mode} mode`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to send test email', 'error');
+      console.error(err);
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   if (loading) {
@@ -334,6 +372,38 @@ const SystemSettingsPage = () => {
           <div className="settings-side-card">
             <h3>Recent Activity</h3>
             <p>Changes are recorded in the system log after saving.</p>
+          </div>
+          <div className="settings-side-card settings-email-card">
+            <h3>Email Test</h3>
+            <div className="settings-health-row">
+              <span>Mode</span>
+              <strong>{emailStatus?.mode || 'Unknown'}</strong>
+            </div>
+            <div className="settings-health-row">
+              <span>Delivery</span>
+              <strong>{emailStatus?.enabled ? 'Enabled' : 'Disabled'}</strong>
+            </div>
+            <div className="settings-health-row">
+              <span>SMTP auth</span>
+              <strong>{emailStatus?.hasUser && emailStatus?.hasPass ? 'Ready' : 'Missing'}</strong>
+            </div>
+            {emailStatus?.missing?.length > 0 && (
+              <p className="settings-email-warning">
+                Missing: {emailStatus.missing.join(', ')}
+              </p>
+            )}
+            <form className="settings-email-form" onSubmit={handleSendTestEmail}>
+              <input
+                type="email"
+                placeholder="Recipient email"
+                value={emailTo}
+                onChange={event => setEmailTo(event.target.value)}
+                disabled={testingEmail}
+              />
+              <button type="submit" className="btn-primary" disabled={testingEmail}>
+                {testingEmail ? 'Sending...' : 'Send Test Email'}
+              </button>
+            </form>
           </div>
         </aside>
       </main>

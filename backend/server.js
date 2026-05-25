@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const { getAlipayConfig, getSafeAlipayConfig, validateAlipayConfig } = require('./config/alipayConfig');
+const { getEmailConfig, getSafeEmailConfig, validateEmailConfig } = require('./config/emailConfig');
 
 console.log('Starting server...');
 
@@ -31,6 +32,12 @@ const missingAlipayConfig = validateAlipayConfig(alipayConfig);
 console.log('Alipay configuration:', getSafeAlipayConfig(alipayConfig));
 if (missingAlipayConfig.length > 0) {
   console.warn(`⚠️  Alipay is enabled but missing required configuration: ${missingAlipayConfig.join(', ')}`);
+}
+const emailConfig = getEmailConfig();
+const missingEmailConfig = validateEmailConfig(emailConfig);
+console.log('Email configuration:', getSafeEmailConfig(emailConfig));
+if (missingEmailConfig.length > 0) {
+  console.warn(`⚠️  Email SMTP is enabled but missing required configuration: ${missingEmailConfig.join(', ')}`);
 }
 
 // 中间件

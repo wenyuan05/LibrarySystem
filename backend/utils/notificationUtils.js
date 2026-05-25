@@ -1,10 +1,12 @@
 const db = require('../db');
+const { sendMailSafe } = require('../services/emailService');
 
 exports.notifyReservationsForAvailableBook = function(bookId, next) {
   db.all(
-    `SELECT rr.id, rr.user_id, b.title
+    `SELECT rr.id, rr.user_id, b.title, u.email, u.name
      FROM reservation_records rr
      JOIN books b ON rr.book_id = b.id
+     JOIN users u ON rr.user_id = u.id
      WHERE rr.book_id = ?
        AND rr.status = 'active'
        AND rr.notification_sent = 0
@@ -39,6 +41,14 @@ exports.notifyReservationsForAvailableBook = function(bookId, next) {
               next(insertErr);
               return;
             }
+            sendMailSafe({
+              userId: reservation.user_id,
+              to: reservation.email,
+              scenario: 'notification',
+              subject: title,
+              text: `Hello ${reservation.name}, ${message}`,
+              html: `<p>Hello ${reservation.name},</p><p>${message}</p>`
+            });
 
             db.run(
               'UPDATE reservation_records SET notification_sent = 1 WHERE id = ?',

@@ -1759,3 +1759,35 @@ This file documents all bug fixes applied to the project.
   - Kept numeric settings on the existing input layout.
 - **Reason**: The native checkmark checkbox looked visually inconsistent with the dashboard-style System Settings page.
 
+### Fix 133: Add QQ email delivery service
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `backend/.env.example`
+  - `backend/config/emailConfig.js`
+  - `backend/services/emailService.js`
+  - `backend/db.js`
+  - `backend/controllers/userController.js`
+  - `backend/controllers/systemController.js`
+  - `backend/routes/systemRoutes.js`
+  - `backend/server.js`
+  - `backend/utils/notificationUtils.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added Nodemailer-based QQ Mail SMTP support with `EMAIL_ENABLED`, `EMAIL_MODE`, `SMTP_*`, `EMAIL_FROM`, and `APP_PUBLIC_URL` backend settings.
+  - Added `email_logs` to record skipped, logged, sent, and failed email attempts.
+  - Sent registration, password reset, reservation notification, and admin test emails through the shared email service.
+  - Pointed password reset email links at the existing `/login?token=...` reset flow.
+  - Added admin email status and test endpoints under `/api/system/email`.
+  - Added a System Settings Email Test card for admins to view email mode/configuration readiness and send a test email from the frontend.
+  - Kept local development usable through `EMAIL_MODE=log` and documented that QQ Mail requires an SMTP authorization code instead of the login password.
+- **Reason**: Release 3 requires real email delivery for account and notification flows while preserving a local test mode that does not depend on external SMTP credentials.
+

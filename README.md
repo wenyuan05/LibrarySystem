@@ -219,6 +219,18 @@ SHOWAPI_ISBN_APP_KEY=your_showapi_app_key
 BACKEND_PROXY_MODE=auto
 BACKEND_PROXY_HOST=127.0.0.1
 BACKEND_PROXY_PORT=7890
+
+# Email delivery configuration
+# QQ Mail uses an SMTP authorization code instead of the mailbox login password.
+EMAIL_ENABLED=false
+EMAIL_MODE=log
+SMTP_HOST=smtp.qq.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your_qq_email@qq.com
+SMTP_PASS=your_qq_mail_smtp_authorization_code
+EMAIL_FROM="Library System <your_qq_email@qq.com>"
+APP_PUBLIC_URL=http://localhost:5173
 ```
 
 **重要安全注意事项**：
@@ -245,6 +257,13 @@ BACKEND_PROXY_PORT=7890
 - `SHOWAPI_ISBN_APP_KEY`：ShowAPI ISBN 查询节点的 appKey，应配置在 `backend/.env` 中
 - `BACKEND_PROXY_MODE`：后端访问外部 ISBN API 时的代理模式，`auto` 表示检测到代理可用才使用，`on` 表示总是使用，`off` 表示禁用代理
 - `BACKEND_PROXY_HOST` / `BACKEND_PROXY_PORT`：后端出站代理地址，默认 `127.0.0.1:7890`
+- `EMAIL_ENABLED`：是否启用邮件处理；关闭时仅记录 skipped 日志
+- `EMAIL_MODE`：`log` 表示本地只记录/打印邮件，`smtp` 表示真实发信
+- `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE`：QQ 邮箱默认 `smtp.qq.com`、`465`、`true`
+- `SMTP_USER`：QQ 邮箱地址
+- `SMTP_PASS`：QQ 邮箱 SMTP 授权码，不是 QQ 登录密码
+- `EMAIL_FROM`：发件人显示名称和邮箱
+- `APP_PUBLIC_URL`：前端公开地址，用于生成重置密码链接
 
 ## 运行方法
 
@@ -673,6 +692,12 @@ npm run dev
    - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
    - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
    - `/api/payments/alipay/notify` 支持支付宝表单回调验签；沙箱回调成功后会按 `out_trade_no` 完成对应罚款支付单
+10. **QQ 邮箱邮件服务**：
+   - 后端新增邮件配置、邮件发送服务和 `email_logs` 发送记录表
+   - 支持 `EMAIL_MODE=log` 本地演示模式和 `EMAIL_MODE=smtp` 真实 QQ 邮箱发信模式
+   - 注册成功、请求重置密码、预约到书通知会触发邮件发送
+   - 管理员可通过 `/api/system/email/status` 查看安全配置摘要，通过 `/api/system/email/test` 发送测试邮件
+   - System Settings 右侧提供 Email Test 卡片，管理员可在前端查看模式/配置状态并触发测试邮件
 
 ## 示例数据
 

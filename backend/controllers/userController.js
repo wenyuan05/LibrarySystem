@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { getEmailConfig } = require('../config/emailConfig');
+const { sendMailSafe } = require('../services/emailService');
 const {
   ACTIVE_BORROW_STATUSES,
   ACTIVE_RESERVATION_STATUSES,
@@ -10,6 +12,10 @@ const {
 const JWT_EXPIRES_IN = '7d';
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const buildResetPasswordUrl = (token) => {
+  const config = getEmailConfig();
+  return `${config.appPublicUrl.replace(/\/$/, '')}/login?token=${encodeURIComponent(token)}`;
+};
 
 const findUserByUsernameOrEmail = (username, email, callback) => {
   db.get(
@@ -106,6 +112,14 @@ exports.register = (req, res) => {
             role,
           };
           const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+          sendMailSafe({
+            userId: this.lastID,
+            to: normalizedEmail,
+            scenario: 'registration',
+            subject: 'Welcome to Library Management System',
+            text: `Hello ${name}, your library account ${username} has been registered successfully.`,
+            html: `<p>Hello ${name},</p><p>Your library account <strong>${username}</strong> has been registered successfully.</p>`
+          });
 
           res.status(201).json({
             ...payload,
@@ -660,9 +674,18 @@ exports.requestPasswordReset = (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1h' } // 1小时过期
     );
+    const resetUrl = buildResetPasswordUrl(resetToken);
+    sendMailSafe({
+      userId: user.id,
+      to: user.email,
+      scenario: 'password_reset',
+      subject: 'Library account password reset',
+      text: `Hello ${user.name}, use this link to reset your password within 1 hour: ${resetUrl}`,
+      html: `<p>Hello ${user.name},</p><p>Use this link to reset your password within 1 hour:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
+    });
 
     res.json({ 
-      message: 'User found. You can now reset your password.',
+      message: 'User found. Password reset email sent if email delivery is enabled.',
       token: resetToken,
       user: {
         id: user.id,

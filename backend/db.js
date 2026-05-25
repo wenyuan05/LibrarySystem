@@ -219,6 +219,21 @@ db.serialize(() => {
     )
   `);
 
+  // 创建邮件发送日志表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      scenario TEXT,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
   // 将已有用户的明文密码迁移为哈希（兼容旧数据）
   db.all('SELECT id, password FROM users', (err, rows) => {
     if (!err && Array.isArray(rows)) {
@@ -307,6 +322,21 @@ db.serialize(() => {
       paid_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // 为现有数据库创建邮件发送日志表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      scenario TEXT,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
@@ -413,6 +443,9 @@ db.serialize(() => {
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_out_trade_no ON payments(out_trade_no)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_user_id ON email_logs(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON email_logs(created_at)');
   
   // 预约记录表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_user_id ON reservation_records(user_id)');
