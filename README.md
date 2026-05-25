@@ -115,16 +115,6 @@ LibrarySystem/
 │   │   └── alipayConfig.js        # 支付宝沙箱/生产配置
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
-│   ├── check_borrow_records.js  # 借阅记录检查工具
-│   ├── check_db.js     # 数据库检查工具
-│   ├── check_indexes.js # 索引检查工具
-│   ├── cleanup.js      # 数据清理工具
-│   ├── clear_borrowed_records.js # 清理借阅记录工具
-│   ├── fix_all_borrow_records.js # 修复所有借阅记录工具
-│   ├── fix_book_status.js # 书籍状态修复工具
-│   ├── fix_borrow_records.js # 修复借阅记录工具
-│   ├── fix_borrow_records_direct.js # 直接修复借阅记录工具
-│   ├── update_book_data.js # 书籍数据更新工具
 │   ├── package.json    # 后端依赖
 │   ├── package-lock.json # 后端依赖锁文件
 │   ├── .env.example    # 后端环境变量示例
@@ -139,7 +129,6 @@ LibrarySystem/
 ├── BUGFIX_LOG.md       # bug修复日志
 ├── TEST_CASES.md       # 测试用例
 ├── eslint.config.js    # ESLint配置
-├── git-github-guide.md # Git和GitHub使用指南
 ├── index.html          # 前端入口HTML
 └── README.md           # 项目文档
 ```
@@ -622,12 +611,9 @@ npm run dev
    - 输入验证中间件
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
-13. **数据库工具**：
-    - `check_db.js` - 检查数据库中的书籍和借阅记录
-    - `check_indexes.js` - 检查数据库索引状态和数据
-    - `cleanup.js` - 清理数据库重复数据并添加唯一约束
-    - `fix_book_status.js` - 修复书籍状态
-    - 其他数据修复和管理工具
+13. **项目维护**：
+    - Release 3 分支移除了旧的一次性数据库检查、迁移和修复脚本
+    - 当前数据库结构通过 `backend/db.js` 启动初始化和兼容迁移维护
 
 ## 开发指南
 

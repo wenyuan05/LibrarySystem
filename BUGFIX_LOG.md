@@ -1852,3 +1852,41 @@ This file documents all bug fixes applied to the project.
   - Added responsive fallback to a single-column list on smaller screens.
 - **Reason**: The previous category list was too narrow and vertically long for librarian workflows with many categories.
 
+### Fix 137: Remove obsolete release files and maintenance scripts
+- **Files removed**:
+  - `OPTIMIZATION_PLAN.md`
+  - `git-github-guide.md`
+  - `refactor_plan.md`
+  - `RELEASE2_NOTES.md`
+  - `Release1/.gitignore`
+  - `release_plan_v2.md`
+  - `sample.json`
+  - `showapi_sample.json`
+  - `vite.borrow-fine.log`
+  - `backend/check_borrow_records.js`
+  - `backend/check_db.js`
+  - `backend/check_indexes.js`
+  - `backend/check_user_status.js`
+  - `backend/cleanup.js`
+  - `backend/clear_borrowed_records.js`
+  - `backend/fix_all_borrow_records.js`
+  - `backend/fix_book_status.js`
+  - `backend/fix_borrow_records.js`
+  - `backend/fix_borrow_records_direct.js`
+  - `backend/migrate_data.js`
+  - `backend/migrate_database.js`
+  - `backend/reset_categories.js`
+  - `backend/update_book_data.js`
+  - `backend/controllers/borrowController_new.js`
+- **Files modified**:
+  - `.gitignore`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed old planning documents, sample payloads, local logs, and one-off backend maintenance scripts that were not referenced by runtime routes or package scripts.
+  - Updated project structure documentation to match the remaining source tree.
+  - Kept current Release 3 documentation, environment examples, runtime source, dependency manifests, and build configuration.
+- **Reason**: Reduce release package clutter and avoid shipping stale scripts or obsolete documents.
+

@@ -492,6 +492,17 @@
   - 每页最多显示 8 个分类
   - 分页摘要显示当前范围和分类总数
   - 首页禁用 First/Previous，末页禁用 Next/Last
+
+### 测试用例 8.13：Release 3 文件清理
+- **测试场景**：检查 release 分支项目文件结构
+- **操作步骤**：
+  1. 查看项目根目录
+  2. 查看 `backend` 目录
+  3. 执行前端构建
+- **预期结果**：
+  - 根目录不再包含旧优化计划、重构计划、Release 2 备注、旧 release plan v2、示例 JSON 和 Vite 日志
+  - `backend` 目录不再包含一次性数据库检查、迁移、清理和修复脚本
+  - 当前运行时代码、环境变量示例、Release 3 文档和构建流程保持可用
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state

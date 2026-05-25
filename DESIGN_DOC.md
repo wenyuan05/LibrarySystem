@@ -267,11 +267,6 @@ backend/
 │   └── userRoutes.js          # 用户路由
 ├── server.js         # 服务器入口
 ├── db.js             # 数据库初始化
-├── check_borrow_records.js  # 借阅记录检查工具
-├── check_db.js       # 数据库检查工具
-├── check_indexes.js  # 索引检查工具
-├── cleanup.js        # 数据清理工具
-├── fix_book_status.js # 书籍状态修复工具
 ├── package.json      # 依赖配置
 └── .env.example      # 环境变量示例
 ```
