@@ -5,9 +5,9 @@
 | 模块 | 主要功能 | 接口数量 |
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
-| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 19 |
+| 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 22 |
 | 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
-| 系统管理 | 系统设置、公告、公告已读、日志 | 11 |
+| 系统管理 | 系统设置、功能开关、公告、公告已读、日志 | 13 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
 
@@ -60,9 +60,12 @@
   "username": "newuser",
   "password": "password123",
   "name": "New User",
-  "email": "newuser@example.com"
+  "email": "newuser@example.com",
+  "verificationCode": "123456"
 }
 ```
+
+**说明**：注册前需先调用 `POST /api/users/email-verification/send`，`purpose` 传 `registration`，并提交邮箱收到的 6 位验证码。
 
 **响应**：
 ```json
@@ -245,13 +248,61 @@
 **响应**：
 ```json
 {
-  "message": "User found. You can now reset your password.",
+  "message": "User found. Password reset email and verification code sent if email delivery is enabled.",
   "token": "<reset_token>",
   "user": {
     "id": 2,
     "username": "user1",
     "name": "Test User"
   }
+}
+```
+
+**说明**：
+- 当后端 `EMAIL_ENABLED=true` 时会向账户邮箱发送重置链接和 6 位验证码。
+- 当前版本仍返回 `token`，用于兼容现有前端本地重置流程。
+
+#### 3.1.13 POST /api/users/email-verification/send
+**功能**：发送邮箱验证码
+
+**请求体**：
+```json
+{
+  "email": "user@example.com",
+  "purpose": "registration"
+}
+```
+
+`purpose` 可选值：
+- `registration`：注册邮箱验证码
+- `password_reset`：重置密码邮箱验证码
+
+**响应**：
+```json
+{
+  "message": "Verification code sent",
+  "email": "user@example.com",
+  "purpose": "registration",
+  "expires_at": "2026-05-25T10:30:00.000Z"
+}
+```
+
+#### 3.1.14 POST /api/users/reset-password
+**功能**：重置密码
+
+**请求体**：
+```json
+{
+  "token": "<reset_token>",
+  "newPassword": "newpassword123",
+  "verificationCode": "123456"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Password reset successfully"
 }
 ```
 
@@ -491,14 +542,81 @@
 }
 ```
 
-#### 3.2.13 GET /api/books/isbn/:isbn
-**功能**：通过ISBN查询书籍信息（调用OpenLibrary API）
+#### 3.2.13 GET /api/books/isbn-providers
+**功能**：获取可用 ISBN 查询 API 节点
 **权限**：admin/librarian
 
+**响应**：
+```json
+[
+  {
+    "id": "openlibrary",
+    "name": "OpenLibrary",
+    "endpoint": "https://openlibrary.org/api/books",
+    "test_isbn": "9780743273565"
+  },
+  {
+    "id": "googlebooks",
+    "name": "Google Books",
+    "endpoint": "https://www.googleapis.com/books/v1/volumes",
+    "test_isbn": "9780743273565"
+  },
+  {
+    "id": "showapi",
+    "name": "ShowAPI ISBN",
+    "endpoint": "https://route.showapi.com/1626-1",
+    "test_isbn": "9787302124887",
+    "requires_app_key": true,
+    "configured": false
+  }
+]
+```
+
+#### 3.2.14 POST /api/books/isbn-providers/test
+**功能**：测试指定 ISBN 查询 API 节点是否可用
+**权限**：admin/librarian
+
+**请求体**：
+```json
+{
+  "provider": "openlibrary",
+  "isbn": "9780743273565"
+}
+```
+
 **说明**：
-- `cover_image` 优先使用 OpenLibrary 返回的 `cover.large`、`cover.medium`、`cover.small` URL。
-- 如仅返回旧式 `cover.id`，会回退为 OpenLibrary cover id URL；没有封面时返回空字符串。
-- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留 OpenLibrary 原始返回值。
+- `isbn` 可选；未传时使用该节点的默认测试 ISBN。
+- 接口始终返回测试结果对象；节点不可用时 `available` 为 `false`，并包含错误原因。
+- ShowAPI ISBN 节点需要后端环境变量 `SHOWAPI_ISBN_APP_KEY`，请求方式为 `application/x-www-form-urlencoded`，请求体包含 `isbn`。
+- 后端访问外部 ISBN API 时支持自动代理。默认配置为 `BACKEND_PROXY_MODE=auto`、`BACKEND_PROXY_HOST=127.0.0.1`、`BACKEND_PROXY_PORT=7890`。
+
+**响应**：
+```json
+{
+  "provider": "openlibrary",
+  "provider_name": "OpenLibrary",
+  "endpoint": "https://openlibrary.org/api/books",
+  "available": true,
+  "status": 200,
+  "latency_ms": 350,
+  "last_tested_at": "2026-05-24T01:00:00.000Z",
+  "test_isbn": "9780743273565"
+}
+```
+
+#### 3.2.15 GET /api/books/isbn/:isbn
+**功能**：通过ISBN查询书籍信息（调用选定 ISBN API 节点）
+**权限**：admin/librarian
+
+**查询参数**：
+- `provider`：可选，ISBN 查询节点 ID。当前支持 `openlibrary`、`googlebooks` 和 `showapi`，未传时默认 `openlibrary`。
+
+**说明**：
+- 前端单本 ISBN 查询和批量导入预览都会通过该接口，并传入当前选中的 provider。
+- ShowAPI ISBN 的 `showapi_res_body.data` 会归一化为系统书籍字段：`title`、`author`、`publisher`、`pubdate -> publish_date`、`gist -> description`、`img -> cover_image`、`page -> page_count`、`isbn`。
+- ShowAPI 样例中的 `edition`、`paper`、`format`、`price`、`binding`、`produce` 当前没有对应书籍表字段，暂不落库。
+- `cover_image` 会根据 provider 返回值归一化；没有封面时返回空字符串。
+- `publish_date` 会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`；无法解析时保留原始返回值。
 
 **响应**：
 ```json
@@ -507,13 +625,16 @@
   "author": "F. Scott Fitzgerald",
   "publisher": "Scribner",
   "publish_date": "1925-04-10",
+  "description": "Book description",
   "language": "English",
   "page_count": 180,
-  "cover_image": "https://covers.openlibrary.org/..."
+  "cover_image": "https://covers.openlibrary.org/...",
+  "provider": "openlibrary",
+  "provider_name": "OpenLibrary"
 }
 ```
 
-#### 3.2.14 POST /api/books/batch
+#### 3.2.16 POST /api/books/batch
 **功能**：批量导入书籍
 **权限**：admin/librarian
 
@@ -550,7 +671,7 @@
 }
 ```
 
-#### 3.2.15 PUT /api/books/copies/:id/location
+#### 3.2.17 PUT /api/books/copies/:id/location
 **功能**：更新副本位置
 **权限**：admin/librarian
 
@@ -596,7 +717,9 @@
 }
 ```
 
-**说明**：发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+**说明**：
+- 发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+- 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.2 POST /api/borrow/return
 **功能**：归还书籍
@@ -619,6 +742,8 @@
 }
 ```
 
+**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`，用户无需等待图书管理员审批即可调用 `pay-fine` 支付。
+
 #### 3.3.3 POST /api/borrow/confirm-borrow
 **功能**：确认借阅
 
@@ -637,7 +762,9 @@
 }
 ```
 
-**说明**：`copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
+**说明**：
+- `copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
+- 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.4 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
@@ -668,6 +795,8 @@
   "message": "Return approved successfully"
 }
 ```
+
+**说明**：审批只确认归还状态、释放副本并触发预约可借通知。罚款已在用户提交归还时入账，审批阶段不会重复累计罚款；如果用户已提前支付，`fine_status` 保持 `"paid"`。
 
 #### 3.3.6 GET /api/borrow/returning
 **功能**：获取待审批的归还请求列表
@@ -771,7 +900,7 @@
 **功能**：获取用户罚款历史记录
 **权限**：本人或admin/librarian
 
-**说明**：返回 `fine > 0` 的罚款历史，包含未支付和已支付记录；未支付记录优先，再按记录 ID 倒序。前端总额只统计 `fine_status = "unpaid"`。
+**说明**：返回 `fine > 0` 的罚款历史，包含预计罚款、实际未支付罚款和已支付罚款。`status = "overdue"` 且未归还的记录只作为预计罚款展示，不能创建支付订单；`status = "returning"` 或 `"returned"` 且 `fine_status = "unpaid"` 的记录才是可支付的实际罚款。
 
 **响应**：
 ```json
@@ -784,6 +913,7 @@
     "borrow_date": "2024-01-01",
     "due_date": "2024-01-15",
     "return_date": "2024-01-20",
+    "status": "returning",
     "fine": 2.5,
     "fine_status": "unpaid",
     "copy_id": 1,
@@ -796,6 +926,8 @@
 **功能**：支付所有未支付罚款
 **权限**：本人或admin/librarian
 
+**说明**：接口直接汇总 `borrow_records` 中 `fine > 0` 且 `fine_status = "unpaid"` 的记录，支持支付 `returning` 状态下已经计算出的罚款。支付成功后相关罚款记录标记为 `"paid"`，并重新同步用户 `total_fine`。
+
 **请求体**：
 ```json
 {
@@ -806,14 +938,133 @@
 **响应**：
 ```json
 {
-  "message": "All fines paid successfully",
+  "message": "Fines paid successfully",
   "amount": 2.5
 }
 ```
 
-### 3.4 分类管理接口
+### 3.4 支付接口
 
-#### 3.4.1 GET /api/categories
+#### 3.4.1 GET /api/payments/alipay/status
+**功能**：获取支付宝后端配置状态
+**权限**：已登录用户
+
+**说明**：只返回安全摘要和缺失项，不返回应用私钥或支付宝公钥内容。Fine Records 用该接口判断本地模拟按钮是否应显示。
+
+**响应**：
+```json
+{
+  "enabled": true,
+  "mode": "sandbox",
+  "gateway": "https://openapi-sandbox.dl.alipaydev.com/gateway.do",
+  "notifyUrl": "http://localhost:3001/api/payments/alipay/notify",
+  "returnUrl": "http://localhost:5173/payment-result",
+  "simulationEnabled": true,
+  "hasAppId": true,
+  "hasPrivateKey": true,
+  "hasAlipayPublicKey": true,
+  "missing": []
+}
+```
+
+#### 3.4.2 GET /api/payments
+**功能**：查询支付订单列表
+**权限**：本人订单或admin/librarian查看全部
+
+**查询参数**：
+- `user_id`：可选，admin/librarian 可按用户筛选
+- `status`：可选，`pending`、`paid`、`expired`、`failed`
+- `provider`：可选，默认 `alipay`
+- `payment_type`：可选，例如 `fine`
+- `date_from` / `date_to`：可选，按创建日期筛选
+
+**说明**：普通用户只能看到自己的支付订单；admin/librarian 可查看全部或按用户筛选。
+
+#### 3.4.3 POST /api/payments/fines/alipay
+**功能**：创建支付宝罚款支付单（本地模拟）
+**权限**：本人或admin/librarian
+
+**说明**：接口只汇总当前用户 `status IN ("returning", "returned")` 且 `fine_status = "unpaid"` 的实际罚款记录，创建 `pending` 支付单并返回二维码内容和支付链接。创建支付单不会立即修改罚款状态。未归还逾期书籍的预计罚款不会进入支付单。若同一用户同一批实际罚款已有 `pending` 支付单，接口会复用并返回已有订单。
+当 `ALIPAY_ENABLED=true` 且配置完整时，`payment_url` 为后端签名生成的支付宝沙箱 `alipay.trade.page.pay` 收银台 URL，`qr_code` 优先使用 `alipay.trade.precreate` 返回的支付宝专用二维码内容；若 precreate 失败则临时回退到 page-pay URL。未启用或配置缺失时两者为本地 `/payment-result` 模拟链接。
+Fine Records 页面使用该接口替代旧的直接结清接口；用户需要在支付宝模拟支付区域完成模拟通知后，罚款才会变为已支付。前端创建订单后每 2.5 秒调用 `GET /api/payments/:id` 轮询最新状态，`paid` 时自动刷新罚款记录，`expired` 时提示重新创建订单。
+
+**请求体**：
+```json
+{
+  "user_id": 2
+}
+```
+
+**响应**：
+```json
+{
+  "id": 1,
+  "user_id": 2,
+  "provider": "alipay",
+  "payment_type": "fine",
+  "out_trade_no": "ALI202605240101010000A1B2C3D4",
+  "amount": 2.5,
+  "status": "pending",
+  "subject": "Library fine payment #ALI202605240101010000A1B2C3D4",
+  "qr_code": "http://localhost:5173/payment-result?out_trade_no=...",
+  "payment_url": "http://localhost:5173/payment-result?out_trade_no=...",
+  "payment_url_source": "alipay-precreate",
+  "borrow_record_ids": [1, 2],
+  "reused": false,
+  "simulate_notify_path": "/api/payments/alipay/simulate-notify/ALI202605240101010000A1B2C3D4"
+}
+```
+
+#### 3.4.4 GET /api/payments/:id
+**功能**：查询支付单状态
+**权限**：本人或admin/librarian
+
+**说明**：当订单为 `pending` 且支付宝配置完整时，接口会先调用 `alipay.trade.query` 主动同步沙箱订单状态。支付宝返回 `TRADE_SUCCESS` / `TRADE_FINISHED` 时本地订单会变为 `paid` 并结清关联罚款；返回 `TRADE_CLOSED` 时本地订单会变为 `expired`。支付宝查询失败时保留本地状态返回，避免前端轮询中断。
+
+#### 3.4.5 GET /api/payments/trade/:out_trade_no
+**功能**：按商户订单号查询支付单状态
+**权限**：本人或admin/librarian
+
+**说明**：本地 `/payment-result` 页面使用该接口根据 `out_trade_no` 读取最新支付状态，而不是信任 URL 中的静态状态参数。
+支付结果页支持手动刷新并每 2.5 秒轮询该接口，便于本地模拟或支付宝沙箱支付后验证订单状态变化。该接口同样会对 pending 沙箱订单主动执行 `alipay.trade.query` 状态同步。
+
+#### 3.4.6 POST /api/payments/alipay/simulate-notify/:out_trade_no
+**功能**：模拟支付宝支付成功通知
+**权限**：本人或admin/librarian
+
+**说明**：本地测试用接口，仅当 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时允许调用。调用后将支付单标记为 `paid`，关联的罚款记录标记为 `paid`，并重新同步用户 `total_fine`。接口具备幂等性，已支付订单重复调用不会重复入账；`expired` 订单不能模拟成功。
+
+#### 3.4.7 POST /api/payments/alipay/notify
+**功能**：支付宝异步通知入口
+**权限**：公开入口
+
+**说明**：接收支付宝沙箱/网关 `application/x-www-form-urlencoded` 异步通知，使用 `ALIPAY_PUBLIC_KEY` 验签，并校验 `app_id` 与 `total_amount`。`trade_status` 为 `TRADE_SUCCESS` 或 `TRADE_FINISHED` 时，按 `out_trade_no` 查询本地支付单并完成罚款结算，保存支付宝 `trade_no`；成功响应支付宝要求的纯文本 `success`，失败响应 `fail`。
+
+#### 3.4.8 GET /api/payments/income/summary
+**功能**：图书管理员收入 dashboard 数据
+**权限**：admin/librarian
+
+**响应**：
+```json
+{
+  "total_income": 20,
+  "today_income": 5,
+  "month_income": 20,
+  "paid_count": 4,
+  "pending_count": 1,
+  "recent_payments": []
+}
+```
+
+#### 3.4.9 POST /api/payments/:id/expire
+**功能**：手动过期待支付订单
+**权限**：本人或admin/librarian
+
+**说明**：仅 `pending` 订单可以过期。过期订单不会改变罚款状态，已支付订单不能过期；已有 `pending` 订单被过期后，用户再次创建同一批罚款支付单会生成新订单。
+
+### 3.5 分类管理接口
+
+#### 3.5.1 GET /api/categories
 **功能**：获取分类列表
 
 **响应**：
@@ -827,7 +1078,7 @@
 ]
 ```
 
-#### 3.4.2 GET /api/categories/:id
+#### 3.5.2 GET /api/categories/:id
 **功能**：获取单个分类
 
 **响应**：
@@ -839,7 +1090,7 @@
 }
 ```
 
-#### 3.4.3 POST /api/categories
+#### 3.5.3 POST /api/categories
 **功能**：添加分类
 **权限**：admin/librarian
 
@@ -860,7 +1111,7 @@
 }
 ```
 
-#### 3.4.4 PUT /api/categories/:id
+#### 3.5.4 PUT /api/categories/:id
 **功能**：更新分类
 **权限**：admin/librarian
 
@@ -881,7 +1132,7 @@
 }
 ```
 
-#### 3.4.5 DELETE /api/categories/:id
+#### 3.5.5 DELETE /api/categories/:id
 **功能**：删除分类
 **权限**：admin/librarian
 
@@ -892,7 +1143,7 @@
 }
 ```
 
-#### 3.4.6 GET /api/categories/book/:bookId
+#### 3.5.6 GET /api/categories/book/:bookId
 **功能**：获取图书的分类
 
 **响应**：
@@ -906,7 +1157,7 @@
 ]
 ```
 
-#### 3.4.7 POST /api/categories/book/:bookId
+#### 3.5.7 POST /api/categories/book/:bookId
 **功能**：为图书添加分类
 **权限**：admin/librarian
 
@@ -924,7 +1175,7 @@
 }
 ```
 
-#### 3.4.8 DELETE /api/categories/book/:bookId/:categoryId
+#### 3.5.8 DELETE /api/categories/book/:bookId/:categoryId
 **功能**：从图书中移除分类
 **权限**：admin/librarian
 
@@ -935,9 +1186,9 @@
 }
 ```
 
-### 3.5 系统管理接口
+### 3.6 系统管理接口
 
-#### 3.5.1 GET /api/system/settings
+#### 3.6.1 GET /api/system/settings
 **功能**：获取系统设置
 **权限**：admin
 
@@ -946,6 +1197,7 @@
 {
   "system_name": "Library Management System",
   "system_version": "1.0.0",
+  "borrow_enabled": "1",
   "borrow_period_days": "14",
   "fine_per_day": "0.5",
   "max_borrows": "5",
@@ -957,7 +1209,7 @@
 }
 ```
 
-#### 3.5.2 PUT /api/system/settings
+#### 3.6.2 PUT /api/system/settings
 **功能**：更新系统设置（支持部分更新）
 **权限**：admin
 
@@ -968,6 +1220,7 @@
 **请求体**（支持单项或多项更新）：
 ```json
 {
+  "borrow_enabled": "1",
   "borrow_period_days": "21",
   "fine_per_day": "1.0"
 }
@@ -982,7 +1235,68 @@
 }
 ```
 
-#### 3.5.3 GET /api/announcements
+#### 3.6.3 GET /api/system/feature-flags
+**功能**：获取当前登录用户可见的功能开关
+**权限**：任意已登录用户
+
+**说明**：
+- 该接口只暴露前端业务需要知道的功能开关，不返回完整系统设置。
+- `borrow_enabled` 为 `false` 时，读者端应禁用发起借阅和确认借阅入口；后端仍会在借阅接口强制校验。
+
+**响应**：
+```json
+{
+  "borrow_enabled": true
+}
+```
+
+#### 3.6.4 GET /api/system/email/status
+**功能**：查看邮件服务安全配置摘要
+**权限**：admin
+
+**说明**：
+- 不返回 `SMTP_PASS` 等敏感配置值。
+- `missing` 仅在启用 SMTP 模式且缺少必需配置时列出缺失项。
+
+**响应**：
+```json
+{
+  "enabled": true,
+  "mode": "smtp",
+  "host": "smtp.qq.com",
+  "port": 465,
+  "secure": true,
+  "from": "Library System <example@qq.com>",
+  "appPublicUrl": "http://localhost:5173",
+  "hasUser": true,
+  "hasPass": true,
+  "missing": []
+}
+```
+
+#### 3.6.5 POST /api/system/email/test
+**功能**：发送测试邮件
+**权限**：admin
+
+**请求体**：
+```json
+{
+  "to": "user@example.com"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Test email processed",
+  "result": {
+    "sent": true,
+    "mode": "smtp"
+  }
+}
+```
+
+#### 3.6.6 GET /api/announcements
 **功能**：获取公告列表
 
 **响应**：
@@ -999,7 +1313,7 @@
 ]
 ```
 
-#### 3.5.4 GET /api/announcements/:id
+#### 3.6.7 GET /api/announcements/:id
 **功能**：获取单个公告
 
 **响应**：
@@ -1014,7 +1328,7 @@
 }
 ```
 
-#### 3.5.5 POST /api/announcements
+#### 3.6.8 POST /api/announcements
 **功能**：添加公告
 **权限**：admin
 
@@ -1038,7 +1352,7 @@
 }
 ```
 
-#### 3.5.6 PUT /api/announcements/:id
+#### 3.6.9 PUT /api/announcements/:id
 **功能**：更新公告
 **权限**：admin
 
@@ -1061,7 +1375,7 @@
 }
 ```
 
-#### 3.5.7 DELETE /api/announcements/:id
+#### 3.6.10 DELETE /api/announcements/:id
 **功能**：删除公告
 **权限**：admin
 
@@ -1072,7 +1386,7 @@
 }
 ```
 
-#### 3.5.8 GET /api/announcements/unread/mine
+#### 3.6.11 GET /api/announcements/unread/mine
 **功能**：获取当前登录用户未读的已发布公告，用于全局公告弹窗提醒
 **权限**：登录用户
 
@@ -1090,7 +1404,7 @@
 ]
 ```
 
-#### 3.5.9 PUT /api/announcements/read
+#### 3.6.12 PUT /api/announcements/read
 **功能**：批量标记公告已读，写入 `announcement_reads`，已读公告不会再次触发弹窗
 **权限**：登录用户
 
@@ -1109,7 +1423,7 @@
 }
 ```
 
-#### 3.5.10 PUT /api/announcements/:id/read
+#### 3.6.13 PUT /api/announcements/:id/read
 **功能**：标记单条公告已读
 **权限**：登录用户
 
@@ -1121,7 +1435,7 @@
 }
 ```
 
-#### 3.5.11 GET /api/logs
+#### 3.6.14 GET /api/logs
 **功能**：获取系统日志
 **权限**：admin
 
@@ -1145,7 +1459,7 @@
 ]
 ```
 
-#### 3.5.12 DELETE /api/logs/clear
+#### 3.6.15 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 
@@ -1156,9 +1470,9 @@
 }
 ```
 
-### 3.6 统计分析接口
+### 3.7 统计分析接口
 
-#### 3.6.1 GET /api/stats/borrow-stats
+#### 3.7.1 GET /api/stats/borrow-stats
 **功能**：获取借阅统计
 **权限**：admin/librarian
 
@@ -1172,7 +1486,7 @@
 }
 ```
 
-#### 3.6.2 GET /api/stats/monthly-stats
+#### 3.7.2 GET /api/stats/monthly-stats
 **功能**：获取月度借阅统计
 **权限**：admin/librarian
 
@@ -1184,7 +1498,7 @@
 }
 ```
 
-#### 3.6.3 GET /api/stats/popular-books
+#### 3.7.3 GET /api/stats/popular-books
 **功能**：获取热门图书统计
 **权限**：所有登录用户
 
@@ -1200,9 +1514,9 @@
 ]
 ```
 
-### 3.7 站内通知接口
+### 3.8 站内通知接口
 
-#### 3.7.1 GET /api/notifications/:user_id
+#### 3.8.1 GET /api/notifications/:user_id
 **功能**：获取用户通知列表
 **权限**：本人/admin/librarian
 
@@ -1222,7 +1536,7 @@
 ]
 ```
 
-#### 3.7.2 GET /api/notifications/:user_id/unread-count
+#### 3.8.2 GET /api/notifications/:user_id/unread-count
 **功能**：获取用户未读通知数量
 **权限**：本人/admin/librarian
 
@@ -1233,7 +1547,7 @@
 }
 ```
 
-#### 3.7.3 PUT /api/notifications/:id/read
+#### 3.8.3 PUT /api/notifications/:id/read
 **功能**：标记单条通知已读
 **权限**：通知接收者/admin/librarian
 
@@ -1244,7 +1558,7 @@
 }
 ```
 
-#### 3.7.4 PUT /api/notifications/read-all
+#### 3.8.4 PUT /api/notifications/read-all
 **功能**：标记用户全部通知已读
 **权限**：本人/admin/librarian
 
@@ -1371,3 +1685,77 @@ api.get('/books').then(response => {
 6. **CSRF防护**：实现CSRF令牌验证
 7. **密码安全**：使用强密码哈希算法
 8. **Token管理**：实现token过期和刷新机制
+## 8. API Update - 2026-05-13
+
+### 8.1 Book-management endpoint count
+
+The book-management module now includes 20 endpoints after adding single-copy deletion.
+
+### 8.2 DELETE /api/books/copies/:id
+
+**Purpose**: Delete one physical copy of a book.
+
+**Permission**: `admin` or `librarian`
+
+**Response**:
+
+```json
+{
+  "message": "Copy deleted successfully"
+}
+```
+
+**Safety rules**:
+
+- The copy id must be a positive integer.
+- The copy must exist.
+- The copy status must be `available`.
+- The parent book must keep at least one remaining copy.
+- The copy must not have an active borrow record.
+- After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
+
+**Possible errors**:
+
+```json
+{ "error": "Cannot delete copy: only available copies can be deleted" }
+```
+
+```json
+{ "error": "Cannot delete copy: a book must keep at least one copy" }
+```
+
+```json
+{ "error": "Cannot delete copy: it has active borrowing records" }
+```
+
+### 8.3 Delete-safety rules
+
+The following active borrow statuses block user deletion, book deletion, and duplicate borrow creation:
+
+- `borrowing`
+- `borrowed`
+- `overdue`
+- `returning`
+
+User deletion now also blocks:
+
+- deleting the current account
+- deleting an admin account
+- active reservations with status `active` or `pending`
+
+Book deletion now also blocks:
+
+- occupied copies with status `borrowing`, `borrowed`, or `reserved`
+- active reservations with status `active` or `pending`
+
+The delete checks no longer rely on `return_date IS NULL`, because `returning` records already have a return date while still waiting for librarian approval.
+
+### 8.4 DELETE /api/logs/clear validation
+
+`days` must be an integer from `1` to `3650`, or `0` to clear all logs. Invalid values return:
+
+```json
+{
+  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
+}
+```

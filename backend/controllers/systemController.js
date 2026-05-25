@@ -1,4 +1,6 @@
 const db = require('../db');
+const { getEmailConfig, getSafeEmailConfig, validateEmailConfig } = require('../config/emailConfig');
+const { sendMail } = require('../services/emailService');
 
 // 获取系统设置
 exports.getSystemSettings = (req, res) => {
@@ -16,6 +18,50 @@ exports.getSystemSettings = (req, res) => {
     
     res.json(settingsObj);
   });
+};
+
+// 获取普通登录用户可见的功能开关
+exports.getFeatureFlags = (req, res) => {
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['borrow_enabled'], (err, setting) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    res.json({
+      borrow_enabled: !setting || setting.value !== '0'
+    });
+  });
+};
+
+exports.getEmailStatus = (req, res) => {
+  const config = getEmailConfig();
+  res.json({
+    ...getSafeEmailConfig(config),
+    missing: validateEmailConfig(config)
+  });
+};
+
+exports.sendTestEmail = async (req, res) => {
+  const { to } = req.body;
+  if (!to) {
+    res.status(400).json({ error: 'to is required' });
+    return;
+  }
+
+  try {
+    const result = await sendMail({
+      userId: req.user.id,
+      to,
+      scenario: 'test',
+      subject: 'Library System test email',
+      text: 'This is a test email from Library Management System.',
+      html: '<p>This is a test email from <strong>Library Management System</strong>.</p>'
+    });
+    res.json({ message: 'Test email processed', result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // 更新系统设置

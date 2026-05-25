@@ -83,6 +83,12 @@
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
 }
 
+.books-search-bar .search-button {
+  flex: 0 0 60px;
+  height: 40px;
+  padding: 0;
+}
+
 .search-button {
   padding: 0 var(--spacing-lg);
   border: 1px solid var(--primary-color);
@@ -393,6 +399,63 @@
 .quick-filter-group button.active {
   background: #EEF2FF;
   color: var(--primary-color);
+}
+
+.books-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #E5E7EB;
+  border-radius: var(--border-radius-lg);
+  background: #F8FAFC;
+}
+
+.books-pagination-summary {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.books-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.books-pagination-controls button {
+  min-width: 72px;
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.books-pagination-controls button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.books-pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.books-pagination-controls span {
+  min-width: 92px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* 热门图书部分 */
@@ -1204,9 +1267,10 @@
 }
 
 .modal-content.copy-management-modal {
-  width: min(94vw, 1280px) !important;
-  max-width: 1280px !important;
-  min-width: min(94vw, 1040px);
+  box-sizing: border-box;
+  width: min(calc(100vw - 48px), 1260px) !important;
+  max-width: 1260px !important;
+  min-width: 0;
   padding: var(--spacing-xl);
   overflow-x: hidden;
 }
@@ -1276,9 +1340,10 @@
 }
 
 .copy-management-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
+  max-width: 100%;
 }
 
 .copy-management-table {
@@ -1293,28 +1358,42 @@
 
 .copy-management-table th:nth-child(1),
 .copy-management-table td:nth-child(1) {
-  width: 140px;
+  width: 9%;
 }
 
 .copy-management-table th:nth-child(2),
 .copy-management-table td:nth-child(2) {
-  width: 250px;
+  width: 23%;
 }
 
 .copy-management-table th:nth-child(3),
 .copy-management-table td:nth-child(3) {
-  width: 170px;
+  width: 15%;
 }
 
 .copy-management-table th:nth-child(4),
 .copy-management-table td:nth-child(4) {
-  width: 360px;
+  width: 38%;
+}
+
+.copy-management-table th:nth-child(5),
+.copy-management-table td:nth-child(5) {
+  width: 15%;
+  text-align: left;
 }
 
 .copy-management-table th,
 .copy-management-table td {
-  padding: var(--spacing-md);
+  box-sizing: border-box;
+  padding: var(--spacing-md) 10px;
   vertical-align: middle;
+}
+
+.copy-management-table .barcode-cell svg,
+.copy-management-table .barcode-cell canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .copy-management-table select,
@@ -1329,18 +1408,26 @@
 
 .copy-location-editor {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) auto;
+  grid-template-columns: minmax(0, 1fr) 92px;
   align-items: center;
-  gap: var(--spacing-sm);
-  justify-content: start;
+  gap: 8px;
+  width: 100%;
 }
 
 .copy-location-editor button {
   height: 38px;
   margin: 0;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-sm);
   font-size: var(--font-size-sm);
   white-space: nowrap;
+}
+
+.copy-management-table td:nth-child(5) .btn-danger {
+  width: 86px;
+  height: 38px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
 }
 
 .copy-id-stack {
@@ -1360,6 +1447,14 @@
     width: 96vw !important;
     min-width: 0;
     padding: var(--spacing-md);
+  }
+
+  .copy-management-table-wrap {
+    overflow-x: auto;
+  }
+
+  .copy-management-table {
+    min-width: 760px;
   }
 
   .book-detail-section {
@@ -1853,6 +1948,58 @@
   text-align: center;
 }
 
+.isbn-provider-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-md);
+  align-items: center;
+  margin: 0 0 var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+}
+
+.isbn-provider-copy label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.isbn-provider-copy p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.isbn-provider-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.isbn-provider-controls select {
+  min-width: 180px;
+}
+
+.isbn-provider-status {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.isbn-provider-status.available strong {
+  color: var(--success-color);
+}
+
+.isbn-provider-status.unavailable strong {
+  color: var(--danger-color);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .books-stats-row {
@@ -1878,6 +2025,20 @@
     overflow-x: auto;
   }
 
+  .books-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .books-pagination-controls {
+    flex-wrap: wrap;
+  }
+
+  .books-pagination-controls button,
+  .books-pagination-controls span {
+    flex: 1 1 88px;
+  }
+
   .isbn-input-group button {
     width: 100%;
   }
@@ -1892,8 +2053,16 @@
   }
 
   .batch-panel,
-  .copy-settings-card {
+  .copy-settings-card,
+  .isbn-provider-panel {
     padding: var(--spacing-md);
+  }
+
+  .isbn-provider-panel,
+  .isbn-provider-controls {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .batch-panel-header,

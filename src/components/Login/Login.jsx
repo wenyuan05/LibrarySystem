@@ -43,14 +43,22 @@ const getPhoneError = (phone) => {
   return '';
 };
 
+const getVerificationCodeError = (code) => {
+  const value = code.trim();
+  if (!value) return 'Verification code is required';
+  if (!/^\d{6}$/.test(value)) return 'Verification code must be 6 digits';
+  return '';
+};
+
 const Login = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
-  const [registerData, setRegisterData] = useState({ username: '', password: '', name: '', email: '' });
+  const [registerData, setRegisterData] = useState({ username: '', password: '', name: '', email: '', verificationCode: '' });
   const [resetData, setResetData] = useState({ email: '', phone: '' });
-  const [newPasswordData, setNewPasswordData] = useState({ newPassword: '', confirmPassword: '' });
+  const [newPasswordData, setNewPasswordData] = useState({ newPassword: '', confirmPassword: '', verificationCode: '' });
   const [resetToken, setResetToken] = useState('');
   const [foundUser, setFoundUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sendingRegisterCode, setSendingRegisterCode] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
@@ -130,7 +138,8 @@ const Login = () => {
       username: getUsernameError(registerData.username),
       password: getPasswordError(registerData.password),
       name: getNameError(registerData.name),
-      email: getEmailError(registerData.email)
+      email: getEmailError(registerData.email),
+      verificationCode: getVerificationCodeError(registerData.verificationCode)
     };
     const nextErrors = Object.fromEntries(Object.entries(errors).filter(([, value]) => value));
     setRegisterErrors(nextErrors);
@@ -174,7 +183,8 @@ const Login = () => {
 
   const validateNewPasswordForm = () => {
     const errors = {
-      newPassword: getPasswordError(newPasswordData.newPassword, 'New password')
+      newPassword: getPasswordError(newPasswordData.newPassword, 'New password'),
+      verificationCode: getVerificationCodeError(newPasswordData.verificationCode)
     };
 
     if (!newPasswordData.confirmPassword) {
@@ -205,7 +215,8 @@ const Login = () => {
       username: () => getUsernameError(registerData.username),
       password: () => getPasswordError(registerData.password),
       name: () => getNameError(registerData.name),
-      email: () => getEmailError(registerData.email)
+      email: () => getEmailError(registerData.email),
+      verificationCode: () => getVerificationCodeError(registerData.verificationCode)
     };
     setRegisterErrors(prev => ({ ...prev, [name]: validators[name]?.() || '' }));
   };
@@ -218,6 +229,14 @@ const Login = () => {
   };
 
   const validateNewPasswordField = (name) => {
+    if (name === 'verificationCode') {
+      setNewPasswordErrors(prev => ({
+        ...prev,
+        verificationCode: getVerificationCodeError(newPasswordData.verificationCode)
+      }));
+      return;
+    }
+
     if (name === 'newPassword') {
       setNewPasswordErrors(prev => ({
         ...prev,
@@ -237,6 +256,31 @@ const Login = () => {
           ? 'Passwords do not match'
           : ''
     }));
+  };
+
+  const handleSendRegisterCode = async () => {
+    const emailError = getEmailError(registerData.email);
+    if (emailError) {
+      setRegisterErrors(prev => ({ ...prev, email: emailError }));
+      showToast('Enter a valid email address first', 'error');
+      return;
+    }
+
+    setSendingRegisterCode(true);
+    try {
+      await authAPI.sendEmailVerificationCode({
+        email: registerData.email,
+        purpose: 'registration'
+      });
+      showToast('Verification code sent to your email', 'success');
+    } catch (error) {
+      if (error.message === 'Email already exists') {
+        setRegisterErrors(prev => ({ ...prev, email: 'Email already exists' }));
+      }
+      showToast(error.message, 'error');
+    } finally {
+      setSendingRegisterCode(false);
+    }
   };
 
   const resetAuthValidation = () => {
@@ -267,6 +311,7 @@ const Login = () => {
       setFoundUser(response.user);
       setIsForgotPasswordMode(false);
       setIsResetPasswordMode(true);
+      showToast('Password reset link and verification code sent to your email', 'success');
     } catch (error) {
       showToast(error.message, 'error');
     } finally {
@@ -287,7 +332,7 @@ const Login = () => {
     try {
       // 使用本地存储的token
       const token = resetToken || searchParams.get('token');
-      await authAPI.resetPassword(token, newPasswordData.newPassword);
+      await authAPI.resetPassword(token, newPasswordData.newPassword, newPasswordData.verificationCode);
       setResetSuccess(true);
       showToast('Password reset successfully!', 'success');
       // 3秒后返回登录页
@@ -296,7 +341,7 @@ const Login = () => {
         setResetSuccess(false);
         setResetToken('');
         setFoundUser(null);
-        setNewPasswordData({ newPassword: '', confirmPassword: '' });
+        setNewPasswordData({ newPassword: '', confirmPassword: '', verificationCode: '' });
       }, 3000);
     } catch (error) {
       showToast(error.message, 'error');
@@ -483,6 +528,26 @@ const Login = () => {
                   />
                   <span id="confirm-password-error">{renderFieldError(newPasswordErrors, 'confirmPassword')}</span>
                 </div>
+                <div className={`form-group ${newPasswordErrors.verificationCode ? 'has-error' : ''}`}>
+                  <label htmlFor="reset-verification-code">Email Verification Code:</label>
+                  <input
+                    type="text"
+                    id="reset-verification-code"
+                    name="verificationCode"
+                    value={newPasswordData.verificationCode}
+                    onChange={handleNewPasswordChange}
+                    onBlur={() => validateNewPasswordField('verificationCode')}
+                    className={newPasswordErrors.verificationCode ? 'input-error' : ''}
+                    aria-invalid={!!newPasswordErrors.verificationCode}
+                    aria-describedby={newPasswordErrors.verificationCode ? 'reset-verification-code-error' : undefined}
+                    disabled={isSubmitting}
+                    placeholder="Enter the 6-digit code"
+                    inputMode="numeric"
+                    maxLength={6}
+                  />
+                  <span className="field-helper">Check the email sent with your reset link.</span>
+                  <span id="reset-verification-code-error">{renderFieldError(newPasswordErrors, 'verificationCode')}</span>
+                </div>
                 <button 
                   type="submit" 
                   className="btn-primary" 
@@ -497,7 +562,7 @@ const Login = () => {
                     setIsResetPasswordMode(false);
                     setResetToken('');
                     setFoundUser(null);
-                    setNewPasswordData({ newPassword: '', confirmPassword: '' });
+                    setNewPasswordData({ newPassword: '', confirmPassword: '', verificationCode: '' });
                     resetAuthValidation();
                   }}
                   disabled={isSubmitting}
@@ -527,6 +592,11 @@ const Login = () => {
                 // 注册成功后导航到首页
                 navigate('/');
               } catch (error) {
+                if (error.message === 'Email already exists') {
+                  setRegisterErrors(prev => ({ ...prev, email: 'Email already exists' }));
+                } else if (error.message === 'Username already exists') {
+                  setRegisterErrors(prev => ({ ...prev, username: 'Username already exists' }));
+                }
                 setLoginError(error.message);
               } finally {
                 setIsSubmitting(false);
@@ -588,19 +658,49 @@ const Login = () => {
             </div>
             <div className={`form-group ${registerErrors.email ? 'has-error' : ''}`}>
               <label htmlFor="reg-email">Email:</label>
-              <input
-                type="email"
-                id="reg-email"
-                name="email"
-                value={registerData.email}
-                onChange={handleRegisterChange}
-                onBlur={() => validateRegisterField('email')}
-                className={registerErrors.email ? 'input-error' : ''}
-                aria-invalid={!!registerErrors.email}
-                aria-describedby={registerErrors.email ? 'reg-email-error' : undefined}
-                disabled={isSubmitting}
-              />
+              <div className="verification-row">
+                <input
+                  type="email"
+                  id="reg-email"
+                  name="email"
+                  value={registerData.email}
+                  onChange={handleRegisterChange}
+                  onBlur={() => validateRegisterField('email')}
+                  className={registerErrors.email ? 'input-error' : ''}
+                  aria-invalid={!!registerErrors.email}
+                  aria-describedby={registerErrors.email ? 'reg-email-error' : undefined}
+                  disabled={isSubmitting || sendingRegisterCode}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary verification-button"
+                  onClick={handleSendRegisterCode}
+                  disabled={isSubmitting || sendingRegisterCode}
+                >
+                  {sendingRegisterCode ? 'Sending...' : 'Send Code'}
+                </button>
+              </div>
               <span id="reg-email-error">{renderFieldError(registerErrors, 'email')}</span>
+            </div>
+            <div className={`form-group ${registerErrors.verificationCode ? 'has-error' : ''}`}>
+              <label htmlFor="reg-verification-code">Email Verification Code:</label>
+              <input
+                type="text"
+                id="reg-verification-code"
+                name="verificationCode"
+                value={registerData.verificationCode}
+                onChange={handleRegisterChange}
+                onBlur={() => validateRegisterField('verificationCode')}
+                className={registerErrors.verificationCode ? 'input-error' : ''}
+                aria-invalid={!!registerErrors.verificationCode}
+                aria-describedby={registerErrors.verificationCode ? 'reg-verification-code-error' : undefined}
+                disabled={isSubmitting}
+                placeholder="Enter the 6-digit code"
+                inputMode="numeric"
+                maxLength={6}
+              />
+              <span className="field-helper">Send the code to your email before registering.</span>
+              <span id="reg-verification-code-error">{renderFieldError(registerErrors, 'verificationCode')}</span>
             </div>
             <button 
               type="submit" 
@@ -624,7 +724,7 @@ const Login = () => {
                 setIsForgotPasswordMode(false);
                 setIsResetPasswordMode(false);
                 // 重置 registerData 状态，避免在切换模式时保留数据
-                setRegisterData({ username: '', password: '', name: '', email: '' });
+                setRegisterData({ username: '', password: '', name: '', email: '', verificationCode: '' });
               }}
               disabled={isSubmitting}
             >

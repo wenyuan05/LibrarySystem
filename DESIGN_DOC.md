@@ -43,8 +43,23 @@
 - Release 2 站内通知由后端持久化：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后写入 `notifications`，侧边栏通过共享通知状态即时显示未读数量，通知中心支持单条/全部已读。
 - 公告提醒按用户持久化已读状态：`announcement_reads` 记录用户确认过的公告，MainLayout 仅对未读已发布公告弹窗提醒。
 - 公告管理页采用 portal 弹窗创建/编辑公告，避免受内容层裁切；公告列表改为紧凑表格，展示标题、内容预览、发布状态和操作。
-- System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项。
+- System Settings 页面采用 dashboard 化分组卡片，包含搜索、Editable mode、批量保存和 sticky save bar；前端仅展示已被业务逻辑消费的配置项，布尔功能开关使用滑动式 toggle 控件而非原生打勾 checkbox。
+- Release 3 借阅功能开关通过 `borrow_enabled` 接入前后端：管理员可全局关闭借阅，普通登录用户通过 feature flags 接口读取开关，前端禁用借阅/确认入口，后端对借阅和确认借阅做强制拦截。
+- Release 3 支付宝沙箱接入先建立后端配置层：`backend/config/alipayConfig.js` 统一读取启用状态、沙箱/生产模式、APP_ID、应用私钥、支付宝公钥、网关、notify/return URL、签名和超时配置；本地测试默认使用 `localhost:3001` notify URL 和 `localhost:5173` return URL，启动时只输出安全摘要和缺失项。
+- 支付宝 key 配置层兼容完整 PEM 和支付宝沙箱常见的一行 base64 key body：后端会自动补齐 `BEGIN/END PRIVATE KEY` 或 `BEGIN/END PUBLIC KEY` 包装并按 64 字符换行；签名层在 RSA2 (`RSA-SHA256`) 下会同时尝试 PKCS#8 `PRIVATE KEY` 与 PKCS#1 `RSA PRIVATE KEY` 私钥容器，避免 Node `crypto` 因 key 格式报 `DECODER routines::unsupported`。
+- Release 3 支付宝沙箱收银台链接由 `backend/services/alipayClient.js` 生成：后端使用应用私钥按 `alipay.trade.page.pay` 参数排序签名生成浏览器收银台链接，同时调用 `alipay.trade.precreate` 获取支付宝专用短二维码内容，避免把超长 page-pay URL 直接编码成难以扫描的二维码；已启用支付宝沙箱时 precreate 失败会阻止创建订单，已有 pending 旧订单会在复用前刷新二维码；配置未启用或缺失时保留本地 `/payment-result` 模拟链接作为课程演示兜底。`/api/payments/alipay/notify` 已支持表单回调解析和支付宝公钥验签，验签通过且交易成功后复用统一支付完成逻辑。
+- Release 3 支付宝沙箱订单状态同步支持主动查询：当 `GET /api/payments/:id` 或 `GET /api/payments/trade/:out_trade_no` 读取 pending 订单且支付宝配置完整时，后端会调用 `alipay.trade.query` 同步沙箱交易状态；`TRADE_SUCCESS/TRADE_FINISHED` 会完成罚款支付，`TRADE_CLOSED` 会过期本地订单，查询失败时保留本地状态以避免前端轮询中断。
+- Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，并每 2.5 秒轮询订单状态，`paid` 自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记、`expired` 提示重新创建订单；模拟支付成功按钮受 `ALIPAY_MODE=sandbox` / `ALIPAY_SIMULATION_ENABLED` 控制，模拟成功后再标记支付单和关联罚款为 `paid`；同一批罚款复用 pending 订单，expired 订单不能模拟成功，paid 订单不能过期，管理员/图书管理员可通过 Income Dashboard 查看收入汇总、订单列表并过期待支付订单。
+- My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
+- Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
+- Books 页面在搜索、分类和可用性筛选后按每页 12 本进行前端分页，只向 `BookList` 传入当前页数据，减少列表副本详情加载压力。
+- Category Management 页面采用更窄的左侧创建/搜索卡片和更宽的右侧双栏分类列表布局；分类列表每页展示 8 个条目并提供分页控制，分类名支持悬停查看完整名称，搜索框通过放大镜按钮执行过滤并重置分页，编辑态使用固定按钮列避免 Save/Cancel 被裁切。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
+- Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
+- ShowAPI ISBN 返回值按系统书籍模型归一化，包含 `gist -> description`、`img -> cover_image`、`pubdate -> publish_date`、`page -> page_count`；当前模型未覆盖的 provider 专有字段不落库。
+- 后端 ISBN provider 出站请求支持自动代理：`BACKEND_PROXY_MODE=auto` 时检测 `BACKEND_PROXY_HOST:BACKEND_PROXY_PORT`，代理可用则通过 `undici.ProxyAgent` 使用代理，不可用则回退默认网络。
+- Release 3 邮件功能通过 `backend/config/emailConfig.js`、`backend/services/emailService.js` 和 `backend/services/emailVerificationService.js` 接入 QQ 邮箱 SMTP：支持 `EMAIL_MODE=log` 本地演示和 `EMAIL_MODE=smtp` 真实发信，注册成功、密码重置请求和预约到书通知会写入 `email_logs` 并在启用时发送邮件；注册和重置密码需要 6 位邮箱验证码，验证码哈希保存到 `email_verification_codes`、10 分钟过期且验证后失效；管理员可通过系统接口查看配置状态并发送测试邮件，System Settings 右侧 Email Test 卡片提供前端触发入口。
+- 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、ISBN provider 查询失败和数据库写入失败。
 
 ## 2. 前端设计
 
@@ -95,6 +110,7 @@ src/
 │   ├── BooksPage.jsx                   # 书籍列表
 │   ├── BorrowRecordsPage.jsx           # 借阅记录
 │   ├── CategoryManagementPage.jsx      # 分类管理
+│   ├── IncomeDashboardPage.jsx         # 收入 dashboard
 │   ├── LogsPage.jsx                    # 系统日志
 │   ├── NotificationsPage.jsx           # 站内通知
 │   ├── NotificationsPage.css           # 站内通知样式
@@ -187,7 +203,7 @@ src/
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
 | 预约管理 | /reservations | user | 管理书籍预约 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
-| 系统设置 | /system-settings | admin | 管理已实现的借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
+| 系统设置 | /system-settings | admin | 管理已实现的借阅开关、借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
 | 系统日志 | /logs | admin | 查看系统操作日志 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 
@@ -228,9 +244,12 @@ backend/
 │   ├── categoryController.js      # 分类控制器
 │   ├── logController.js           # 日志控制器
 │   ├── notificationController.js  # 站内通知控制器
+│   ├── paymentController.js       # 支付控制器
 │   ├── statsController.js         # 统计控制器
 │   ├── systemController.js        # 系统控制器
 │   └── userController.js          # 用户控制器
+├── config/           # 后端运行配置
+│   └── alipayConfig.js            # 支付宝沙箱/生产配置
 ├── middleware/       # 中间件
 │   ├── auth.js       # 认证中间件
 │   ├── error.js      # 错误处理中间件
@@ -242,16 +261,12 @@ backend/
 │   ├── categoryRoutes.js      # 分类路由
 │   ├── logRoutes.js           # 日志路由
 │   ├── notificationRoutes.js  # 站内通知路由
+│   ├── paymentRoutes.js       # 支付路由
 │   ├── statsRoutes.js         # 统计路由
 │   ├── systemRoutes.js        # 系统路由
 │   └── userRoutes.js          # 用户路由
 ├── server.js         # 服务器入口
 ├── db.js             # 数据库初始化
-├── check_borrow_records.js  # 借阅记录检查工具
-├── check_db.js       # 数据库检查工具
-├── check_indexes.js  # 索引检查工具
-├── cleanup.js        # 数据清理工具
-├── fix_book_status.js # 书籍状态修复工具
 ├── package.json      # 依赖配置
 └── .env.example      # 环境变量示例
 ```
@@ -302,7 +317,9 @@ backend/
   - addBookCopy：新增副本并自动生成 copy_code
   - getCopyById：获取单个副本信息
   - updateCopyStatus：更新副本状态
-  - searchByISBN：通过ISBN查询书籍信息（调用OpenLibrary API）
+  - getIsbnProviders：获取 ISBN 查询节点列表
+  - testIsbnProvider：测试指定 ISBN 查询节点可用性
+  - searchByISBN：通过选定 ISBN provider 查询书籍信息
   - batchAddBooks：批量导入书籍
   - updateCopyLocation：更新副本位置信息
 
@@ -327,7 +344,7 @@ backend/
   - returnBook：归还书籍（计算逾期罚款）
   - confirmBorrow：确认借阅
   - handleTimeoutBorrows：处理超时借阅
-  - approveReturn：审批归还请求（累计罚款到用户账户）
+  - approveReturn：审批归还请求（确认归还、释放副本、触发预约通知）
   - approveAllReturns：一键审批所有待归还请求（支持按日期筛选）
   - getBorrowingList：获取借阅中列表
   - getReturningList：获取待审批的归还请求列表
@@ -344,6 +361,7 @@ backend/
 - **功能**：处理系统相关操作
 - **方法**：
   - getSystemSettings：获取系统设置
+  - getFeatureFlags：获取普通登录用户可见的功能开关
   - updateSystemSettings：更新系统设置
 
 **logController.js**
@@ -390,10 +408,10 @@ backend/
 | 模块 | 路由前缀 | 主要接口 |
 |------|----------|----------|
 | 用户管理 | /api/users | 登录、注册、用户CRUD、状态管理 |
-| 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN导入、批量导入、位置管理 |
+| 书籍管理 | /api/books | 书籍CRUD、副本新增、状态管理、条形码、ISBN provider 查询与测试、ISBN导入、批量导入、位置管理 |
 | 借阅管理 | /api/borrow | 借阅、归还、预约、续借、罚款管理、批次审批 |
 | 分类管理 | /api/categories | 分类CRUD、图书分类关联 |
-| 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert） |
+| 系统管理 | /api/system | 系统设置（支持部分更新和缺失 key upsert）、当前用户可见功能开关 |
 | 公告管理 | /api/announcements | 公告CRUD、当前用户未读公告、公告已读记录 |
 | 站内通知 | /api/notifications | 预约可借通知、未读数量、标记已读 |
 | 日志管理 | /api/logs | 系统日志 |
@@ -437,13 +455,14 @@ backend/
 2. 选择要借阅的书籍
 3. 点击借阅按钮
 4. 前端发送借阅请求到 `/api/borrow/borrow`
-5. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
-6. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
-7. 检查书籍是否存在可用副本，但不预先绑定副本
-8. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
+5. 后端读取 `borrow_enabled`，如果借阅功能已关闭则返回 403，停止借阅流程
+6. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
+7. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
+8. 检查书籍是否存在可用副本，但不预先绑定副本
+9. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
 10. 返回借阅请求启动成功响应
 11. 前端显示倒计时和确认借阅按钮，不在记录表提前显示条形码
-12. 用户点击确认借阅按钮并在弹窗中选择可用副本
+12. 用户点击确认借阅按钮并在弹窗中选择可用副本；确认接口也会再次检查 `borrow_enabled`
 13. 前端发送 `record_id` 和 `copy_id` 到 `/api/borrow/confirm-borrow`
 14. 后端检查是否超时，并校验所选副本是否属于该书且可用
 15. 更新借阅记录状态为 "borrowed"，写入 `copy_id`
@@ -465,15 +484,14 @@ backend/
 5. 后端检查借阅记录（支持 borrowed 和 overdue 状态）
 6. 从系统设置读取 fine_per_day 计算逾期罚款
 7. 更新借阅记录状态为 "returning"，设置罚款金额和 fine_status='unpaid'
-8. 返回归还成功响应，包含罚款信息
-9. 图书管理员在归还审批页面查看待审批请求
-10. 管理员批准归还（可单条或一键批量审批，支持按日期筛选）
-11. 后端更新借阅记录状态为 "returned"
-12. 如果罚款未支付，累计到用户 total_fine
-13. 副本状态变回 "available"
-14. 用户可在个人资料或借阅记录中查看罚款
-15. 用户通过 pay fine 功能一次性支付所有未支付罚款
-16. 系统清除用户 total_fine 并标记相关记录 fine_status='paid'
+8. 如果产生罚款，立即累计到用户 total_fine，用户可马上支付
+9. 返回归还成功响应，包含罚款信息
+10. 用户可在个人资料、借阅记录或罚款详情中查看并支付罚款，无需等待归还审批
+11. 用户通过 pay fine 功能一次性支付所有未支付罚款，系统标记相关记录 fine_status='paid' 并同步 total_fine
+12. 图书管理员在归还审批页面查看待审批请求
+13. 管理员批准归还（可单条或一键批量审批，支持按日期筛选）
+14. 后端更新借阅记录状态为 "returned"，不会重复累计已入账罚款
+15. 副本状态变回 "available"
 
 ### 4.4 书籍预约流程
 
@@ -559,3 +577,31 @@ backend/
 系统设计考虑了可扩展性和可维护性，采用了模块化的代码结构和清晰的数据流管理。通过合理的数据库设计和API设计，确保了系统的性能和可靠性。
 
 未来可以通过添加更多功能和优化现有功能，进一步提升系统的用户体验和管理效率。
+## Design Update - 2026-05-13
+
+### Dangerous operation guardrails
+
+Deletion and destructive inventory changes are treated as server-side integrity operations, not only as UI confirmations.
+
+- Active borrow status is centralized as `borrowing`, `borrowed`, `overdue`, and `returning`.
+- User deletion is admin-only and is blocked for the current account, admin accounts, active borrow records, and active reservations.
+- Book deletion is blocked by active borrow records, occupied copies, and active reservations.
+- Copy deletion is a dedicated operation for physical inventory. It deletes only one `available` copy at a time and keeps at least one copy per book.
+- Copy-count reduction uses the same inventory principle: only available copies may be removed, and the operation fails if there are not enough available copies.
+- System log clearing validates the age filter before deleting records.
+
+### Copy Management modal
+
+The Copy Management modal now supports:
+
+- adding copies
+- changing copy status
+- updating one copy location
+- bulk-applying copy location
+- deleting one available copy
+
+The modal table is designed to keep the `Confirm` and `Delete` actions visible on desktop without horizontal scrolling. Small screens may still use horizontal scrolling to preserve readable controls.
+
+### Backend consistency pattern
+
+All destructive copy operations run in a transaction and then recalculate `books.total_copies` and `books.available_copies` from `book_copies`. This avoids stale book counters after a copy is added, removed, or has its status changed.

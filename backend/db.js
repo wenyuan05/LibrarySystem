@@ -68,7 +68,7 @@ db.serialize(() => {
       available_copies INTEGER DEFAULT 1,
       publisher TEXT,
       publish_date TEXT,
-      language TEXT DEFAULT 'Chinese',
+      language TEXT DEFAULT 'English',
       page_count INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -97,7 +97,7 @@ db.serialize(() => {
       password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
       name TEXT NOT NULL,
-      email TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
       phone TEXT,
       address TEXT,
       total_fine REAL DEFAULT 0,
@@ -196,6 +196,57 @@ db.serialize(() => {
     )
   `);
 
+  // 创建支付记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'alipay',
+      payment_type TEXT NOT NULL DEFAULT 'fine',
+      out_trade_no TEXT NOT NULL UNIQUE,
+      provider_trade_no TEXT,
+      amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      subject TEXT,
+      qr_code TEXT,
+      payment_url TEXT,
+      borrow_record_ids TEXT,
+      raw_notify TEXT,
+      paid_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // 创建邮件发送日志表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      scenario TEXT,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // 创建邮件验证码表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_verification_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // 将已有用户的明文密码迁移为哈希（兼容旧数据）
   db.all('SELECT id, password FROM users', (err, rows) => {
     if (!err && Array.isArray(rows)) {
@@ -220,7 +271,7 @@ db.serialize(() => {
   db.run('ALTER TABLE books ADD COLUMN publish_date TEXT', (err) => {
     // 字段已存在，忽略错误
   });
-  db.run('ALTER TABLE books ADD COLUMN language TEXT DEFAULT "Chinese"', (err) => {
+  db.run('ALTER TABLE books ADD COLUMN language TEXT DEFAULT "English"', (err) => {
     // 字段已存在，忽略错误
   });
   db.run('ALTER TABLE books ADD COLUMN page_count INTEGER', (err) => {
@@ -276,6 +327,7 @@ db.serialize(() => {
   const insertSetting = db.prepare('INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)');
   insertSetting.run('system_name', 'Library Management System', '系统名称');
   insertSetting.run('system_version', '1.0.0', '系统版本');
+  insertSetting.run('borrow_enabled', '1', '是否启用借阅功能');
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
   insertSetting.run('max_borrows', '5', '最大借阅数量');
@@ -354,12 +406,23 @@ db.serialize(() => {
   
   // 用户表索引
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
   db.run('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)');
   
   // 借阅记录表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_user_id ON borrow_records(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_book_id ON borrow_records(book_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_borrow_records_status ON borrow_records(status)');
+
+  // 支付记录表索引
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_out_trade_no ON payments(out_trade_no)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_user_id ON email_logs(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON email_logs(created_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_verification_codes_email_purpose ON email_verification_codes(email, purpose)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_verification_codes_expires_at ON email_verification_codes(expires_at)');
   
   // 预约记录表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_user_id ON reservation_records(user_id)');

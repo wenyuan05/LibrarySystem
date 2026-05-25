@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { booksAPI, borrowAPI, usersAPI } from '../utils/api';
+import { booksAPI, borrowAPI, systemAPI, usersAPI } from '../utils/api';
 import './BookDetailsPage.css';
 
 const BookDetailsPage = () => {
@@ -17,6 +17,7 @@ const BookDetailsPage = () => {
   const [countdown, setCountdown] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedCopyId, setSelectedCopyId] = useState(null);
+  const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
 
   // 加载书籍详情和副本信息
   useEffect(() => {
@@ -45,6 +46,21 @@ const BookDetailsPage = () => {
     };
     loadData();
   }, [id, user]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      if (!user?.id) return;
+
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setBorrowFeatureEnabled(flags.borrow_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch feature flags:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, [user]);
 
   // 倒计时效果
   useEffect(() => {
@@ -93,6 +109,9 @@ const BookDetailsPage = () => {
       }
       if (isBorrowing) {
         return; // 防止重复点击
+      }
+      if (!borrowFeatureEnabled) {
+        throw new Error('Borrowing is currently disabled by the system administrator');
       }
       
       // 检查用户是否有未结清的罚款
@@ -280,9 +299,9 @@ const BookDetailsPage = () => {
                 <button 
                   className="btn-primary borrow-button"
                   onClick={handleBorrow}
-                  disabled={isBorrowing}
+                  disabled={isBorrowing || !borrowFeatureEnabled}
                 >
-                  {isBorrowing ? 'Processing...' : 'Borrow Now'}
+                  {borrowFeatureEnabled ? (isBorrowing ? 'Processing...' : 'Borrow Now') : 'Borrowing Disabled'}
                 </button>
               )}
               {borrowRecord && countdown > 0 && (
@@ -294,14 +313,16 @@ const BookDetailsPage = () => {
                   <button 
                     className="btn-primary confirm-button"
                     onClick={() => {
+                      if (!borrowFeatureEnabled) return;
                       const availableCopy = copies.find(
                         copy => copy.status === 'available' || copy.id === borrowRecord.copy_id
                       );
                       setSelectedCopyId(selectedCopyId || availableCopy?.id || null);
                       setShowConfirmModal(true);
                     }}
+                    disabled={!borrowFeatureEnabled}
                   >
-                    Confirm Borrowing
+                    {borrowFeatureEnabled ? 'Confirm Borrowing' : 'Borrowing Disabled'}
                   </button>
                 </div>
               )}
@@ -350,9 +371,9 @@ const BookDetailsPage = () => {
               <button 
                 className="btn-primary"
                 onClick={handleConfirmBorrow}
-                disabled={!selectedCopyId}
+                disabled={!selectedCopyId || !borrowFeatureEnabled}
               >
-                Confirm
+                {borrowFeatureEnabled ? 'Confirm' : 'Borrowing Disabled'}
               </button>
             </div>
           </div>

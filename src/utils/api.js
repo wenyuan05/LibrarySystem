@@ -1,44 +1,7 @@
-// API基础URL
-const API_BASE_URL = 'http://localhost:3001/api';
-
-const monthLookup = {
-  january: '01',
-  february: '02',
-  march: '03',
-  april: '04',
-  may: '05',
-  june: '06',
-  july: '07',
-  august: '08',
-  september: '09',
-  october: '10',
-  november: '11',
-  december: '12'
-};
-
-const normalizePublishDate = (value) => {
-  const rawValue = String(value || '').trim();
-  if (!rawValue) return '';
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue) || /^\d{4}$/.test(rawValue)) {
-    return rawValue;
-  }
-
-  const monthYear = rawValue.match(/^([A-Za-z]+)\s+(\d{4})$/);
-  if (monthYear) {
-    const month = monthLookup[monthYear[1].toLowerCase()];
-    return month ? `${monthYear[2]}-${month}` : rawValue;
-  }
-
-  const monthDayYear = rawValue.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
-  if (monthDayYear) {
-    const month = monthLookup[monthDayYear[1].toLowerCase()];
-    const day = monthDayYear[2].padStart(2, '0');
-    return month ? `${monthDayYear[3]}-${month}-${day}` : rawValue;
-  }
-
-  return rawValue;
-};
+// API base URL.
+// Use a relative path in production so the static site can be served behind
+// the same reverse proxy as the backend without browser-side CORS issues.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // 从本地存储读取 token
 const getAuthToken = () => {
@@ -100,10 +63,18 @@ export const authAPI = {
   },
 
   // 用户注册
-  register: async ({ username, password, name, email }) => {
+  register: async ({ username, password, name, email, verificationCode }) => {
     return request('/users/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, name, email }),
+      body: JSON.stringify({ username, password, name, email, verificationCode }),
+    });
+  },
+
+  // 发送邮箱验证码
+  sendEmailVerificationCode: async ({ email, purpose }) => {
+    return request('/users/email-verification/send', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
     });
   },
 
@@ -116,10 +87,10 @@ export const authAPI = {
   },
 
   // 重置密码
-  resetPassword: async (token, newPassword) => {
+  resetPassword: async (token, newPassword, verificationCode) => {
     return request('/users/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token, newPassword }),
+      body: JSON.stringify({ token, newPassword, verificationCode }),
     });
   },
 };
@@ -144,49 +115,23 @@ export const booksAPI = {
     });
   },
 
+  // 获取 ISBN 查询节点
+  getIsbnProviders: async () => {
+    return request('/books/isbn-providers');
+  },
+
+  // 测试 ISBN 查询节点
+  testIsbnProvider: async (provider, isbn) => {
+    return request('/books/isbn-providers/test', {
+      method: 'POST',
+      body: JSON.stringify({ provider, isbn }),
+    });
+  },
+
   // 通过 ISBN 查询书籍信息
-  searchByISBN: async (isbn) => {
-    // 直接调用 OpenLibrary API
-    const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
-    
-    try {
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const bookKey = `ISBN:${isbn}`;
-      
-      if (data[bookKey]) {
-        const bookData = data[bookKey];
-        const coverImage = bookData.cover?.large
-          || bookData.cover?.medium
-          || bookData.cover?.small
-          || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
-        
-        // 清洗数据，只返回需要的信息
-        const cleanedData = {
-          title: bookData.title || '',
-          author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
-          publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
-          publish_date: normalizePublishDate(bookData.publish_date),
-          isbn: isbn,
-          description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
-          cover_image: coverImage,
-          language: 'Chinese',
-          page_count: bookData.number_of_pages || 0
-        };
-        
-        return cleanedData;
-      } else {
-        throw new Error('Book not found');
-      }
-    } catch (error) {
-      console.error('API request error:', error);
-      throw error;
-    }
+  searchByISBN: async (isbn, provider = 'openlibrary') => {
+    const params = provider ? `?provider=${encodeURIComponent(provider)}` : '';
+    return request(`/books/isbn/${encodeURIComponent(isbn)}${params}`);
   },
 
   // 批量导入书籍
@@ -250,7 +195,13 @@ export const booksAPI = {
     });
   },
   
-  // 更新副本状态
+  // 删除单个副本
+  deleteCopy: async (copyId) => {
+    return request(`/books/copies/${copyId}`, {
+      method: 'DELETE',
+    });
+  },
+  
   updateCopyStatus: async (copyId, status) => {
     return request(`/books/copies/${copyId}/status`, {
       method: 'PUT',
@@ -407,12 +358,54 @@ export const borrowAPI = {
     return request(`/borrow/fines/${userId}`);
   },
 
-  // 支付罚款
-  payFine: async (userId) => {
-    return request('/borrow/pay-fine', {
+};
+
+// 支付相关API
+export const paymentAPI = {
+  getAlipayStatus: async () => {
+    return request('/payments/alipay/status');
+  },
+
+  createFineAlipayPayment: async (userId) => {
+    return request('/payments/fines/alipay', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
     });
+  },
+
+  getPayment: async (paymentId) => {
+    return request(`/payments/${paymentId}`);
+  },
+
+  getPaymentByOutTradeNo: async (outTradeNo) => {
+    return request(`/payments/trade/${outTradeNo}`);
+  },
+
+  listPayments: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    const query = params.toString();
+    return request(`/payments${query ? `?${query}` : ''}`);
+  },
+
+  expirePayment: async (paymentId) => {
+    return request(`/payments/${paymentId}/expire`, {
+      method: 'POST',
+    });
+  },
+
+  simulateAlipayNotify: async (outTradeNo) => {
+    return request(`/payments/alipay/simulate-notify/${outTradeNo}`, {
+      method: 'POST',
+    });
+  },
+
+  getIncomeSummary: async () => {
+    return request('/payments/income/summary');
   },
 };
 
@@ -445,6 +438,24 @@ export const systemAPI = {
   // 获取系统设置
   getSettings: async () => {
     return request('/system/settings');
+  },
+
+  // 获取当前用户可见的功能开关
+  getFeatureFlags: async () => {
+    return request('/system/feature-flags');
+  },
+
+  // 获取邮件配置状态
+  getEmailStatus: async () => {
+    return request('/system/email/status');
+  },
+
+  // 发送测试邮件
+  sendTestEmail: async (to) => {
+    return request('/system/email/test', {
+      method: 'POST',
+      body: JSON.stringify({ to }),
+    });
   },
   
   // 更新系统设置

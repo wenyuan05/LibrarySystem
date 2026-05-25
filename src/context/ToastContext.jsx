@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Toast from '../components/Toast/Toast';
 
 const ToastContext = createContext();
@@ -28,25 +29,30 @@ export const ToastProvider = ({ children }) => {
     setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
   }, []);
 
+  const toastLayer = (
+    <div className="toast-container">
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          id={toast.id}
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={removeToast}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="toast-container">
-        {toasts.map(toast => (
-          <Toast
-            key={toast.id}
-            id={toast.id}
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={removeToast}
-          />
-        ))}
-      </div>
+      {typeof document !== 'undefined' ? createPortal(toastLayer, document.body) : toastLayer}
     </ToastContext.Provider>
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {

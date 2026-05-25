@@ -11,6 +11,13 @@ const settingSections = [
     description: 'Control borrowing limits, confirmation timing, renewals, and reservations.',
     settings: [
       {
+        key: 'borrow_enabled',
+        label: 'Borrowing Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn reader borrowing requests on or off globally.'
+      },
+      {
         key: 'borrow_period_days',
         label: 'Borrow Days',
         type: 'number',
@@ -88,6 +95,9 @@ const defaultSettings = settingDefinitions.reduce((acc, setting) => {
 const SystemSettingsPage = () => {
   const [settings, setSettings] = useState({});
   const [draftSettings, setDraftSettings] = useState({});
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [emailTo, setEmailTo] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditable, setIsEditable] = useState(false);
@@ -97,10 +107,17 @@ const SystemSettingsPage = () => {
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await systemAPI.getSettings();
+      const [data, emailData] = await Promise.all([
+        systemAPI.getSettings(),
+        systemAPI.getEmailStatus().catch(err => {
+          console.error('Failed to load email status', err);
+          return null;
+        })
+      ]);
       const mergedSettings = { ...defaultSettings, ...data };
       setSettings(mergedSettings);
       setDraftSettings(mergedSettings);
+      setEmailStatus(emailData);
       setIsEditable(false);
     } catch (err) {
       showToast('Failed to load system settings', 'error');
@@ -177,6 +194,34 @@ const SystemSettingsPage = () => {
   const handleResetDefaults = () => {
     setDraftSettings(defaultSettings);
     setIsEditable(true);
+  };
+
+  const handleSendTestEmail = async (event) => {
+    event.preventDefault();
+    const target = emailTo.trim();
+    if (!target) {
+      showToast('Enter a recipient email address', 'error');
+      return;
+    }
+
+    setTestingEmail(true);
+    try {
+      const response = await systemAPI.sendTestEmail(target);
+      const mode = response?.result?.mode || emailStatus?.mode || 'current';
+      const resultLabel = response?.result?.sent
+        ? 'sent'
+        : response?.result?.logged
+          ? 'logged'
+          : response?.result?.skipped
+            ? 'skipped'
+            : 'processed';
+      showToast(`Test email ${resultLabel} in ${mode} mode`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to send test email', 'error');
+      console.error(err);
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   if (loading) {
@@ -256,6 +301,7 @@ const SystemSettingsPage = () => {
                 {section.settings.map(setting => {
                   const value = draftSettings[setting.key] ?? defaultSettings[setting.key] ?? '';
                   const changed = String(value) !== String(settings[setting.key] ?? defaultSettings[setting.key] ?? '');
+                  const isCheckbox = setting.type === 'checkbox';
 
                   return (
                     <label
@@ -268,19 +314,37 @@ const SystemSettingsPage = () => {
                       </span>
                       <span className="settings-input-wrap">
                         {setting.prefix && <span className="settings-affix">{setting.prefix}</span>}
-                        <input
-                          type={setting.type}
-                          min={setting.min}
-                          max={setting.max}
-                          step={setting.step}
-                          value={value}
-                          disabled={!isEditable || saving}
-                          onChange={event => handleFieldChange(setting.key, event.target.value)}
-                        />
+                        {isCheckbox ? (
+                          <span className="settings-switch-field">
+                            <input
+                              className="settings-switch-input"
+                              type="checkbox"
+                              checked={String(value) !== '0'}
+                              disabled={!isEditable || saving}
+                              onChange={event => handleFieldChange(setting.key, event.target.checked ? '1' : '0')}
+                            />
+                            <span className="settings-switch-control" aria-hidden="true">
+                              <span className="settings-switch-thumb"></span>
+                            </span>
+                            <span className="settings-switch-text">
+                              {String(value) !== '0' ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </span>
+                        ) : (
+                          <input
+                            type={setting.type}
+                            min={setting.min}
+                            max={setting.max}
+                            step={setting.step}
+                            value={value}
+                            disabled={!isEditable || saving}
+                            onChange={event => handleFieldChange(setting.key, event.target.value)}
+                          />
+                        )}
                         {setting.suffix && <span className="settings-affix">{setting.suffix}</span>}
                       </span>
                       <span className="settings-helper">{setting.helper}</span>
-                      <span className="settings-default">Default: {String(setting.default)}</span>
+                      <span className="settings-default">Default: {isCheckbox ? (String(setting.default) !== '0' ? 'Enabled' : 'Disabled') : String(setting.default)}</span>
                     </label>
                   );
                 })}
@@ -308,6 +372,38 @@ const SystemSettingsPage = () => {
           <div className="settings-side-card">
             <h3>Recent Activity</h3>
             <p>Changes are recorded in the system log after saving.</p>
+          </div>
+          <div className="settings-side-card settings-email-card">
+            <h3>Email Test</h3>
+            <div className="settings-health-row">
+              <span>Mode</span>
+              <strong>{emailStatus?.mode || 'Unknown'}</strong>
+            </div>
+            <div className="settings-health-row">
+              <span>Delivery</span>
+              <strong>{emailStatus?.enabled ? 'Enabled' : 'Disabled'}</strong>
+            </div>
+            <div className="settings-health-row">
+              <span>SMTP auth</span>
+              <strong>{emailStatus?.hasUser && emailStatus?.hasPass ? 'Ready' : 'Missing'}</strong>
+            </div>
+            {emailStatus?.missing?.length > 0 && (
+              <p className="settings-email-warning">
+                Missing: {emailStatus.missing.join(', ')}
+              </p>
+            )}
+            <form className="settings-email-form" onSubmit={handleSendTestEmail}>
+              <input
+                type="email"
+                placeholder="Recipient email"
+                value={emailTo}
+                onChange={event => setEmailTo(event.target.value)}
+                disabled={testingEmail}
+              />
+              <button type="submit" className="btn-primary" disabled={testingEmail}>
+                {testingEmail ? 'Sending...' : 'Send Test Email'}
+              </button>
+            </form>
           </div>
         </aside>
       </main>

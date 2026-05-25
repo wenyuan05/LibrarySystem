@@ -111,18 +111,10 @@ LibrarySystem/
 │   │   ├── statsRoutes.js         # 统计路由
 │   │   ├── systemRoutes.js        # 系统路由
 │   │   └── userRoutes.js          # 用户路由
+│   ├── config/        # 后端运行配置
+│   │   └── alipayConfig.js        # 支付宝沙箱/生产配置
 │   ├── server.js       # 后端服务器
 │   ├── db.js           # 数据库初始化
-│   ├── check_borrow_records.js  # 借阅记录检查工具
-│   ├── check_db.js     # 数据库检查工具
-│   ├── check_indexes.js # 索引检查工具
-│   ├── cleanup.js      # 数据清理工具
-│   ├── clear_borrowed_records.js # 清理借阅记录工具
-│   ├── fix_all_borrow_records.js # 修复所有借阅记录工具
-│   ├── fix_book_status.js # 书籍状态修复工具
-│   ├── fix_borrow_records.js # 修复借阅记录工具
-│   ├── fix_borrow_records_direct.js # 直接修复借阅记录工具
-│   ├── update_book_data.js # 书籍数据更新工具
 │   ├── package.json    # 后端依赖
 │   ├── package-lock.json # 后端依赖锁文件
 │   ├── .env.example    # 后端环境变量示例
@@ -137,7 +129,6 @@ LibrarySystem/
 ├── BUGFIX_LOG.md       # bug修复日志
 ├── TEST_CASES.md       # 测试用例
 ├── eslint.config.js    # ESLint配置
-├── git-github-guide.md # Git和GitHub使用指南
 ├── index.html          # 前端入口HTML
 └── README.md           # 项目文档
 ```
@@ -172,7 +163,7 @@ npm install
 
 2. **配置环境变量**：
    - 编辑 `.env` 文件，设置适当的值
-   - 编辑 `backend/.env` 文件，确保与根目录的 `.env` 文件中的 JWT_SECRET 一致
+   - 编辑 `backend/.env` 文件，设置后端专用配置
 
 **根目录 .env 文件示例**：
 
@@ -183,6 +174,22 @@ FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
+
+# Alipay sandbox payment configuration
+ALIPAY_ENABLED=false
+ALIPAY_MODE=sandbox
+ALIPAY_APP_ID=your_sandbox_app_id
+# 支持完整 PEM，也支持直接粘贴支付宝沙箱里的一行 base64 key body
+ALIPAY_PRIVATE_KEY=your_app_private_key_body
+ALIPAY_PUBLIC_KEY=your_alipay_public_key_body
+ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+ALIPAY_NOTIFY_URL=http://localhost:3001/api/payments/alipay/notify
+ALIPAY_RETURN_URL=http://localhost:5173/payment-result
+ALIPAY_SIMULATION_ENABLED=true
+ALIPAY_SIGN_TYPE=RSA2
+ALIPAY_CHARSET=utf-8
+ALIPAY_FORMAT=json
+ALIPAY_TIMEOUT_MS=10000
 ```
 
 **backend 目录 .env 文件示例**：
@@ -193,6 +200,26 @@ FRONTEND_URL=
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
+
+# ISBN lookup provider configuration
+SHOWAPI_ISBN_APP_KEY=your_showapi_app_key
+
+# Backend outbound proxy for external ISBN APIs
+BACKEND_PROXY_MODE=auto
+BACKEND_PROXY_HOST=127.0.0.1
+BACKEND_PROXY_PORT=7890
+
+# Email delivery configuration
+# QQ Mail uses an SMTP authorization code instead of the mailbox login password.
+EMAIL_ENABLED=false
+EMAIL_MODE=log
+SMTP_HOST=smtp.qq.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your_qq_email@qq.com
+SMTP_PASS=your_qq_mail_smtp_authorization_code
+EMAIL_FROM="Library System <your_qq_email@qq.com>"
+APP_PUBLIC_URL=http://localhost:5173
 ```
 
 **重要安全注意事项**：
@@ -205,6 +232,27 @@ JWT_SECRET=your-secret-key-here
 - `VITE_API_BASE_URL`：后端 API 的基础 URL
 - `FRONTEND_URL`：前端应用的 URL，用于 CORS 配置
 - `JWT_SECRET`：用于生成和验证 JWT token 的密钥
+- `ALIPAY_ENABLED`：是否启用支付宝支付配置校验；沙箱调试时设为 `true`
+- `ALIPAY_MODE`：支付宝模式，支持 `sandbox` 和 `production`，默认 `sandbox`
+- `ALIPAY_APP_ID`：支付宝开放平台应用 ID，需要由你从沙箱应用提供
+- `ALIPAY_PRIVATE_KEY`：应用私钥，只能保存在 `backend/.env` 后端环境变量中；可填写完整 PEM，也可直接粘贴支付宝工具/沙箱生成的一行私钥 body
+- `ALIPAY_PUBLIC_KEY`：支付宝公钥，用于回调验签；可填写完整 PEM，也可直接粘贴支付宝沙箱的一行公钥 body
+- `ALIPAY_SIGN_TYPE`：签名算法，默认 `RSA2`，后端会使用 `RSA-SHA256`；应用私钥支持 PKCS#8 `PRIVATE KEY` 和 PKCS#1 `RSA PRIVATE KEY` 两种 PEM 容器
+- `ALIPAY_NOTIFY_URL`：支付宝异步通知地址；本地模拟配置为 `http://localhost:3001/api/payments/alipay/notify`，真实沙箱回调测试需要换成公网或内网穿透地址
+- `ALIPAY_RETURN_URL`：支付完成后的前端返回地址；本地测试默认 `http://localhost:5173/payment-result`
+- `ALIPAY_SIMULATION_ENABLED`：是否显示并允许本地模拟支付成功按钮；默认在 `ALIPAY_MODE=sandbox` 时开启，生产环境应设为 `false`
+- `ALIPAY_GATEWAY`：支付宝网关；沙箱默认 `https://openapi-sandbox.dl.alipaydev.com/gateway.do`
+- `ALIPAY_SIGN_TYPE` / `ALIPAY_CHARSET` / `ALIPAY_FORMAT` / `ALIPAY_TIMEOUT_MS`：支付宝请求签名、编码、格式和超时配置
+- `SHOWAPI_ISBN_APP_KEY`：ShowAPI ISBN 查询节点的 appKey，应配置在 `backend/.env` 中
+- `BACKEND_PROXY_MODE`：后端访问外部 ISBN API 时的代理模式，`auto` 表示检测到代理可用才使用，`on` 表示总是使用，`off` 表示禁用代理
+- `BACKEND_PROXY_HOST` / `BACKEND_PROXY_PORT`：后端出站代理地址，默认 `127.0.0.1:7890`
+- `EMAIL_ENABLED`：是否启用邮件处理；关闭时仅记录 skipped 日志
+- `EMAIL_MODE`：`log` 表示本地只记录/打印邮件，`smtp` 表示真实发信
+- `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE`：QQ 邮箱默认 `smtp.qq.com`、`465`、`true`
+- `SMTP_USER`：QQ 邮箱地址
+- `SMTP_PASS`：QQ 邮箱 SMTP 授权码，不是 QQ 登录密码
+- `EMAIL_FROM`：发件人显示名称和邮箱
+- `APP_PUBLIC_URL`：前端公开地址，用于生成重置密码链接
 
 ## 运行方法
 
@@ -364,11 +412,13 @@ npm run dev
 - Reader 书籍页升级为仪表盘布局：顶部统计卡、紧凑书籍卡片、搜索/分类/快捷状态筛选、右侧热门书籍/最近借阅/系统统计侧栏。
 - 书籍管理的 Add New Book 改为 portal 弹窗，脱离书籍页面容器层级；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
 - Batch Import 使用现代双栏导入界面：左侧 ISBN 列表与 CSV/TXT 上传，右侧实时预览成功/重复/无效 ISBN，下方 Copy Settings 统一生成副本位置、数量和分类。
+- Release 3 ISBN 导入支持 API 节点选择与测试：管理员/图书管理员可在 Add New Book 中选择 OpenLibrary、Google Books 或 ShowAPI ISBN，测试节点可用性，并用选定节点执行单本查询和批量导入预览。
 - Release 2 新增站内通知：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
 - 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
 - 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
-- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款。
-- 批量 ISBN 导入会汇总无效、重复、OpenLibrary 查询失败和后端写入失败项，导入结果会展示完整失败原因。
+- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅功能开关、借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款；功能开关使用滑动式 toggle 控件展示启用/禁用状态。
+- Release 3 新增借阅功能开关：管理员可通过 `borrow_enabled` 全局关闭读者借阅；前端借阅/确认按钮会显示 disabled 状态，后端也会拦截发起借阅和确认借阅请求。
+- 批量 ISBN 导入会汇总无效、重复、ISBN provider 查询失败和后端写入失败项，导入结果会展示完整失败原因。
 - 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
 
 ### 前端功能
@@ -406,12 +456,13 @@ npm run dev
    - 顶部导航：包含应用标题和用户菜单
    - 内容区域：根据路由显示不同的页面内容
 5. **书籍管理**：
-   - 书籍列表展示，采用现代 dashboard 网格布局
-   - 搜索功能（支持按标题、作者、ISBN搜索），支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
+   - 书籍列表展示，采用现代 dashboard 网格布局，并按每页 12 本分页显示
+   - 书籍列表在副本详情加载完成前使用 `available_copies` 缓存展示可用状态，避免加载中误标记为 Borrowed
+   - 搜索功能（支持按标题、作者、ISBN搜索），搜索栏提供输入框与统一图标按钮，支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
    - 点击书籍查看详情
    - 借阅和归还书籍
    - 删除书籍（管理员/图书管理员）
-   - ISBN导入：通过OpenLibrary API查询ISBN自动填充书籍信息（管理员/图书管理员）
+   - ISBN导入：通过可选 ISBN API 节点查询并自动填充书籍信息（管理员/图书管理员）
    - 右侧侧栏展示热门书籍 Top 10、最近借阅和系统统计
 6. **书籍管理专门板块**（管理员/图书管理员）：
    - 通过 Add New Book portal 弹窗添加新书籍（包含ISBN格式验证和重复检查），避免被书籍页面容器裁切或遮挡
@@ -422,9 +473,13 @@ npm run dev
    - 通过独立弹窗管理书籍副本数量、状态、条形码和位置
    - 新增副本时自动生成副本编号和条形码编号，并填充默认位置
    - 副本位置支持单个确认保存和批量应用到全部副本；批量位置保存会按顺序提交，避免 SQLite 并发事务冲突
-   - ISBN单个/批量导入；批量导入支持 ISBN 实时预览、CSV/TXT 上传、导入进度和 Copy Settings
+   - ISBN单个/批量导入；批量导入支持 ISBN API 节点选择与测试、实时预览、CSV/TXT 上传、导入进度和 Copy Settings
    - 批量导入会在前端和后端同时报告无效 ISBN、重复 ISBN、元数据查询失败和写入失败原因
-7. **书籍详情页**：
+7. **分类管理**（管理员/图书管理员）：
+   - 创建分类和带放大镜按钮的搜索分类卡片左侧固定展示，分类列表在右侧以双栏卡片显示
+   - 分类列表按每页 8 个分页展示，提供 First/Previous/Next/Last 控制
+   - 分类名过长时省略显示，鼠标悬停可查看完整名称
+8. **书籍详情页**：
    - 显示书籍详细信息
    - 显示所有副本信息（ID、条形码、状态、位置）
    - 新的借阅流程：
@@ -434,7 +489,7 @@ npm run dev
      - 点击确认后弹出确认界面
      - 提供下拉菜单选择可用副本
      - 用户点击确认后才绑定具体副本并正式借出
-8. **用户管理**：
+9. **用户管理**：
    - 用户列表展示（管理员/图书管理员）
    - 添加新用户（包含用户名重复检查和表单验证）
    - 编辑用户信息
@@ -442,7 +497,7 @@ npm run dev
    - 用户管理搜索栏使用独立布局，搜索输入与搜索按钮保持同一行对齐
    - 删除用户（管理员，不能删除自己）
    - 查看用户借阅记录（管理员/图书管理员）
-9. **借阅记录**：
+10. **借阅记录**：
    - 个人借阅记录查询
    - 借阅历史查看
    - 条形码展示、状态 badge、罚款列和统一操作按钮
@@ -452,12 +507,12 @@ npm run dev
    - 罚款历史记录查看与未支付罚款支付
    - 管理员/图书管理员查看和管理用户借阅记录，布局与 Reader 借阅记录保持一致
    - 管理员/图书管理员手动归还书籍
-10. **归还审批**（管理员/图书管理员）：
+11. **归还审批**（管理员/图书管理员）：
    - 查看待审批的归还请求列表
    - 单条审批归还
    - 一键批量审批所有待归还请求
    - 支持按日期筛选审批
-11. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
+12. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
     - 支持多种消息类型：info、success、error
     - 消息自动消失（默认3秒）
     - 可手动关闭消息
@@ -467,16 +522,16 @@ npm run dev
     - 每个toast独立倒计时，按照创建顺序消失
     - 当一个toast消失时，其他toast会平滑上移
     - 手动关闭toast时也会有平滑的消失动画
-12. **站内通知与公告提醒**：
+13. **站内通知与公告提醒**：
     - 预约书籍归还审批、新增可用副本或副本状态改为 available 后，自动生成站内通知
     - 侧边栏显示未读通知数量，Reader 可进入通知中心查看、单条已读或全部已读；已读操作会即时同步侧边栏 badge
     - 已发布公告按用户记录已读状态；存在未读公告时，全局弹窗提醒一次
     - 公告管理使用弹窗创建/编辑公告，发布开关和列表状态清晰分离
-13. **加载状态**：使用 SkeletonLoader 组件显示加载状态
+14. **加载状态**：使用 SkeletonLoader 组件显示加载状态
     - 书籍列表加载时显示骨架屏
     - 提升用户体验，减少加载等待感
     - 响应式设计，适配不同屏幕尺寸
-14. **数据验证**：
+15. **数据验证**：
     - 表单字段验证
     - 数据格式检查
     - 重复数据提示
@@ -491,7 +546,8 @@ npm run dev
 16. **系统设置**：
     - 管理员通过 `/system-settings` 管理全局配置
     - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
-    - 仅展示已被后端业务逻辑读取的设置项：`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - 仅展示已被后端业务逻辑读取的设置项：`borrow_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - `borrow_enabled` 为全局借阅功能开关，使用滑动式开关展示，关闭后读者无法发起或确认借阅，但不影响归还、预约、罚款支付等流程
     - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
 
 ### 后端功能
@@ -501,16 +557,17 @@ npm run dev
 3. **用户认证**：验证用户登录信息，使用JWT进行身份验证
 4. **借阅管理**：处理书籍借阅和归还逻辑，更新书籍状态和借阅记录
    - 新的借阅流程：支持借阅请求、确认借阅、超时处理
-   - 从系统设置读取借阅参数（借阅期限、确认时长、最大借阅数量等）
+   - 从系统设置读取借阅参数（借阅功能开关、借阅期限、确认时长、最大借阅数量等）
+   - `borrow_enabled = 0` 时，后端会拒绝发起借阅和确认借阅请求并返回 403
    - 借阅前检查用户状态（是否拉黑）、罚款状态、借阅数量限制
    - 图书管理员审批归还（单条或一键批量审批，支持按日期筛选）
    - 逾期自动计算罚款
 5. **罚款管理**：
    - 逾期罚款自动计算（基于 fine_per_day 系统设置）
    - `fine_per_day` 支持设置为 `0` 以禁用逾期罚款
-   - 归还审批时罚款累计到用户账户（total_fine）
+   - 用户提交归还申请时罚款立即累计到用户账户（total_fine），无需等待归还审批即可支付
    - 查询用户罚款历史记录，未支付记录优先展示
-   - 一键支付所有未支付罚款
+   - 一键支付所有未支付罚款，支付接口以未支付罚款记录为准并同步 total_fine
    - 管理员和图书管理员可以查看并处理用户罚款
 6. **书籍副本管理**：
    - 为每本书创建多个副本
@@ -520,8 +577,13 @@ npm run dev
    - 支持确认借阅时绑定具体可用副本
    - 副本位置管理（如A1-01），方便定位实体书
 7. **ISBN导入**：
-   - 通过 OpenLibrary API 查询 ISBN 信息
-   - 自动填充书籍详情（标题、作者、出版社、封面等）
+   - 通过选定的 ISBN 查询 API 节点查询 ISBN 信息，当前内置 OpenLibrary、Google Books 和国内 ShowAPI ISBN 节点
+   - Add New Book 弹窗中提供节点下拉选择与 Test Node 操作，显示节点是否可用、延迟、最后测试时间和失败原因
+   - ShowAPI ISBN 节点通过后端环境变量 `SHOWAPI_ISBN_APP_KEY` 配置 appKey，未配置时会显示 key required 并在节点测试中返回不可用
+   - 后端外部 ISBN API 请求支持自动代理，默认检测 `127.0.0.1:7890` 可用时走代理，不可用时走默认网络
+   - 自动填充书籍详情（标题、作者、出版社、简介、封面等）
+   - ShowAPI ISBN 字段映射为：`pubdate -> publish_date`、`gist -> description`、`img -> cover_image`、`page -> page_count`
+   - ShowAPI 返回的 `edition`、`paper`、`format`、`price`、`binding`、`produce` 当前没有对应书籍字段，暂不落库
    - 出版日期会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，无法解析时显示原始返回值
    - 支持单个和批量 ISBN 导入
    - 批量导入时通过 Copy Settings 指定默认位置、每本副本数和分类，后端自动生成副本编号与条形码编号
@@ -549,12 +611,9 @@ npm run dev
    - 输入验证中间件
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
-13. **数据库工具**：
-    - `check_db.js` - 检查数据库中的书籍和借阅记录
-    - `check_indexes.js` - 检查数据库索引状态和数据
-    - `cleanup.js` - 清理数据库重复数据并添加唯一约束
-    - `fix_book_status.js` - 修复书籍状态
-    - 其他数据修复和管理工具
+13. **项目维护**：
+    - Release 3 分支移除了旧的一次性数据库检查、迁移和修复脚本
+    - 当前数据库结构通过 `backend/db.js` 启动初始化和兼容迁移维护
 
 ## 开发指南
 
@@ -604,6 +663,33 @@ npm run dev
    - 防SQL注入保护
    - 严格的角色验证（支持'user'、'librarian'和'admin'）
 8. **环境配置**：使用dotenv加载环境变量，支持不同环境的配置
+   - 后端集中读取支付宝配置，启动时只输出是否已配置必要字段，不会打印 app 私钥或支付宝公钥内容
+9. **支付宝罚款支付模拟接口**：
+   - 后端新增 `/api/payments/fines/alipay` 创建支付宝罚款支付单，返回二维码内容和收款链接
+   - 当 `ALIPAY_ENABLED=true` 且沙箱配置完整时，支付单会生成支付宝沙箱 `alipay.trade.page.pay` 收银台签名链接，并优先调用 `alipay.trade.precreate` 获取支付宝专用二维码内容；未启用或配置缺失时继续使用本地 `/payment-result` 模拟链接
+   - 支付宝沙箱启用时不会再把 page-pay 长链接作为二维码兜底；已有 pending 订单如果仍保存旧长链接二维码，后端会在复用订单前刷新为 precreate 二维码
+   - 借阅历史区分预计罚款和实际罚款：未归还逾期书籍只显示 Estimated Fine，提交还书后生成的 `returning/returned` 未付罚款才允许支付
+   - Fine Records 页面点击 Pay with Alipay 后会显示支付宝模拟支付区域、订单号、二维码内容占位和收款链接，不再直接结清罚款
+   - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记，变为 `expired` 时提示重新创建订单
+   - 启用支付宝沙箱配置后，订单查询接口会对 pending 订单主动调用 `alipay.trade.query`；即使本地没有公网 notify，刷新或轮询也能在沙箱支付完成后同步本地订单状态
+   - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
+   - My Borrow Records 的罚款弹窗通过 portal 挂到页面根节点，确保始终按浏览器视口居中，并使用覆盖基础弹窗宽度限制的宽屏表格布局展示大量罚款记录
+   - 后端 ISBN provider 代理使用 `undici` 的 `ProxyAgent`，该依赖记录在 `backend/package.json` 中；切换到 Release 3 分支后需要在 `backend` 目录执行 `npm install`
+   - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额
+   - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，支持手动刷新并每 2.5 秒轮询，模拟支付成功后会显示最新状态
+   - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
+   - 支持支付订单列表查询和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
+   - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
+   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
+   - `/api/payments/alipay/notify` 支持支付宝表单回调验签；沙箱回调成功后会按 `out_trade_no` 完成对应罚款支付单
+10. **QQ 邮箱邮件服务**：
+   - 后端新增邮件配置、邮件发送服务和 `email_logs` 发送记录表
+   - 支持 `EMAIL_MODE=log` 本地演示模式和 `EMAIL_MODE=smtp` 真实 QQ 邮箱发信模式
+   - 注册成功、请求重置密码、预约到书通知会触发邮件发送
+   - 注册和重置密码流程新增 6 位邮箱验证码，验证码哈希保存到 `email_verification_codes`，10 分钟过期且验证后失效
+   - 注册页提供 Send Code 按钮，重置密码页要求输入随重置邮件发送的验证码
+   - 管理员可通过 `/api/system/email/status` 查看安全配置摘要，通过 `/api/system/email/test` 发送测试邮件
+   - System Settings 右侧提供 Email Test 卡片，管理员可在前端查看模式/配置状态并触发测试邮件
 
 ## 示例数据
 
@@ -659,3 +745,32 @@ npm run dev
 ## 许可证
 
 MIT License
+
+## Maintenance Update - 2026-05-13
+
+### Dangerous operation safeguards
+
+- User deletion is now admin-only and is blocked when the target user is the current account, an admin account, has active borrow records, or has active reservations.
+- Book deletion is blocked when the book has active borrow records, occupied copies, or active reservations.
+- Active borrow checks consistently include `borrowing`, `borrowed`, `overdue`, and `returning`, so return-pending and overdue records cannot be bypassed.
+- Copy-count reduction validates `total_copies` and refuses to remove more copies than are currently available.
+- System log clearing validates the `days` parameter before issuing a delete query.
+
+### Copy management
+
+- Copy Management now supports deleting a single copy through the modal action column.
+- Single-copy deletion calls `DELETE /api/books/copies/:id`.
+- A copy can be deleted only when it is `available`, is not the last copy for the book, and has no active borrow records.
+- After deletion, the backend recalculates `books.total_copies` and `books.available_copies` in the same transaction.
+- The Copy Management modal table layout was adjusted so the `Confirm` and `Delete` buttons are visible on desktop without dragging the horizontal scrollbar.
+
+### Books page filters
+
+- The `Reserved` quick filter now uses the current user's reservation records instead of a book-level status field.
+- Reservations with status `active` or `pending` are treated as reserved for the current reader.
+- After a reader reserves or cancels a reservation from the book card, the Books page refreshes its reservation filter data without requiring a page reload.
+
+### Books page search
+
+- The Books page search bar now reuses the shared icon search button used by other search bars.
+- The search button is aligned with the input field and reruns the search using the current title, author, or ISBN query.

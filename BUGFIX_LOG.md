@@ -2,6 +2,94 @@
 
 This file documents all bug fixes applied to the project.
 
+## 2026-05-13
+
+### Fix 6: Allow fine payment before return approval
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+  - `README.md`
+  - `TEST_CASES.md`
+- **Changes**:
+  - Return submission now posts newly calculated overdue fines to `users.total_fine` immediately.
+  - Fine payment now totals unpaid `borrow_records` directly instead of relying only on the cached user total.
+  - Return approval no longer adds the same fine again, preventing duplicate balances.
+  - Borrow blocking now checks unpaid fine records directly so old cache drift does not let users bypass unpaid fines.
+- **Reason**: Users could see an unpaid fine after submitting a return, but payment failed until a librarian approved the return because the cached user fine balance was not updated yet.
+
+### Fix 5: Add Books page search button
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `RELEASE2_NOTES.md`
+  - `TEST_CASES.md`
+- **Changes**:
+  - Added the shared icon search button to the Books page search bar.
+  - Added a dedicated click handler that reruns the book search with the current search term.
+  - Scoped the Books page search button size so it stays aligned with the search input.
+  - Documented the UI behavior and regression test coverage.
+- **Reason**: The Books page search bar only exposed a text input, while other search bars also provided a visible search button.
+
+### Fix 4: Correct Books page Reserved filter
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/BookList.jsx`
+- **Changes**:
+  - Books page now loads the current user's reservation records with `borrowAPI.getReservations`.
+  - The `Reserved` quick filter now matches books by reservation `book_id` instead of relying on a non-existent `book.status === 'reserved'` field.
+  - Active reservation matching accepts both `active` and `pending` states.
+  - BookList notifies the parent Books page after reserve/cancel actions so the Reserved filter updates without a full page refresh.
+- **Reason**: Reserved books were not shown in the Books page Reserved category even when the user already had active reservations.
+
+### Fix 1: Harden dangerous delete operations
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `backend/controllers/bookController.js`
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/logController.js`
+  - `backend/routes/userRoutes.js`
+  - `backend/utils/statusConstants.js`
+  - `src/components/Users/UserList.jsx`
+  - `src/components/Books/BookList.jsx`
+- **Changes**:
+  - Added shared active-status constants for borrow, reservation, and occupied-copy checks.
+  - User deletion now blocks self-deletion, admin-account deletion, active borrow records, and active reservations.
+  - Book deletion now blocks active borrow records, occupied copies, and active reservations.
+  - Active borrow checks now include `borrowing`, `borrowed`, `overdue`, and `returning`.
+  - Removed reliance on `return_date IS NULL` for delete safety, because `returning` records can already have a `return_date` while still awaiting approval.
+  - Reduced-copy updates now require enough available copies and validate `total_copies` as a positive integer.
+  - Log clearing validates `days` before running the delete query.
+  - Frontend delete failures now surface backend safety messages.
+- **Reason**: Prevent low-level data integrity failures such as deleting a user or book while unreturned, overdue, or return-pending records still exist.
+
+### Fix 2: Add safe single-copy deletion
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/routes/bookRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/CopyManagementModal.jsx`
+- **Changes**:
+  - Added `DELETE /api/books/copies/:id`.
+  - Copy deletion is limited to `admin` and `librarian`.
+  - Backend only deletes copies with `status = 'available'`.
+  - Backend blocks deleting the last remaining copy of a book.
+  - Backend blocks deletion if the copy has any active borrow record.
+  - After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
+  - Copy Management modal now shows a `Delete` action per copy with confirmation and disabled states.
+- **Reason**: Let librarians remove surplus physical copies while preserving borrow, reservation, and inventory consistency.
+
+### Fix 3: Fix Copy Management action-column layout
+- **Files modified**:
+  - `src/components/Books/Books.css`
+- **Changes**:
+  - Removed desktop table minimum width that forced horizontal scrolling.
+  - Changed copy-management table columns to fit the modal width.
+  - Constrained barcode rendering and compacted the location editor.
+  - Kept horizontal scrolling only for smaller screens.
+- **Reason**: Ensure `Confirm` and `Delete` buttons are visible without dragging the bottom scrollbar on desktop.
+
 ## 2026-03-08
 
 ### Fix 1: Add security checks for books.find()
@@ -1186,4 +1274,661 @@ This file documents all bug fixes applied to the project.
   - Added a compatibility re-export for the notification hook module to avoid stale Vite HMR requests.
   - Documented the expanded notification trigger paths and badge sync behavior.
 - **Reason**: Ensure reservations do not become stale when inventory is restored outside return approval, and keep unread notification badges synchronized without navigation or refresh.
+
+### Fix 106: Add global borrowing feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `backend/routes/systemRoutes.js`
+  - `backend/controllers/borrowController.js`
+  - `src/utils/api.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `borrow_enabled` to default system settings with enabled-by-default behavior.
+  - Added `GET /api/system/feature-flags` so logged-in users can read frontend-relevant feature switches without full admin settings access.
+  - Enforced the borrowing switch on both `POST /api/borrow/borrow` and `POST /api/borrow/confirm-borrow`.
+  - Added a `Borrowing Enabled` checkbox to System Settings and disabled reader borrow/confirm controls when the switch is off.
+  - Documented the setting, API behavior, database default, and regression test case.
+- **Reason**: Complete Release 3 system-parameter scope by giving admins a real on/off control for borrowing, with server-side enforcement rather than UI-only hiding.
+
+### Documentation: Add Release 3 integration requirements
+- **Files modified**:
+  - `release_plan.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added Release 3 requirements for real Alipay fine payment with QR/link checkout and librarian income dashboard.
+  - Added Release 3 requirements for real email delivery during registration, password reset, and notification scenarios.
+  - Added Release 3 requirements for selectable ISBN lookup API nodes with provider health testing and explicit node switching.
+- **Reason**: Capture newly requested Release 3 external-service integration scope in the release plan without changing implementation code.
+
+### Fix 107: Add backend Alipay sandbox configuration
+- **Files modified**:
+  - `backend/config/alipayConfig.js`
+  - `backend/server.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a backend Alipay configuration module for sandbox/production mode, app ID, application private key, Alipay public key, gateway, notify URL, return URL, signing, encoding, response format, and timeout.
+  - Added safe startup logging that reports enabled mode and whether required secret fields are present without printing key contents.
+  - Added missing-configuration warnings when `ALIPAY_ENABLED=true`.
+  - Added backend `.env.example` entries for Alipay sandbox integration.
+  - Documented required Alipay resources and configuration validation behavior.
+- **Reason**: Prepare Release 3 Alipay sandbox integration with backend-only secret handling before adding payment APIs.
+
+### Fix 108: Use local Alipay callback URLs for test deployment
+- **Files modified**:
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the default Alipay notify URL to `http://localhost:3001/api/payments/alipay/notify` for local backend testing.
+  - Changed the default Alipay return URL to `http://localhost:5173/payment-result` for local frontend testing.
+  - Documented that real sandbox callback testing still needs a public or tunneled notify URL because Alipay cannot call a developer machine's localhost directly.
+- **Reason**: Align the current Alipay sandbox setup with the local deployment test environment.
+
+### Fix 109: Add simulated Alipay fine payment APIs
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `backend/server.js`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a `payments` table for Alipay fine payment orders, linked borrow record IDs, payment URLs, QR-code content, status, and notify payloads.
+  - Added backend payment routes for Alipay configuration status, fine payment creation, payment lookup, local simulate-notify completion, real notify placeholder, and librarian/admin income summary.
+  - Updated backend startup to load environment values from `backend/.env` explicitly so Alipay secrets stay backend-only.
+  - Kept payment creation separate from fine settlement; fines are marked paid only after simulated notify succeeds.
+  - Rejected simulated notify completion when linked pending-payment fines are no longer unpaid, avoiding duplicate income after another payment flow settles the same fines.
+  - Recalculated `users.total_fine` after simulated payment completion.
+  - Added frontend API wrappers for the new payment endpoints.
+  - Documented the API, database schema, design behavior, and regression test case.
+- **Reason**: Provide a local Alipay-shaped payment flow for Release 3 demos before wiring the real Alipay SDK and signature verification.
+
+### Fix 110: Route Fine Records payment through Alipay simulation UI
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the Fine Records page's direct `borrowAPI.payFine` button flow with `paymentAPI.createFineAlipayPayment`.
+  - Added a simulated Alipay payment panel showing order number, amount, QR area, and payment link.
+  - Added a local `Simulate Payment Success` action that calls the simulated notify endpoint before refreshing fine records.
+  - Documented that creating a payment order no longer immediately settles fines from the frontend.
+- **Reason**: Make the user-facing payment flow match the new Alipay-shaped backend flow instead of bypassing it through the legacy direct fine settlement endpoint.
+
+### Fix 111: Remove direct fine settlement from borrow records modal
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the My Borrow Records fine modal's direct `borrowAPI.payFine` call with navigation to `/fines/:userId`.
+  - Renamed the modal action to `Pay with Alipay`.
+  - Removed the unused frontend `borrowAPI.payFine` wrapper so new UI code cannot accidentally use the legacy direct settlement endpoint.
+  - Documented that user-visible fine payment now goes through the Fine Records Alipay simulation panel.
+- **Reason**: Prevent the borrow records modal from bypassing the new Alipay payment flow and immediately marking fines as paid.
+
+### Fix 112: Separate estimated fines from payable actual fines
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/paymentController.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `src/App.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `package.json`
+  - `package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Limited Alipay fine payment creation to actual unpaid fines from `returning` and `returned` borrow records.
+  - Kept unreturned overdue records as estimated fines only, visible in borrow/fine history but excluded from payment orders.
+  - Updated fine history responses to include borrow record status so the frontend can label Estimated, Unpaid, and Paid correctly.
+  - Changed `users.total_fine` synchronization to count only actual unpaid fines.
+  - Added QR code generation for the simulated Alipay payment link using `qrcode`.
+  - Added a local `/payment-result` page so Open Alipay payment link opens in the browser during local simulation.
+- **Reason**: Prevent users from paying estimated fines before returning books, include already-returned unpaid actual fines in payable totals, and make the simulated Alipay UI behave like a real QR/link payment surface.
+
+### Fix 113: Refresh local payment-result status from backend
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed the static `status=pending` query parameter from generated local payment links.
+  - Added `GET /api/payments/trade/:out_trade_no` for querying a payment by merchant order number.
+  - Updated `/payment-result` to load the latest payment status from the backend using `out_trade_no`.
+  - Kept generated QR/payment links stable so reopening them after simulated payment shows the updated backend state.
+- **Reason**: Prevent the local payment result page from showing stale `pending` status after simulated payment completion.
+
+### Fix 114: Add payment order management dashboard
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/App.jsx`
+  - `src/components/Sidebar/Sidebar.jsx`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `GET /api/payments` with user, status, provider, payment type, and date filters.
+  - Added `POST /api/payments/:id/expire` for expiring pending orders without settling fines.
+  - Reused existing pending fine payment orders when the same user attempts to pay the same actual fine records again.
+  - Added frontend payment list and expire API wrappers.
+  - Added `/income-dashboard` for admin/librarian users with income cards, status filtering, payment rows, and pending-order expiration.
+  - Added sidebar navigation for Income Dashboard.
+- **Reason**: Complete local payment-management support before replacing the simulated provider with real Alipay gateway calls.
+
+### Fix 115: Prevent Books list from showing all cards as borrowed during copy loading
+- **Files modified**:
+  - `src/components/Books/BookList.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed Books list availability calculation to use `book.available_copies` and `book.total_copies` while per-book copy details are still loading.
+  - Continued to use loaded copy details once they are available.
+  - Documented the fallback and regression case.
+- **Reason**: Avoid temporarily rendering every book card as `Borrowed` because an unloaded copy list was treated as an empty list.
+
+### Fix 116: Poll Alipay payment status and enforce local simulation state rules
+- **Files modified**:
+  - `backend/.env.example`
+  - `backend/config/alipayConfig.js`
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/PaymentResultPage.jsx`
+  - `src/pages/PaymentResultPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `ALIPAY_SIMULATION_ENABLED`, defaulting local simulation to enabled in sandbox mode and exposing the safe flag through the Alipay status endpoint.
+  - Allowed logged-in users to read the safe Alipay status summary so Fine Records can decide whether to show the local simulation button.
+  - Added Fine Records polling of `GET /api/payments/:id` every 2.5 seconds, refreshing fines when an order becomes `paid` and prompting users to create a new order when it becomes `expired`.
+  - Added `/payment-result` manual refresh and automatic polling by `out_trade_no`.
+  - Hid `Simulate Payment Success` unless local simulation is enabled and the payment is still `pending`.
+  - Rejected simulated success for expired orders and preserved the existing restriction that only pending orders can be expired, so paid orders cannot be expired.
+  - Documented that expired pending orders are not reused and a new order is created for the same fines after expiration.
+- **Reason**: Make the local Alipay-shaped flow observable from both Fine Records and the payment result page while preventing invalid order state transitions before sandbox gateway integration.
+
+### Fix 117: Generate Alipay sandbox cashier links and verify notify callbacks
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/server.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added an Alipay client helper for `alipay.trade.page.pay` request signing with the backend app private key.
+  - Changed fine payment creation to generate a signed Alipay sandbox cashier URL when `ALIPAY_ENABLED=true` and all required Alipay settings are present.
+  - Kept the local `/payment-result` payment URL as a fallback when Alipay is disabled or incomplete.
+  - Added form-urlencoded parsing so Alipay notify callbacks can be read by Express.
+  - Implemented Alipay notify signature verification with the configured Alipay public key.
+  - Completed the local payment order through the existing fine settlement path when a verified notify reports `TRADE_SUCCESS` or `TRADE_FINISHED`, while checking app ID and amount and storing Alipay `trade_no` when present.
+  - Documented sandbox link generation, notify behavior, and related manual test cases.
+- **Reason**: Move from local-only simulation toward usable Alipay sandbox integration while preserving the existing local demo workflow.
+
+### Fix 118: Sync pending payments with Alipay sandbox trade query
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.query` request generation and gateway querying to the backend Alipay helper.
+  - Updated `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` to actively synchronize pending orders when Alipay sandbox configuration is enabled and complete.
+  - Completed local fine payment records when Alipay query returns `TRADE_SUCCESS` or `TRADE_FINISHED`.
+  - Expired local pending orders when Alipay query returns `TRADE_CLOSED`.
+  - Preserved the local pending state if the Alipay query times out or fails, keeping Fine Records and payment-result polling from breaking during local demos.
+  - Documented active sandbox status synchronization and manual verification steps.
+- **Reason**: Let local deployments without a public notify callback still observe sandbox payment completion through the existing polling and refresh UI.
+
+### Fix 119: Normalize Alipay key bodies before signing
+- **Files modified**:
+  - `backend/config/alipayConfig.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added PEM normalization for Alipay private and public keys.
+  - Supported both full PEM values and the single-line base64 key body commonly copied from Alipay sandbox tooling.
+  - Automatically wraps bare private key bodies with `BEGIN/END PRIVATE KEY` and public key bodies with `BEGIN/END PUBLIC KEY`.
+  - Updated environment examples and docs to explain the supported key formats.
+- **Reason**: Prevent Node crypto signing from failing with `DECODER routines::unsupported` when the sandbox private key is configured without PEM headers.
+
+### Fix 120: Fallback between PKCS#8 and PKCS#1 Alipay private key containers
+- **Files modified**:
+  - `backend/services/alipayClient.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Kept `ALIPAY_SIGN_TYPE=RSA2` mapped to Node's `RSA-SHA256` signing algorithm.
+  - Added signing fallback that tries both `PRIVATE KEY` and `RSA PRIVATE KEY` PEM containers for the configured application private key.
+  - Documented that RSA2 is the default signing mode and private keys may be PKCS#8 or PKCS#1.
+- **Reason**: Some Alipay sandbox tools export PKCS#1 private keys, which fail if wrapped only as PKCS#8 even though the signing algorithm is correctly set to RSA2.
+
+### Fix 121: Use Alipay precreate QR content for scannable sandbox payments
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/services/alipayClient.js`
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added signed `alipay.trade.precreate` requests to obtain Alipay's dedicated QR code payload for sandbox fine payments.
+  - Kept `alipay.trade.page.pay` as the browser payment link shown by `Open Alipay payment link`.
+  - Used precreate `qr_code` for the Fine Records QR image when available, falling back to the page-pay URL only if precreate fails.
+  - Increased the Fine Records QR image size and margin to improve scan reliability.
+  - Documented the QR source split between `qr_code` and `payment_url`.
+- **Reason**: Encoding the full signed page-pay URL produced an overly dense QR code that was difficult or impossible for Alipay clients to scan.
+
+### Fix 122: Show completed mark over paid Alipay QR code
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/FineDetailsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added a paid-state overlay on the Fine Records Alipay QR code using `public/打勾.png`.
+  - Dimmed the QR image after payment completion while keeping the original QR visible behind the completion mark.
+  - Documented the paid QR visual state and regression expectation.
+- **Reason**: Make successful payment state immediately visible in the payment panel after polling or simulation marks an order as paid.
+
+### Fix 123: Center and widen the borrow-records fine modal
+- **Files modified**:
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Rendered the borrow confirm and fine modals through React portals attached to `document.body`.
+  - Updated the modal overlay to fill and center against the viewport instead of being constrained by the borrow-records container.
+  - Added a wider `fine-modal-content` layout for the My Fines modal.
+  - Wrapped the fine table in a horizontal scroll container and assigned stable column widths.
+  - Kept fine amount and status cells on one line while allowing long book titles to wrap naturally.
+- **Reason**: The fine modal was visually centered inside the borrow-records container and too narrow for dense fine rows, causing poor readability and awkward text wrapping.
+
+### Fix 124: Stretch borrow fine modal for wide desktop layouts
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Increased the My Fines modal desktop width from 960px to 1280px.
+  - Expanded the fine table minimum width and individual column widths to use the wider modal.
+  - Updated docs and regression expectations for the wide modal layout.
+- **Reason**: The centered fine modal still felt too narrow for dense overdue/fine records after the first layout fix.
+
+### Fix 125: Override base modal width for My Fines
+- **Files modified**:
+  - `src/components/Borrow/Borrow.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the My Fines modal selector to `.modal-content.fine-modal-content` so it overrides the base `.modal-content` 600px maximum width.
+  - Set the fine modal width to `min(1240px, calc(100vw - 32px))` with no inherited max-width cap.
+  - Updated docs and regression expectations to call out the base modal override.
+- **Reason**: The earlier wide modal style could still be constrained by the shared modal container rule, leaving the fine modal visually close to its old narrow width.
+
+### Fix 126: Add selectable ISBN lookup providers
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/routes/bookRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend ISBN provider definitions for OpenLibrary, Google Books, and ShowAPI ISBN.
+  - Added `SHOWAPI_ISBN_APP_KEY` environment configuration for the ShowAPI appKey.
+  - Added provider listing and health-test endpoints with availability, status, latency, timestamp, endpoint, and error details.
+  - Moved ISBN lookup behind the backend API and added provider selection through the `provider` query parameter.
+  - Added ISBN Lookup API selection and Test Node controls to Add New Book.
+  - Updated single ISBN search and batch import metadata preview to use the selected provider.
+  - Disabled ISBN lookup/import controls when the selected provider has been tested and is unavailable.
+  - Documented the new API endpoints and regression test case.
+- **Reason**: Complete the Release 3 ISBN node selection requirement and remove the hardcoded frontend OpenLibrary lookup path.
+
+### Fix 127: Keep ShowAPI appKey in backend environment
+- **Files modified**:
+  - `backend/server.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated backend startup to read `backend/.env` explicitly.
+  - Added the ShowAPI example variable to `backend/.env.example`.
+  - Documented that `SHOWAPI_ISBN_APP_KEY` belongs in `backend/.env` for separated frontend/backend deployments.
+- **Reason**: Keep backend-only provider secrets out of frontend/root environment files.
+
+### Fix 128: Preserve selected ISBN provider after node testing
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed ISBN provider loading so it preserves the current selected provider when the provider list refreshes.
+  - Only falls back to the first provider if the current selection no longer exists.
+  - Captured the provider being tested before the async request so returned test status is written to the correct provider entry.
+- **Reason**: Prevent the ISBN Lookup API selector from jumping back to the first provider after testing a non-default node.
+
+### Fix 129: Add automatic backend proxy for ISBN provider requests
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `backend/.env.example`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added automatic proxy detection for backend outbound ISBN provider requests.
+  - Added `BACKEND_PROXY_MODE`, `BACKEND_PROXY_HOST`, and `BACKEND_PROXY_PORT` backend environment settings.
+  - Defaulted proxy mode to `auto` with `127.0.0.1:7890`; requests use the proxy only when the port is reachable.
+  - Documented proxy configuration and the expected fallback behavior when the local proxy is disabled.
+- **Reason**: Allow ISBN metadata requests to use the local proxy when it is running without breaking default direct network access.
+
+### Fix 130: Add backend undici dependency for ISBN proxy support
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `undici` to backend dependencies so `bookController.js` can load `ProxyAgent`.
+  - Chose the Node 18+ compatible v6 dependency range to keep release runtime compatibility with the project Node 20+ baseline.
+  - Documented that backend dependencies need to be installed after switching to the Release 3 branch.
+- **Reason**: The ISBN provider selection branch introduced `require('undici')` for proxy support, but the backend dependency manifest did not include it, causing startup to fail with `Cannot find module 'undici'`.
+
+### Fix 131: Prevent stale Alipay QR reuse and polling 500s
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `src/App.jsx`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Stopped falling back to the signed page-pay URL as the QR payload when Alipay sandbox is enabled.
+  - Required `alipay.trade.precreate` to return a QR payload before creating a sandbox payment order.
+  - Refreshed reusable pending orders whose stored QR payload still equals the old page-pay URL.
+  - Changed Alipay trade-query amount mismatch and synchronization errors to return the local payment row instead of a 500 response, keeping frontend polling alive.
+  - Rewrapped the app with `Router` outside the auth/toast/notification providers while keeping `AuthProvider` above `NotificationProvider`.
+- **Reason**: Old pending orders could keep unscannable page-pay QR content, and trade-query mismatches could make Fine Records polling fail with 500; the provider tree also needed to stay stable after the branch merge.
+
+### Fix 111: Preserve ShowAPI description in single ISBN add
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Compared `showapi_sample.json` with the ShowAPI normalization code.
+  - Kept the existing backend mapping from `showapi_res_body.data.gist` to `description`.
+  - Updated single-book ISBN lookup form state so fetched `description` and `cover_image` are preserved when submitting the book.
+  - Documented the ShowAPI field mapping and noted that `edition`, `paper`, `format`, `price`, `binding`, and `produce` currently have no matching book-table fields.
+- **Reason**: Prevent ShowAPI book summaries from being dropped during single-book add while keeping unsupported provider-specific fields explicitly documented.
+
+### Fix 132: Replace system feature checkbox with toggle switch
+- **Files modified**:
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Replaced the raw checkbox rendering for boolean system settings with a sliding toggle control.
+  - Added Enabled/Disabled status text next to the switch.
+  - Hid the native checkbox while preserving keyboard focus and disabled behavior.
+  - Kept numeric settings on the existing input layout.
+- **Reason**: The native checkmark checkbox looked visually inconsistent with the dashboard-style System Settings page.
+
+### Fix 133: Add QQ email delivery service
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `backend/.env.example`
+  - `backend/config/emailConfig.js`
+  - `backend/services/emailService.js`
+  - `backend/db.js`
+  - `backend/controllers/userController.js`
+  - `backend/controllers/systemController.js`
+  - `backend/routes/systemRoutes.js`
+  - `backend/server.js`
+  - `backend/utils/notificationUtils.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/pages/SystemSettingsPage.css`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added Nodemailer-based QQ Mail SMTP support with `EMAIL_ENABLED`, `EMAIL_MODE`, `SMTP_*`, `EMAIL_FROM`, and `APP_PUBLIC_URL` backend settings.
+  - Added `email_logs` to record skipped, logged, sent, and failed email attempts.
+  - Sent registration, password reset, reservation notification, and admin test emails through the shared email service.
+  - Pointed password reset email links at the existing `/login?token=...` reset flow.
+  - Added admin email status and test endpoints under `/api/system/email`.
+  - Added a System Settings Email Test card for admins to view email mode/configuration readiness and send a test email from the frontend.
+  - Kept local development usable through `EMAIL_MODE=log` and documented that QQ Mail requires an SMTP authorization code instead of the login password.
+- **Reason**: Release 3 requires real email delivery for account and notification flows while preserving a local test mode that does not depend on external SMTP credentials.
+
+### Fix 134: Add email verification codes for registration and password reset
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/services/emailVerificationService.js`
+  - `backend/controllers/userController.js`
+  - `backend/routes/userRoutes.js`
+  - `backend/middleware/validation.js`
+  - `src/components/Login/Login.jsx`
+  - `src/components/Login/Login.css`
+  - `src/context/AuthContext.jsx`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `email_verification_codes` with hashed codes, purpose, expiry, and used status.
+  - Added `POST /api/users/email-verification/send` for registration and password reset verification codes.
+  - Required a 6-digit email verification code when registering and when submitting a password reset.
+  - Sent a password reset verification code alongside the existing reset link email.
+  - Added Send Code and verification-code fields to the registration form and reset-password form.
+- **Reason**: Registration and password reset needed email ownership verification instead of only sending informational emails after the action.
+
+### Fix 135: Add pagination to Books page
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added frontend pagination to the Books page with 12 books per page.
+  - Added First, Previous, Next, and Last controls with disabled states.
+  - Added a visible range summary for the current filtered result set.
+  - Reset the current page when search, category, or quick availability filters change.
+  - Passed only the current page of books to `BookList`, reducing per-page copy-detail loading work.
+- **Reason**: Large book lists made the Books page dense and caused unnecessary detail loading for every filtered book at once.
+
+### Fix 136: Redesign category management list layout with pagination
+- **Files modified**:
+  - `src/pages/CategoryManagementPage.jsx`
+  - `src/pages/CategoryManagementPage.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Shifted the Category Management content left by removing the centered content container.
+  - Expanded the page layout to a narrower left create/search card and a larger right list panel.
+  - Changed the category list from a single vertical list to a two-column card grid.
+  - Fixed category name badges to use a bounded grid column with two-line wrapping so long names cannot push action buttons outside the card.
+  - Added hover tooltips for full category names.
+  - Added a left-side category search input with a magnifier button that filters the right-side list and resets pagination.
+  - Widened the right-side list area and changed edit mode to fixed input/action columns so Save and Cancel stay visible.
+  - Added frontend pagination with 8 categories per page and First/Previous/Next/Last controls.
+  - Added responsive fallback to a single-column list on smaller screens.
+- **Reason**: The previous category list was too narrow and vertically long for librarian workflows with many categories.
+
+### Fix 137: Remove obsolete release files and maintenance scripts
+- **Files removed**:
+  - `OPTIMIZATION_PLAN.md`
+  - `git-github-guide.md`
+  - `refactor_plan.md`
+  - `RELEASE2_NOTES.md`
+  - `Release1/.gitignore`
+  - `release_plan_v2.md`
+  - `sample.json`
+  - `showapi_sample.json`
+  - `vite.borrow-fine.log`
+  - `backend/check_borrow_records.js`
+  - `backend/check_db.js`
+  - `backend/check_indexes.js`
+  - `backend/check_user_status.js`
+  - `backend/cleanup.js`
+  - `backend/clear_borrowed_records.js`
+  - `backend/fix_all_borrow_records.js`
+  - `backend/fix_book_status.js`
+  - `backend/fix_borrow_records.js`
+  - `backend/fix_borrow_records_direct.js`
+  - `backend/migrate_data.js`
+  - `backend/migrate_database.js`
+  - `backend/reset_categories.js`
+  - `backend/update_book_data.js`
+  - `backend/controllers/borrowController_new.js`
+- **Files modified**:
+  - `.gitignore`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed old planning documents, sample payloads, local logs, and one-off backend maintenance scripts that were not referenced by runtime routes or package scripts.
+  - Updated project structure documentation to match the remaining source tree.
+  - Kept current Release 3 documentation, environment examples, runtime source, dependency manifests, and build configuration.
+- **Reason**: Reduce release package clutter and avoid shipping stale scripts or obsolete documents.
+
+### Fix 138: Stop payment polling after terminal status
+- **Files modified**:
+  - `src/pages/FineDetailsPage.jsx`
+  - `src/pages/PaymentResultPage.jsx`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed Fine Records payment polling to run only while the active order is `pending`.
+  - Changed Payment Result polling to stop once the order reaches `paid`, `expired`, or `failed`.
+  - Kept manual refresh available on the Payment Result page after polling stops.
+- **Reason**: Avoid unnecessary network traffic and state updates after payment orders reach a terminal state.
+
+### Fix 139: Parse log clear days before validation
+- **Files modified**:
+  - `backend/controllers/logController.js`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Parsed `days` before comparing it with zero in `clearSystemLogs`.
+  - Allowed both numeric `0` and string `"0"` to clear all logs.
+  - Kept positive integer validation for age-filtered cleanup and rejected invalid values.
+- **Reason**: JSON bodies can send `days` as a string, and `"0"` should behave the same as numeric `0`.
+
+### Fix 140: Remove duplicate schema definitions
+- **Files modified**:
+  - `backend/db.js`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed duplicate `CREATE TABLE IF NOT EXISTS` blocks for `payments`, `email_logs`, and `email_verification_codes`.
+  - Kept the original schema definitions in the main initialization section.
+  - Kept existing index creation for payment, email log, and email verification tables.
+- **Reason**: Duplicate table definitions made schema maintenance harder even though `IF NOT EXISTS` prevented runtime failures.
+
+### Fix 141: Correct delete copy API comment
+- **Files modified**:
+  - `src/utils/api.js`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Updated the `deleteCopy` wrapper comment from updating copy status to deleting a single copy.
+- **Reason**: Keep API wrapper comments aligned with behavior for easier maintenance.
 

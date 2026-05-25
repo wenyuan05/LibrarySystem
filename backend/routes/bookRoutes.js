@@ -19,6 +19,10 @@ router.get('/export', authenticateToken, requireRole(['admin', 'librarian']), bo
 // 添加书籍（管理员或图书管理员）
 router.post('/', authenticateToken, requireRole(['admin', 'librarian']), validateBookBody, bookController.addBook);
 
+// 获取和测试 ISBN 查询节点（管理员或图书管理员）
+router.get('/isbn-providers', authenticateToken, requireRole(['admin', 'librarian']), bookController.getIsbnProviders);
+router.post('/isbn-providers/test', authenticateToken, requireRole(['admin', 'librarian']), bookController.testIsbnProvider);
+
 // 通过 ISBN 查询书籍信息（管理员或图书管理员）
 router.get('/isbn/:isbn', authenticateToken, requireRole(['admin', 'librarian']), bookController.searchByISBN);
 
@@ -38,6 +42,8 @@ router.put('/copies/:id/status', authenticateToken, requireRole(['admin', 'libra
 router.put('/copies/:id/location', authenticateToken, requireRole(['admin', 'librarian']), bookController.updateCopyLocation);
 
 // 获取单个副本信息（无需登录，公开访问）
+router.delete('/copies/:id', authenticateToken, requireRole(['admin', 'librarian']), bookController.deleteBookCopy);
+
 router.get('/copies/:id', bookController.getCopyById);
 
 // 更新书籍信息（管理员或图书管理员）

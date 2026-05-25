@@ -1,5 +1,6 @@
 const db = require('../db');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
+const { ACTIVE_BORROW_STATUSES, placeholders } = require('../utils/statusConstants');
 
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
@@ -11,8 +12,8 @@ exports.borrowBook = function(req, res) {
   const borrow_date = new Date().toISOString().split('T')[0];
 
   // 获取系统参数
-  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)',
-    ['borrow_period_days', 'borrow_confirm_minutes', 'max_borrows'],
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?, ?)',
+    ['borrow_enabled', 'borrow_period_days', 'borrow_confirm_minutes', 'max_borrows'],
     function(err, settings) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -21,6 +22,12 @@ exports.borrowBook = function(req, res) {
 
       const settingsMap = {};
       settings.forEach(s => settingsMap[s.key] = s.value);
+      const borrowEnabled = settingsMap['borrow_enabled'] !== '0';
+      if (!borrowEnabled) {
+        res.status(403).json({ error: 'Borrowing is currently disabled by the system administrator' });
+        return;
+      }
+
       const borrowPeriodDays = parseInt(settingsMap['borrow_period_days']) || 14;
       const confirmMinutes = parseInt(settingsMap['borrow_confirm_minutes']) || 60;
       const maxBorrows = parseInt(settingsMap['max_borrows']) || 5;
@@ -57,7 +64,15 @@ exports.borrowBook = function(req, res) {
           }
 
           // 检查用户是否有未结清的罚款
-          db.get('SELECT total_fine FROM users WHERE id = ?', [user_id], function(err, user) {
+          db.get(
+            `SELECT COALESCE(SUM(fine), 0) as total_fine
+             FROM borrow_records
+             WHERE user_id = ?
+               AND fine > 0
+               AND fine_status = ?
+               AND status IN ('returning', 'returned')`,
+            [user_id, 'unpaid'],
+            function(err, user) {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
@@ -70,8 +85,8 @@ exports.borrowBook = function(req, res) {
             }
 
             // 检查用户当前借阅数量是否超过限制
-            db.get('SELECT COUNT(*) as cnt FROM borrow_records WHERE user_id = ? AND status IN (?, ?)',
-              [user_id, 'borrowing', 'borrowed'], function(err, row) {
+            db.get(`SELECT COUNT(*) as cnt FROM borrow_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+              [user_id, ...ACTIVE_BORROW_STATUSES], function(err, row) {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
@@ -84,8 +99,8 @@ exports.borrowBook = function(req, res) {
                 }
 
                 // 检查用户是否已经有该书籍的未完成借阅记录
-                db.get('SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
-                  [user_id, book_id, 'borrowing', 'borrowed'], function(err, existingRecord) {
+                db.get(`SELECT id FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+                  [user_id, book_id, ...ACTIVE_BORROW_STATUSES], function(err, existingRecord) {
               if (err) {
                 db.run('ROLLBACK');
                 res.status(500).json({ error: err.message });
@@ -210,14 +225,30 @@ exports.returnBook = function(req, res) {
                   return;
                 }
 
-                // 不立即更新书籍状态，等待管理员审批
-                db.run('COMMIT', function(err) {
-                  if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                  }
-                  res.json({ message: 'Return request submitted successfully. Waiting for librarian approval.', return_date, fine, status: 'returning' });
-                });
+                const commitReturn = function() {
+                  // 不立即更新书籍状态，等待管理员审批
+                  db.run('COMMIT', function(err) {
+                    if (err) {
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+                    res.json({ message: 'Return request submitted successfully. Waiting for librarian approval.', return_date, fine, status: 'returning' });
+                  });
+                };
+
+                if (fine > 0) {
+                  db.run('UPDATE users SET total_fine = total_fine + ? WHERE id = ?', [fine, user_id], function(err) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+                    commitReturn();
+                  });
+                  return;
+                }
+
+                commitReturn();
               }
             );
           }
@@ -645,9 +676,20 @@ exports.renewBook = function(req, res) {
 // 确认借阅（需要登录）
 exports.confirmBorrow = function(req, res) {
   const { record_id, copy_id } = req.body;
-  
-  // 开始事务
-  db.serialize(function() {
+
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['borrow_enabled'], function(err, setting) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (setting && setting.value === '0') {
+      res.status(403).json({ error: 'Borrowing is currently disabled by the system administrator' });
+      return;
+    }
+
+    // 开始事务
+    db.serialize(function() {
     db.run('BEGIN TRANSACTION', function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -767,6 +809,7 @@ exports.confirmBorrow = function(req, res) {
         }
       );
     });
+  });
   });
 };
 
@@ -907,88 +950,80 @@ exports.approveReturn = function(req, res) {
           
           // 检查是否有罚款需要处理
           if (record.fine > 0 && record.fine_status === 'unpaid') {
-            // 更新用户的总罚款金额
-            db.run('UPDATE users SET total_fine = total_fine + ? WHERE id = ?', [record.fine, record.user_id], function(err) {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
-              }
+            // 罚款已在用户提交归还时入账，审批阶段只确认归还状态。
+            db.run(
+              'UPDATE borrow_records SET status = ?, fine_status = ? WHERE id = ?',
+              ['returned', 'unpaid', record.id],
+              function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
 
-              // 更新借阅记录状态为已归还，罚款状态为未支付
-              db.run(
-                'UPDATE borrow_records SET status = ?, fine_status = ? WHERE id = ?',
-                ['returned', 'unpaid', record.id],
-                function(err) {
-                  if (err) {
-                    db.run('ROLLBACK');
-                    res.status(500).json({ error: err.message });
-                    return;
-                  }
-                  
-                  // 更新副本状态为available
-                  if (record.copy_id) {
-                    db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['available', record.copy_id], function(err) {
+                // 更新副本状态为available
+                if (record.copy_id) {
+                  db.run('UPDATE book_copies SET status = ? WHERE id = ?', ['available', record.copy_id], function(err) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    // 重新计算可用副本数
+                    db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [record.book_id, 'available'], function(err, result) {
                       if (err) {
                         db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
                       }
                       
-                      // 重新计算可用副本数
-                      db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [record.book_id, 'available'], function(err, result) {
+                      // 更新书籍表中的可用副本数
+                      db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, record.book_id], function(err) {
                         if (err) {
                           db.run('ROLLBACK');
                           res.status(500).json({ error: err.message });
                           return;
                         }
                         
-                        // 更新书籍表中的可用副本数
-                        db.run('UPDATE books SET available_copies = ? WHERE id = ?', [result.available_count, record.book_id], function(err) {
-                          if (err) {
+                        notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                          if (notifyErr) {
                             db.run('ROLLBACK');
-                            res.status(500).json({ error: err.message });
+                            res.status(500).json({ error: notifyErr.message });
                             return;
                           }
-                          
-                          notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
-                            if (notifyErr) {
-                              db.run('ROLLBACK');
-                              res.status(500).json({ error: notifyErr.message });
+
+                          db.run('COMMIT', function(err) {
+                            if (err) {
+                              res.status(500).json({ error: err.message });
                               return;
                             }
-
-                            db.run('COMMIT', function(err) {
-                              if (err) {
-                                res.status(500).json({ error: err.message });
-                                return;
-                              }
-                              res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
-                            });
+                            res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
                           });
                         });
                       });
                     });
-                  } else {
-                    notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
-                      if (notifyErr) {
-                        db.run('ROLLBACK');
-                        res.status(500).json({ error: notifyErr.message });
+                  });
+                } else {
+                  notifyReservationsForAvailableBook(record.book_id, function(notifyErr, notifiedCount) {
+                    if (notifyErr) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: notifyErr.message });
+                      return;
+                    }
+
+                    db.run('COMMIT', function(err) {
+                      if (err) {
+                        res.status(500).json({ error: err.message });
                         return;
                       }
-
-                      db.run('COMMIT', function(err) {
-                        if (err) {
-                          res.status(500).json({ error: err.message });
-                          return;
-                        }
-                        res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
-                      });
+                      res.json({ message: 'Return approved successfully', notifications_sent: notifiedCount || 0 });
                     });
-                  }
-                });
-              });
-            } else {
+                  });
+                }
+              }
+            );
+          } else {
               // 没有罚款或罚款已支付，直接更新借阅记录状态为已归还
               db.run(
                 'UPDATE borrow_records SET status = ? WHERE id = ?',
@@ -1172,14 +1207,16 @@ exports.getUserFines = function(req, res) {
   }
 
   const sql = `
-    SELECT br.id, br.book_id, b.title, b.author,
+    SELECT br.id, br.book_id, b.title, b.author, br.status,
            br.borrow_date, br.due_date, br.return_date, br.fine, br.fine_status,
            br.copy_id, bc.copy_code
     FROM borrow_records br
     JOIN books b ON br.book_id = b.id
     LEFT JOIN book_copies bc ON br.copy_id = bc.id
     WHERE br.user_id = ? AND br.fine > 0
-    ORDER BY br.fine_status = 'unpaid' DESC, br.return_date DESC
+    ORDER BY br.fine_status = 'unpaid' DESC,
+             br.status IN ('returning', 'returned') DESC,
+             br.return_date DESC
   `;
 
   db.all(sql, [user_id], function(err, fines) {
@@ -1209,8 +1246,16 @@ exports.payFine = function(req, res) {
         return;
       }
 
-      // 查找用户的总罚款金额
-      db.get('SELECT total_fine FROM users WHERE id = ?', [user_id], function(err, user) {
+      // 以已归还后产生的实际未支付罚款记录为准。
+      db.get(
+        `SELECT COALESCE(SUM(fine), 0) as total_fine
+         FROM borrow_records
+         WHERE user_id = ?
+           AND fine > 0
+           AND fine_status = ?
+           AND status IN ('returning', 'returned')`,
+        [user_id, 'unpaid'],
+        function(err, user) {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
@@ -1222,16 +1267,35 @@ exports.payFine = function(req, res) {
           return;
         }
 
-        // 更新用户的总罚款金额为0
-        db.run('UPDATE users SET total_fine = 0 WHERE id = ?', [user_id], function(err) {
+        // 更新用户所有未支付的罚款记录为已支付
+        db.run(
+          `UPDATE borrow_records
+           SET fine_status = ?
+           WHERE user_id = ?
+             AND fine_status = ?
+             AND status IN ('returning', 'returned')`,
+          ['paid', user_id, 'unpaid'],
+          function(err) {
           if (err) {
             db.run('ROLLBACK');
             res.status(500).json({ error: err.message });
             return;
           }
 
-          // 更新用户所有未支付的罚款记录为已支付
-          db.run('UPDATE borrow_records SET fine_status = ? WHERE user_id = ? AND fine_status = ?', ['paid', user_id, 'unpaid'], function(err) {
+          // 重新同步缓存字段，兼容旧数据或部分付款状态。
+          db.run(
+            `UPDATE users
+             SET total_fine = (
+               SELECT COALESCE(SUM(fine), 0)
+               FROM borrow_records
+               WHERE user_id = ?
+                 AND fine > 0
+                 AND fine_status = 'unpaid'
+                 AND status IN ('returning', 'returned')
+             )
+             WHERE id = ?`,
+            [user_id, user_id],
+            function(err) {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
@@ -1245,7 +1309,8 @@ exports.payFine = function(req, res) {
               }
               res.json({ message: 'Fines paid successfully', amount: user.total_fine });
             });
-          });
+          }
+          );
         });
       });
     });

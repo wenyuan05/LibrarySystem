@@ -13,6 +13,7 @@ const CopyManagementModal = ({ book, onClose, onBookUpdated }) => {
   const [defaultLocation, setDefaultLocation] = useState(DEFAULT_COPY_LOCATION);
   const [bulkLocation, setBulkLocation] = useState('');
   const [savingCopyIds, setSavingCopyIds] = useState(new Set());
+  const [deletingCopyIds, setDeletingCopyIds] = useState(new Set());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const { showToast } = useToast();
 
@@ -115,6 +116,37 @@ const CopyManagementModal = ({ book, onClose, onBookUpdated }) => {
     }
   };
 
+  const handleDeleteCopy = async (copy) => {
+    if (copy.status !== 'available') {
+      showToast('Only available copies can be deleted', 'error');
+      return;
+    }
+    if (copies.length <= 1) {
+      showToast('A book must keep at least one copy', 'error');
+      return;
+    }
+    if (!window.confirm(`Delete copy ${copy.copy_code || `#${copy.id}`}?`)) {
+      return;
+    }
+
+    try {
+      setDeletingCopyIds(prev => new Set([...prev, copy.id]));
+      await booksAPI.deleteCopy(copy.id);
+      await loadCopies();
+      await refreshBook();
+      showToast('Copy deleted successfully', 'success');
+    } catch (error) {
+      console.error('Error deleting copy:', error);
+      showToast(error.message || 'Failed to delete copy', 'error');
+    } finally {
+      setDeletingCopyIds(prev => {
+        const next = new Set(prev);
+        next.delete(copy.id);
+        return next;
+      });
+    }
+  };
+
   if (!book) return null;
 
   return (
@@ -195,6 +227,7 @@ const CopyManagementModal = ({ book, onClose, onBookUpdated }) => {
                   <th>Barcode</th>
                   <th>Status</th>
                   <th>Location</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,6 +273,17 @@ const CopyManagementModal = ({ book, onClose, onBookUpdated }) => {
                           {savingCopyIds.has(copy.id) ? 'Saving...' : 'Confirm'}
                         </button>
                       </div>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => handleDeleteCopy(copy)}
+                        disabled={copy.status !== 'available' || copies.length <= 1 || deletingCopyIds.has(copy.id)}
+                        title={copy.status !== 'available' ? 'Only available copies can be deleted' : ''}
+                      >
+                        {deletingCopyIds.has(copy.id) ? 'Deleting...' : 'Delete'}
+                      </button>
                     </td>
                   </tr>
                 ))}

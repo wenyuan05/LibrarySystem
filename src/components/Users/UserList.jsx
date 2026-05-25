@@ -60,7 +60,7 @@ const UserList = () => {
         setUsers(users.filter(userItem => userItem.id !== id));
         showToast('User deleted successfully', 'success');
       } catch (err) {
-        showToast('Failed to delete user', 'error');
+        showToast(err.message || 'Failed to delete user', 'error');
         console.error(err);
       }
     }

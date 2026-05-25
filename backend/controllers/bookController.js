@@ -1,5 +1,13 @@
 const db = require('../db');
+const net = require('net');
+const { ProxyAgent } = require('undici');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
+const {
+  ACTIVE_BORROW_STATUSES,
+  ACTIVE_RESERVATION_STATUSES,
+  OCCUPIED_COPY_STATUSES,
+  placeholders
+} = require('../utils/statusConstants');
 
 const monthLookup = {
   january: '01',
@@ -41,6 +49,261 @@ const normalizePublishDate = (value) => {
 };
 
 const ISBN_PATTERN = /^\d{10}(?:\d{3})?$/;
+const ISBN_LOOKUP_PROVIDERS = [
+  {
+    id: 'openlibrary',
+    name: 'OpenLibrary',
+    endpoint: 'https://openlibrary.org/api/books',
+    testIsbn: '9780743273565'
+  },
+  {
+    id: 'googlebooks',
+    name: 'Google Books',
+    endpoint: 'https://www.googleapis.com/books/v1/volumes',
+    testIsbn: '9780743273565'
+  },
+  {
+    id: 'showapi',
+    name: 'ShowAPI ISBN',
+    endpoint: 'https://route.showapi.com/1626-1',
+    testIsbn: '9787302124887',
+    appKeyEnv: 'SHOWAPI_ISBN_APP_KEY'
+  }
+];
+
+const getIsbnProvider = (providerId) => {
+  return ISBN_LOOKUP_PROVIDERS.find(provider => provider.id === providerId) || ISBN_LOOKUP_PROVIDERS[0];
+};
+
+let proxyAgent = null;
+let proxyCheckCache = { checkedAt: 0, available: false };
+
+const getProxyConfig = () => ({
+  mode: (process.env.BACKEND_PROXY_MODE || 'auto').toLowerCase(),
+  host: process.env.BACKEND_PROXY_HOST || '127.0.0.1',
+  port: parseInt(process.env.BACKEND_PROXY_PORT || '7890', 10)
+});
+
+const isProxyReachable = ({ host, port }, timeoutMs = 500) => new Promise((resolve) => {
+  const socket = net.createConnection({ host, port });
+  let settled = false;
+
+  const finish = (available) => {
+    if (settled) return;
+    settled = true;
+    socket.destroy();
+    resolve(available);
+  };
+
+  socket.setTimeout(timeoutMs);
+  socket.once('connect', () => finish(true));
+  socket.once('timeout', () => finish(false));
+  socket.once('error', () => finish(false));
+});
+
+const getFetchDispatcher = async () => {
+  const proxyConfig = getProxyConfig();
+
+  if (proxyConfig.mode === 'off' || proxyConfig.mode === 'false' || !Number.isInteger(proxyConfig.port)) {
+    return undefined;
+  }
+
+  if (proxyConfig.mode !== 'on' && proxyConfig.mode !== 'true') {
+    const now = Date.now();
+    if (now - proxyCheckCache.checkedAt > 10000) {
+      proxyCheckCache = {
+        checkedAt: now,
+        available: await isProxyReachable(proxyConfig)
+      };
+    }
+
+    if (!proxyCheckCache.available) {
+      return undefined;
+    }
+  }
+
+  const proxyUri = `http://${proxyConfig.host}:${proxyConfig.port}`;
+  if (!proxyAgent || proxyAgent.proxyUri !== proxyUri) {
+    proxyAgent = new ProxyAgent(proxyUri);
+    proxyAgent.proxyUri = proxyUri;
+  }
+
+  return proxyAgent;
+};
+
+const fetchJsonWithTimeout = async (url, timeoutMs = 8000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const dispatcher = await getFetchDispatcher();
+    const response = await fetch(url, { signal: controller.signal, dispatcher });
+    const text = await response.text();
+    let data = null;
+
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (err) {
+      throw new Error('Failed to parse API response');
+    }
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    return { data, status: response.status };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const postFormJsonWithTimeout = async (url, formData, timeoutMs = 8000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const dispatcher = await getFetchDispatcher();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(formData).toString(),
+      signal: controller.signal,
+      dispatcher
+    });
+    const text = await response.text();
+    let data = null;
+
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (err) {
+      throw new Error('Failed to parse API response');
+    }
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    return { data, status: response.status };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const normalizeOpenLibraryBook = (isbn, response) => {
+  const bookKey = `ISBN:${isbn}`;
+  const bookData = response?.[bookKey];
+
+  if (!bookData) {
+    return null;
+  }
+
+  const coverImage = bookData.cover?.large
+    || bookData.cover?.medium
+    || bookData.cover?.small
+    || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
+
+  return {
+    title: bookData.title || '',
+    author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
+    publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
+    publish_date: normalizePublishDate(bookData.publish_date),
+    isbn,
+    description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
+    cover_image: coverImage,
+    language: 'English',
+    page_count: bookData.number_of_pages || 0
+  };
+};
+
+const normalizeGoogleBooksBook = (isbn, response) => {
+  const bookData = response?.items?.[0]?.volumeInfo;
+
+  if (!bookData) {
+    return null;
+  }
+
+  return {
+    title: bookData.title || '',
+    author: bookData.authors ? bookData.authors.join(', ') : '',
+    publisher: bookData.publisher || '',
+    publish_date: normalizePublishDate(bookData.publishedDate),
+    isbn,
+    description: bookData.description || '',
+    cover_image: bookData.imageLinks?.thumbnail || bookData.imageLinks?.smallThumbnail || '',
+    language: bookData.language || 'English',
+    page_count: bookData.pageCount || 0
+  };
+};
+
+const normalizeShowApiBook = (isbn, response) => {
+  const body = response?.showapi_res_body;
+  const bookData = body?.data;
+
+  if (response?.showapi_res_code !== 0 || body?.ret_code !== 0 || !bookData) {
+    return null;
+  }
+
+  return {
+    title: bookData.title || '',
+    author: bookData.author || '',
+    publisher: bookData.publisher || '',
+    publish_date: normalizePublishDate(bookData.pubdate),
+    isbn: bookData.isbn || isbn,
+    description: bookData.gist || '',
+    cover_image: bookData.img || '',
+    language: 'Chinese',
+    page_count: parseInt(bookData.page, 10) || 0
+  };
+};
+
+const lookupBookByIsbn = async (isbn, providerId) => {
+  const normalizedIsbn = String(isbn || '').trim().replace(/[-\s]/g, '');
+
+  if (!ISBN_PATTERN.test(normalizedIsbn)) {
+    const err = new Error('ISBN must be 10 or 13 digits');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const provider = getIsbnProvider(providerId);
+  let url;
+  let normalize;
+
+  let result;
+
+  if (provider.id === 'googlebooks') {
+    url = `${provider.endpoint}?q=isbn:${encodeURIComponent(normalizedIsbn)}`;
+    normalize = normalizeGoogleBooksBook;
+    result = await fetchJsonWithTimeout(url);
+  } else if (provider.id === 'showapi') {
+    const appKey = process.env.SHOWAPI_ISBN_APP_KEY;
+    if (!appKey) {
+      const err = new Error('SHOWAPI_ISBN_APP_KEY is not configured');
+      err.statusCode = 503;
+      throw err;
+    }
+    url = `${provider.endpoint}?appKey=${encodeURIComponent(appKey)}`;
+    normalize = normalizeShowApiBook;
+    result = await postFormJsonWithTimeout(url, { isbn: normalizedIsbn });
+  } else {
+    url = `${provider.endpoint}?bibkeys=ISBN:${encodeURIComponent(normalizedIsbn)}&format=json&jscmd=data`;
+    normalize = normalizeOpenLibraryBook;
+    result = await fetchJsonWithTimeout(url);
+  }
+
+  const { data, status } = result;
+  const book = normalize(normalizedIsbn, data);
+
+  if (!book) {
+    const err = new Error('Book not found');
+    err.statusCode = 404;
+    err.provider = provider;
+    err.status = status;
+    throw err;
+  }
+
+  return { book, provider, status };
+};
 
 // 获取所有书籍（无需登录，公开访问）
 exports.getAllBooks = (req, res) => {
@@ -96,7 +359,7 @@ exports.addBook = (req, res) => {
         const copies = total_copies || 1;
         db.run(
           'INSERT INTO books (title, author, isbn, description, cover_image, total_copies, available_copies, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, language || 'Chinese', page_count],
+          [title, author, isbn, description, cover_image, copies, copies, publisher, publish_date, language || 'English', page_count],
           function(err) {
             if (err) {
               db.run('ROLLBACK');
@@ -138,7 +401,7 @@ exports.addBook = (req, res) => {
                         available_copies: copies,
                         publisher,
                         publish_date,
-                        language: language || 'Chinese',
+                        language: language || 'English',
                         page_count
                       });
                     });
@@ -184,8 +447,13 @@ exports.updateBook = (req, res) => {
     updateValues.push(cover_image);
   }
   if (total_copies !== undefined) {
+    const parsedTotalCopies = Number(total_copies);
+    if (!Number.isInteger(parsedTotalCopies) || parsedTotalCopies < 1) {
+      res.status(400).json({ error: 'Total copies must be a positive integer' });
+      return;
+    }
     updateFields.push('total_copies = ?');
-    updateValues.push(total_copies);
+    updateValues.push(parsedTotalCopies);
   }
   if (publisher !== undefined) {
     updateFields.push('publisher = ?');
@@ -242,7 +510,7 @@ exports.updateBook = (req, res) => {
             }
             
             const currentCount = result.count || 0;
-            const targetCount = parseInt(total_copies);
+            const targetCount = parseInt(total_copies, 10);
             
             if (currentCount < targetCount) {
               // 需要添加副本
@@ -313,10 +581,10 @@ exports.updateBook = (req, res) => {
                   return;
                 }
                 
-                if (copies.length === 0) {
+                if (copies.length < currentCount - targetCount) {
                   // 没有可用副本可以删除
                   db.run('ROLLBACK');
-                  res.status(400).json({ error: 'Cannot reduce copies: no available copies to remove' });
+                  res.status(400).json({ error: 'Cannot reduce copies: not enough available copies to remove' });
                   return;
                 }
                 
@@ -416,8 +684,13 @@ exports.updateBook = (req, res) => {
 // 删除书籍（管理员）
 exports.deleteBook = (req, res) => {
   const { id } = req.params;
-  
-  // 开始事务
+  const bookId = Number(id);
+
+  if (!Number.isInteger(bookId) || bookId <= 0) {
+    res.status(400).json({ error: 'Invalid book id' });
+    return;
+  }
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
@@ -425,65 +698,108 @@ exports.deleteBook = (req, res) => {
         return;
       }
 
-      // 检查是否有正常借阅的记录（排除逾期记录）
-      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
+      db.get('SELECT id FROM books WHERE id = ?', [bookId], (err, book) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
-
-        if (result.count > 0) {
+        if (!book) {
           db.run('ROLLBACK');
-          res.status(400).json({ error: 'Cannot delete book: it has active borrowing records' });
+          res.status(404).json({ error: 'Book not found' });
           return;
         }
 
-        // 删除图书分类关联
-        db.run('DELETE FROM book_categories WHERE book_id = ?', [id], (err) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 删除书籍副本
-          db.run('DELETE FROM book_copies WHERE book_id = ?', [id], (err) => {
+        db.get(
+          `SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+          [bookId, ...ACTIVE_BORROW_STATUSES],
+          (err, borrowResult) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
 
-            // 删除书籍
-            db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
-              if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              if (this.changes === 0) {
-                db.run('ROLLBACK');
-                res.status(404).json({ error: 'Book not found' });
-                return;
-              }
+            if (borrowResult.count > 0) {
+              db.run('ROLLBACK');
+              res.status(400).json({ error: 'Cannot delete book: it has active borrowing records' });
+              return;
+            }
 
-              db.run('COMMIT', (err) => {
+            db.get(
+              `SELECT COUNT(*) as count FROM book_copies WHERE book_id = ? AND status IN (${placeholders(OCCUPIED_COPY_STATUSES)})`,
+              [bookId, ...OCCUPIED_COPY_STATUSES],
+              (err, copyResult) => {
                 if (err) {
+                  db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                res.json({ message: 'Book deleted' });
-              });
-            });
-          });
-        });
+
+                if (copyResult.count > 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete book: it has occupied copies' });
+                  return;
+                }
+
+                db.get(
+                  `SELECT COUNT(*) as count FROM reservation_records WHERE book_id = ? AND status IN (${placeholders(ACTIVE_RESERVATION_STATUSES)})`,
+                  [bookId, ...ACTIVE_RESERVATION_STATUSES],
+                  (err, reservationResult) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    if (reservationResult.count > 0) {
+                      db.run('ROLLBACK');
+                      res.status(400).json({ error: 'Cannot delete book: it has active reservations' });
+                      return;
+                    }
+
+                    db.run('DELETE FROM book_categories WHERE book_id = ?', [bookId], (err) => {
+                      if (err) {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+
+                      db.run('DELETE FROM book_copies WHERE book_id = ?', [bookId], (err) => {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('DELETE FROM books WHERE id = ?', [bookId], (err) => {
+                          if (err) {
+                            db.run('ROLLBACK');
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+
+                          db.run('COMMIT', (err) => {
+                            if (err) {
+                              res.status(500).json({ error: err.message });
+                              return;
+                            }
+                            res.json({ message: 'Book deleted' });
+                          });
+                        });
+                      });
+                    });
+                  }
+                );
+              }
+            );
+          }
+        );
       });
     });
   });
 };
 
-// 搜索图书（无需登录，公开访问）
 exports.searchBooks = (req, res) => {
   const { query, category } = req.query;
   
@@ -719,6 +1035,122 @@ exports.addBookCopy = (req, res) => {
 };
 
 // 获取单个副本信息（公开访问）
+exports.deleteBookCopy = (req, res) => {
+  const { id } = req.params;
+  const copyId = Number(id);
+
+  if (!Number.isInteger(copyId) || copyId <= 0) {
+    res.status(400).json({ error: 'Invalid copy id' });
+    return;
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get('SELECT id, book_id, status FROM book_copies WHERE id = ?', [copyId], (err, copy) => {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!copy) {
+          db.run('ROLLBACK');
+          res.status(404).json({ error: 'Copy not found' });
+          return;
+        }
+        if (copy.status !== 'available') {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete copy: only available copies can be deleted' });
+          return;
+        }
+
+        db.get('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [copy.book_id], (err, totalResult) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          if (totalResult.count <= 1) {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Cannot delete copy: a book must keep at least one copy' });
+            return;
+          }
+
+          db.get(
+            `SELECT COUNT(*) as count FROM borrow_records WHERE copy_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+            [copyId, ...ACTIVE_BORROW_STATUSES],
+            (err, borrowResult) => {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              if (borrowResult.count > 0) {
+                db.run('ROLLBACK');
+                res.status(400).json({ error: 'Cannot delete copy: it has active borrowing records' });
+                return;
+              }
+
+              db.run('DELETE FROM book_copies WHERE id = ? AND status = ?', [copyId, 'available'], function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                if (this.changes === 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete copy: copy is no longer available' });
+                  return;
+                }
+
+                db.get('SELECT COUNT(*) as total_count FROM book_copies WHERE book_id = ?', [copy.book_id], (err, totalAfterDelete) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.get('SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?', [copy.book_id, 'available'], (err, availableAfterDelete) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run(
+                      'UPDATE books SET total_copies = ?, available_copies = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                      [totalAfterDelete.total_count, availableAfterDelete.available_count, copy.book_id],
+                      (err) => {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('COMMIT', (err) => {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+                          res.json({ message: 'Copy deleted successfully' });
+                        });
+                      }
+                    );
+                  });
+                });
+              });
+            }
+          );
+        });
+      });
+    });
+  });
+};
+
 exports.getCopyById = (req, res) => {
   const { id } = req.params;
   
@@ -867,57 +1299,65 @@ exports.updateCopyLocation = (req, res) => {
   });
 };
 
+exports.getIsbnProviders = (req, res) => {
+  res.json(ISBN_LOOKUP_PROVIDERS.map(provider => ({
+    id: provider.id,
+    name: provider.name,
+    endpoint: provider.endpoint,
+    test_isbn: provider.testIsbn,
+    requires_app_key: Boolean(provider.appKeyEnv),
+    configured: provider.appKeyEnv ? Boolean(process.env[provider.appKeyEnv]) : true
+  })));
+};
+
+exports.testIsbnProvider = async (req, res) => {
+  const providerId = req.body?.provider || req.query?.provider;
+  const provider = getIsbnProvider(providerId);
+  const testIsbn = String(req.body?.isbn || req.query?.isbn || provider.testIsbn).trim().replace(/[-\s]/g, '');
+  const startedAt = Date.now();
+
+  try {
+    const result = await lookupBookByIsbn(testIsbn, provider.id);
+    res.json({
+      provider: provider.id,
+      provider_name: provider.name,
+      endpoint: provider.endpoint,
+      available: true,
+      status: result.status,
+      latency_ms: Date.now() - startedAt,
+      last_tested_at: new Date().toISOString(),
+      test_isbn: testIsbn
+    });
+  } catch (err) {
+    res.status(200).json({
+      provider: provider.id,
+      provider_name: provider.name,
+      endpoint: provider.endpoint,
+      available: false,
+      status: err.status || err.statusCode || null,
+      latency_ms: Date.now() - startedAt,
+      last_tested_at: new Date().toISOString(),
+      test_isbn: testIsbn,
+      error: err.message || 'Provider test failed'
+    });
+  }
+};
+
 // 通过 ISBN 查询书籍信息
-exports.searchByISBN = (req, res) => {
+exports.searchByISBN = async (req, res) => {
   const { isbn } = req.params;
-  const https = require('https');
-  
-  // 构建 OpenLibrary API URL
-  const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
-  
-  https.get(url, (apiRes) => {
-    let data = '';
-    
-    apiRes.on('data', (chunk) => {
-      data += chunk;
+  const providerId = req.query.provider;
+
+  try {
+    const result = await lookupBookByIsbn(isbn, providerId);
+    res.json({
+      ...result.book,
+      provider: result.provider.id,
+      provider_name: result.provider.name
     });
-    
-    apiRes.on('end', () => {
-      try {
-        const response = JSON.parse(data);
-        const bookKey = `ISBN:${isbn}`;
-        
-        if (response[bookKey]) {
-          const bookData = response[bookKey];
-          const coverImage = bookData.cover?.large
-            || bookData.cover?.medium
-            || bookData.cover?.small
-            || (bookData.cover?.id ? `https://covers.openlibrary.org/b/id/${bookData.cover.id}-L.jpg` : '');
-          
-          // 清洗数据，只返回需要的信息
-          const cleanedData = {
-            title: bookData.title || '',
-            author: bookData.authors ? bookData.authors.map(author => author.name).join(', ') : '',
-            publisher: bookData.publishers ? bookData.publishers.map(publisher => publisher.name).join(', ') : '',
-            publish_date: normalizePublishDate(bookData.publish_date),
-            isbn: isbn,
-            description: bookData.description ? (typeof bookData.description === 'string' ? bookData.description : bookData.description.value) : '',
-            cover_image: coverImage,
-            language: 'Chinese',
-            page_count: bookData.number_of_pages || 0
-          };
-          
-          res.json(cleanedData);
-        } else {
-          res.status(404).json({ error: 'Book not found' });
-        }
-      } catch (error) {
-        res.status(500).json({ error: 'Failed to parse API response' });
-      }
-    });
-  }).on('error', (error) => {
-    res.status(500).json({ error: 'Failed to fetch book information' });
-  });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Failed to fetch book information' });
+  }
 };
 
 // 批量导入书籍
@@ -1001,7 +1441,7 @@ exports.batchImportBooks = (req, res) => {
 
       const parsedCopies = parseInt(total_copies, 10);
       const copies = Number.isFinite(parsedCopies) && parsedCopies > 0 ? Math.min(parsedCopies, 100) : 1;
-      const normalizedLanguage = (language || 'Chinese').trim() || 'Chinese';
+      const normalizedLanguage = (language || 'English').trim() || 'English';
       const parsedPageCount = parseInt(page_count, 10);
       const normalizedPageCount = Number.isFinite(parsedPageCount) && parsedPageCount > 0 ? parsedPageCount : 0;
       const insertResult = await runAsync(

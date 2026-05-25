@@ -15,7 +15,10 @@
 | users | 用户信息 |
 | borrow_records | 借阅记录 |
 | reservation_records | 预约记录 |
+| payments | 支付记录 |
 | notifications | 站内通知 |
+| email_logs | 邮件发送记录 |
+| email_verification_codes | 邮箱验证码记录 |
 | system_logs | 系统日志 |
 | announcements | 公告信息 |
 | announcement_reads | 公告已读记录 |
@@ -36,6 +39,7 @@
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
 **默认值**：
+- borrow_enabled: 1 (是否启用借阅功能，1=启用，0=关闭)
 - borrow_period_days: 14 (借阅期限，天)
 - fine_per_day: 0.5 (每天罚款金额)
 - max_borrows: 5 (最大借阅数量)
@@ -137,7 +141,7 @@
 | email | TEXT | NOT NULL | 邮箱 |
 | phone | TEXT | | 电话 |
 | address | TEXT | | 地址 |
-| total_fine | REAL | DEFAULT 0 | 累计未付罚款总额 |
+| total_fine | REAL | DEFAULT 0 | 实际未付罚款总额（仅统计已归还/归还中记录，不统计未归还逾期书籍的预计罚款） |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
@@ -160,6 +164,12 @@
 | fine_status | TEXT | DEFAULT 'unpaid' | 罚款状态（unpaid/paid） |
 | renew_count | INTEGER | DEFAULT 0 | 续借次数 |
 
+**说明**：
+- 归还申请提交时会立即计算并写入 `borrow_records.fine` / `fine_status`。
+- `status='overdue'` 且未归还的记录只用于预计罚款展示，不能直接创建支付订单。
+- 若归还后产生实际未支付罚款，`users.total_fine` 会同步增加；支付罚款时以 `borrow_records` 中 `status IN ('returning','returned') AND fine_status='unpaid'` 的记录为准，并重新同步 `users.total_fine`。
+- 图书管理员审批归还只确认归还状态和释放副本，不重复累计罚款。
+
 ### 2.9 reservation_records 表
 
 **功能**：存储书籍预约记录
@@ -173,7 +183,74 @@
 | status | TEXT | DEFAULT 'pending' | 状态（pending/confirmed/canceled） |
 | notification_sent | INTEGER | DEFAULT 0 | 是否已发送通知 |
 
-### 2.10 system_logs 表
+### 2.10 payments 表
+
+**功能**：存储支付宝罚款支付单和本地模拟支付结果
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | NOT NULL | 用户ID，外键关联users表 |
+| provider | TEXT | DEFAULT 'alipay' | 支付渠道 |
+| payment_type | TEXT | DEFAULT 'fine' | 支付类型 |
+| out_trade_no | TEXT | NOT NULL UNIQUE | 商户订单号 |
+| provider_trade_no | TEXT | | 支付宝交易号，真实接入后写入 |
+| amount | REAL | NOT NULL | 支付金额 |
+| status | TEXT | DEFAULT 'pending' | 支付状态（pending/paid/failed/expired） |
+| subject | TEXT | | 订单标题 |
+| qr_code | TEXT | | 二维码内容或收款链接 |
+| payment_url | TEXT | | 支付链接 |
+| borrow_record_ids | TEXT | | 关联罚款借阅记录ID JSON |
+| raw_notify | TEXT | | 支付通知原始数据 |
+| paid_at | TEXT | | 支付完成时间 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+**说明**：
+- 创建支付宝罚款支付单时写入 `pending` 记录，不立即改变罚款状态。
+- 本地模拟支付成功后，关联 `borrow_records.fine_status` 改为 `paid`，并重新同步 `users.total_fine`。
+- 真实支付宝 notify 接入后应继续复用该表的 `out_trade_no`、`provider_trade_no`、`raw_notify` 和 `paid_at` 字段。
+
+### 2.11 email_logs 表
+
+**功能**：记录注册、密码重置、通知和测试邮件的处理结果
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| user_id | INTEGER | | 关联用户ID，外键关联users表 |
+| to_email | TEXT | NOT NULL | 收件邮箱 |
+| subject | TEXT | NOT NULL | 邮件标题 |
+| scenario | TEXT | | 发送场景（registration/registration_verification/password_reset/password_reset_verification/notification/test/general） |
+| status | TEXT | NOT NULL | 处理状态（skipped/logged/sent/failed） |
+| error_message | TEXT | | 失败或跳过原因 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**说明**：
+- `EMAIL_ENABLED=false` 时不会发信，但会记录 `skipped`，便于本地确认触发点。
+- `EMAIL_MODE=log` 时只写日志和控制台输出，不连接 QQ 邮箱 SMTP。
+- `EMAIL_MODE=smtp` 且配置完整时通过 QQ 邮箱 SMTP 发信，失败原因写入 `error_message`。
+
+### 2.12 email_verification_codes 表
+
+**功能**：保存注册和密码重置邮箱验证码的哈希、用途和过期状态
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| email | TEXT | NOT NULL | 验证邮箱 |
+| purpose | TEXT | NOT NULL | 用途（registration/password_reset） |
+| code_hash | TEXT | NOT NULL | bcrypt 哈希后的验证码 |
+| expires_at | TEXT | NOT NULL | 过期时间 |
+| used_at | TEXT | | 使用时间，非空表示已消费 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**说明**：
+- 每次发送同一邮箱同一用途的新验证码时，旧的未使用验证码会被标记为已使用。
+- 验证码有效期为 10 分钟，校验通过后立即写入 `used_at` 防止重复使用。
+- 数据库只保存验证码哈希，不保存明文验证码。
+
+### 2.13 system_logs 表
 
 **功能**：存储系统操作日志
 
@@ -186,7 +263,7 @@
 | ip_address | TEXT | | 操作IP地址 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 操作时间 |
 
-### 2.11 notifications 表
+### 2.14 notifications 表
 
 **功能**：存储站内通知，当前用于预约书籍可借提醒
 
@@ -201,7 +278,7 @@
 | related_id | INTEGER | | 关联业务记录ID，如 reservation_records.id |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.12 announcements 表
+### 2.15 announcements 表
 
 **功能**：存储系统公告
 
@@ -215,7 +292,7 @@
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.13 announcement_reads 表
+### 2.16 announcement_reads 表
 
 **功能**：按用户记录已读公告，避免已读公告重复触发弹窗提醒
 
@@ -238,6 +315,14 @@
 | idx_borrow_records_user_id | borrow_records | user_id | | 加速用户借阅记录查询 |
 | idx_borrow_records_book_id | borrow_records | book_id | | 加速书籍借阅记录查询 |
 | idx_borrow_records_status | borrow_records | status | | 加速借阅状态查询 |
+| idx_payments_out_trade_no | payments | out_trade_no | UNIQUE | 加速支付宝订单号查询 |
+| idx_payments_user_id | payments | user_id | | 加速用户支付记录查询 |
+| idx_payments_status | payments | status | | 加速收入统计和状态查询 |
+| idx_email_logs_user_id | email_logs | user_id | | 加速用户邮件记录查询 |
+| idx_email_logs_status | email_logs | status | | 加速邮件状态筛选 |
+| idx_email_logs_created_at | email_logs | created_at | | 加速邮件发送时间排序 |
+| idx_email_verification_codes_email_purpose | email_verification_codes | email, purpose | | 加速验证码校验 |
+| idx_email_verification_codes_expires_at | email_verification_codes | expires_at | | 加速验证码过期筛选 |
 | idx_reservation_records_user_id | reservation_records | user_id | | 加速用户预约记录查询 |
 | idx_reservation_records_book_id | reservation_records | book_id | | 加速书籍预约记录查询 |
 | idx_reservation_records_status | reservation_records | status | | 加速预约状态查询 |
@@ -260,8 +345,11 @@
 ```
 users ── user_status
 users ── borrow_records ── books ── book_copies
+users ── payments ── borrow_records
 users ── reservation_records ── books
 users ── notifications
+users ── email_logs
+users.email ── email_verification_codes.email
 reservation_records ── notifications.related_id
 announcements ── announcement_reads ── users
 books ── book_categories ── categories
@@ -284,6 +372,7 @@ system_settings
 - 普通用户：user1 / user123
 
 ### 5.3 系统参数
+- borrow_enabled: 1
 - borrow_period_days: 14
 - fine_per_day: 0.5
 - max_borrows: 5
@@ -324,3 +413,37 @@ system_settings
 3. **索引维护**：定期检查和优化索引
 4. **数据清理**：定期清理过期的预约记录和借阅记录
 5. **性能监控**：监控数据库性能，及时调整优化策略
+## Data Integrity Update - 2026-05-13
+
+### Active-record definitions
+
+The application now treats these borrow statuses as active for deletion and duplicate-borrow safeguards:
+
+- `borrowing`
+- `borrowed`
+- `overdue`
+- `returning`
+
+The application treats these reservation statuses as active for delete safeguards:
+
+- `active`
+- `pending`
+
+The application treats these copy statuses as occupied for book deletion:
+
+- `borrowing`
+- `borrowed`
+- `reserved`
+
+### Delete and inventory consistency rules
+
+- A user row must not be deleted while related active borrow records or active reservations exist.
+- A book row must not be deleted while related active borrow records, active reservations, or occupied copies exist.
+- A `book_copies` row may be deleted only when its status is `available`.
+- A book must keep at least one row in `book_copies`.
+- After deleting a copy, `books.total_copies` and `books.available_copies` are recalculated from `book_copies` in the same transaction.
+- Reducing `books.total_copies` removes only available copies and fails if the requested reduction would require deleting unavailable, borrowed, reserved, or otherwise occupied copies.
+
+### Rationale
+
+`returning` records may already have `return_date` set while still waiting for librarian approval. Delete guards therefore use borrow status, not `return_date IS NULL`, as the source of truth for active lending state.

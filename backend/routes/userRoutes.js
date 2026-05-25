@@ -7,6 +7,9 @@ const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody, valid
 // 用户登录
 router.post('/login', validateLoginBody, userController.login);
 
+// 发送邮箱验证码（注册或密码重置）
+router.post('/email-verification/send', userController.sendEmailVerificationCode);
+
 // 用户注册（普通用户自助注册）
 router.post('/register', validateRegisterBody, userController.register);
 
@@ -37,7 +40,7 @@ router.put('/:id', authenticateToken, (req, res, next) => {
 }, userController.updateUser);
 
 // 删除用户（管理员或图书管理员）
-router.delete('/:id', authenticateToken, requireRole(['admin', 'librarian']), userController.deleteUser);
+router.delete('/:id', authenticateToken, requireRole('admin'), userController.deleteUser);
 
 // 获取用户借阅记录（需要登录，允许本人、管理员或图书管理员）
 router.get('/:id/borrow-records', authenticateToken, (req, res, next) => {

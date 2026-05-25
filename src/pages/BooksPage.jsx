@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import BookList from '../components/Books/BookList';
-import { booksAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
+import { booksAPI, borrowAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
 
 const BooksPage = () => {
+  const BOOKS_PER_PAGE = 12;
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -15,24 +17,22 @@ const BooksPage = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [popularBooks, setPopularBooks] = useState([]);
   const [recentBorrowed, setRecentBorrowed] = useState([]);
+  const [activeReservations, setActiveReservations] = useState([]);
   const { user } = useAuth();
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
 
-  // Load books data
-  const fetchBooks = async (category = 'all', search = '') => {
+  const fetchBooks = useCallback(async (category = 'all', search = '') => {
     try {
       setBooksLoading(true);
       let data;
-      
-      // If there's a category or search term, use search API
+
       if (category !== 'all' || search.trim() !== '') {
         data = await booksAPI.search(search, category === 'all' ? null : category);
       } else {
-        // Otherwise get all books
         data = await booksAPI.getAll();
       }
-      
+
       setBooks(data);
     } catch (err) {
       console.error('Failed to load books:', err);
@@ -40,10 +40,9 @@ const BooksPage = () => {
     } finally {
       setBooksLoading(false);
     }
-  };
+  }, [showToast]);
 
-  // Load categories data
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setCategoriesLoading(true);
       const data = await categoryAPI.getAll();
@@ -53,19 +52,18 @@ const BooksPage = () => {
     } finally {
       setCategoriesLoading(false);
     }
-  };
+  }, []);
 
-  // Load popular books data
-  const fetchPopularBooks = async () => {
+  const fetchPopularBooks = useCallback(async () => {
     try {
       const data = await statsAPI.getPopularBooksStats(10);
       setPopularBooks(data);
     } catch (err) {
       console.error('Failed to load popular books:', err);
     }
-  };
+  }, []);
 
-  const fetchRecentBorrowed = async () => {
+  const fetchRecentBorrowed = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -78,60 +76,75 @@ const BooksPage = () => {
     } catch (err) {
       console.error('Failed to load recent borrowed records:', err);
     }
-  };
+  }, [user?.id]);
 
-  // Handle book update
+  const fetchActiveReservations = useCallback(async () => {
+    if (!user?.id) {
+      setActiveReservations([]);
+      return;
+    }
+
+    try {
+      const records = await borrowAPI.getReservations(user.id);
+      setActiveReservations((records || []).filter(record => ['active', 'pending'].includes(record.status)));
+    } catch (err) {
+      console.error('Failed to load reservation records:', err);
+      setActiveReservations([]);
+    }
+  }, [user?.id]);
+
   const handleBookUpdated = (updatedBook) => {
-    setBooks(prevBooks => prevBooks.map(book => 
+    setBooks(prevBooks => prevBooks.map(book =>
       book.id === updatedBook.id ? updatedBook : book
     ));
   };
 
-  // Handle book deletion
   const handleBookDeleted = (bookId) => {
     setBooks(prevBooks => prevBooks.filter(book => book.id !== bookId));
   };
 
-  // Load books and categories on component mount
   useEffect(() => {
     fetchBooks();
     fetchCategories();
     fetchPopularBooks();
-  }, []);
+  }, [fetchBooks, fetchCategories, fetchPopularBooks]);
 
   useEffect(() => {
     fetchRecentBorrowed();
-  }, [user]);
+    fetchActiveReservations();
+  }, [fetchRecentBorrowed, fetchActiveReservations]);
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-    // When search term changes, reload books data
+    setCurrentPage(1);
     fetchBooks(selectedCategory, term);
   };
 
-  // Handle category selection
   const handleCategoryChange = (e) => {
     const category = e.target.value;
     setSelectedCategory(category);
-    // When category changes, reload books data
+    setCurrentPage(1);
     fetchBooks(category, searchTerm);
   };
 
-  // Update filtered books when books list changes
+  const handleSearchClick = () => {
+    setCurrentPage(1);
+    fetchBooks(selectedCategory, searchTerm);
+  };
+
   useEffect(() => {
+    const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
     const nextBooks = books.filter(book => {
       if (quickFilter === 'available') return Number(book.available_copies || 0) > 0;
       if (quickFilter === 'borrowed') return Number(book.available_copies || 0) === 0;
-      if (quickFilter === 'reserved') return book.status === 'reserved';
+      if (quickFilter === 'reserved') return reservedBookIds.has(Number(book.id));
       return true;
     });
 
     setFilteredBooks(nextBooks);
-  }, [books, quickFilter]);
+  }, [books, quickFilter, activeReservations]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -161,6 +174,18 @@ const BooksPage = () => {
     { label: 'Top Borrow Count', value: topBorrowCount, hint: 'Most borrowed title' }
   ];
 
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
+  const pagedBooks = useMemo(() => {
+    const startIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+    return filteredBooks.slice(startIndex, startIndex + BOOKS_PER_PAGE);
+  }, [filteredBooks, currentPage]);
+  const pageStart = filteredBooks.length === 0 ? 0 : (currentPage - 1) * BOOKS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
+
+  useEffect(() => {
+    setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
+
   return (
     <div className="books-page-shell fade-in">
       <div className="books-section card">
@@ -181,8 +206,7 @@ const BooksPage = () => {
             </div>
           ))}
         </div>
-        
-        {/* 搜索和筛选栏 */}
+
         <div className="books-toolbar">
           <div className="search-and-filter">
             <div className="books-search-bar">
@@ -196,6 +220,9 @@ const BooksPage = () => {
                   className="books-search-input"
                 />
               </div>
+              <button type="button" className="search-button" onClick={handleSearchClick}>
+                <img src="/放大镜.svg" alt="Search" />
+              </button>
             </div>
             <div className="quick-filter-group" aria-label="Book availability filters">
               {[
@@ -208,7 +235,10 @@ const BooksPage = () => {
                   type="button"
                   key={filter.id}
                   className={quickFilter === filter.id ? 'active' : ''}
-                  onClick={() => setQuickFilter(filter.id)}
+                  onClick={() => {
+                    setQuickFilter(filter.id);
+                    setCurrentPage(1);
+                  }}
                 >
                   {filter.label}
                 </button>
@@ -228,8 +258,9 @@ const BooksPage = () => {
                 }}
                 disabled={categoriesLoading}
               >
-                {selectedCategory === 'all' ? 'All Categories' : 
-                  categories.find(cat => cat.id === selectedCategory)?.name || 'Select Category'}
+                {selectedCategory === 'all'
+                  ? 'All Categories'
+                  : categories.find(cat => cat.id === selectedCategory)?.name || 'Select Category'}
                 <span className="dropdown-arrow">▼</span>
               </button>
               <div className="category-dropdown-menu">
@@ -267,13 +298,51 @@ const BooksPage = () => {
           </div>
         </div>
 
-        {/* 书籍列表 */}
         <BookList
-          books={filteredBooks}
+          books={pagedBooks}
           loading={booksLoading}
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
+          onReservationsChanged={fetchActiveReservations}
         />
+        {!booksLoading && filteredBooks.length > 0 && (
+          <div className="books-pagination" aria-label="Books pagination">
+            <div className="books-pagination-summary">
+              Showing {pageStart}-{pageEnd} of {filteredBooks.length}
+            </div>
+            <div className="books-pagination-controls">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <aside className="books-sidebar">

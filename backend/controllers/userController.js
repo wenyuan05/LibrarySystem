@@ -1,8 +1,30 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { getEmailConfig } = require('../config/emailConfig');
+const { sendMailSafe } = require('../services/emailService');
+const { sendVerificationCode, verifyCode } = require('../services/emailVerificationService');
+const {
+  ACTIVE_BORROW_STATUSES,
+  ACTIVE_RESERVATION_STATUSES,
+  placeholders
+} = require('../utils/statusConstants');
 
 const JWT_EXPIRES_IN = '7d';
+
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const buildResetPasswordUrl = (token) => {
+  const config = getEmailConfig();
+  return `${config.appPublicUrl.replace(/\/$/, '')}/login?token=${encodeURIComponent(token)}`;
+};
+
+const findUserByUsernameOrEmail = (username, email, callback) => {
+  db.get(
+    'SELECT id, username, email FROM users WHERE username = ? OR LOWER(email) = LOWER(?)',
+    [username, email],
+    callback
+  );
+};
 
 // 用户登录
 exports.login = (req, res) => {
@@ -43,28 +65,94 @@ exports.login = (req, res) => {
   });
 };
 
-// 用户注册（普通用户自助注册）
-exports.register = (req, res) => {
-  const { username, password, name, email } = req.body;
+exports.sendEmailVerificationCode = (req, res) => {
+  const { email, purpose } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (!username || !password || !name || !email) {
-    res.status(400).json({ error: 'Username, password, name and email are required' });
+  if (!normalizedEmail || !purpose) {
+    res.status(400).json({ error: 'Email and purpose are required' });
+    return;
+  }
+  if (!emailRegex.test(normalizedEmail)) {
+    res.status(400).json({ error: 'Invalid email format' });
     return;
   }
 
-  // 检查用户名是否已存在
-  db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+  if (!['registration', 'password_reset'].includes(purpose)) {
+    res.status(400).json({ error: 'Invalid verification purpose' });
+    return;
+  }
+
+  const sendCode = () => {
+    sendVerificationCode({ email: normalizedEmail, purpose })
+      .then(result => {
+        res.json({
+          message: 'Verification code sent',
+          email: result.email,
+          purpose: result.purpose,
+          expires_at: result.expiresAt
+        });
+      })
+      .catch(err => {
+        res.status(500).json({ error: err.message });
+      });
+  };
+
+  if (purpose === 'registration') {
+    db.get('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [normalizedEmail], (err, existingUser) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (existingUser) {
+        res.status(400).json({ error: 'Email already exists' });
+        return;
+      }
+      sendCode();
+    });
+    return;
+  }
+
+  db.get('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [normalizedEmail], (err, user) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!user) {
+      res.status(404).json({ error: 'User not found with the provided email' });
+      return;
+    }
+    sendCode();
+  });
+};
+
+// 用户注册（普通用户自助注册）
+exports.register = (req, res) => {
+  const { username, password, name, email, verificationCode } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!username || !password || !name || !email || !verificationCode) {
+    res.status(400).json({ error: 'Username, password, name, email and verification code are required' });
+    return;
+  }
+
+  // 检查用户名和邮箱是否已存在
+  findUserByUsernameOrEmail(username, normalizedEmail, (err, existingUser) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (existingUser) {
-      res.status(400).json({ error: 'Username already exists' });
+      const isEmailMatch = normalizeEmail(existingUser.email) === normalizedEmail;
+      res.status(400).json({ error: isEmailMatch ? 'Email already exists' : 'Username already exists' });
       return;
     }
 
-    // 加密密码并插入新用户，角色默认为 user
-    bcrypt.hash(password, 10, (hashErr, hash) => {
+    verifyCode({ email: normalizedEmail, purpose: 'registration', code: verificationCode })
+      .then(() => {
+        // 加密密码并插入新用户，角色默认为 user
+        bcrypt.hash(password, 10, (hashErr, hash) => {
       if (hashErr) {
         res.status(500).json({ error: 'Failed to hash password' });
         return;
@@ -73,7 +161,7 @@ exports.register = (req, res) => {
       const role = 'user';
       db.run(
         'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
-        [username, hash, role, name, email],
+        [username, hash, role, name, normalizedEmail],
         function(insertErr) {
           if (insertErr) {
             res.status(500).json({ error: insertErr.message });
@@ -89,16 +177,28 @@ exports.register = (req, res) => {
             role,
           };
           const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+          sendMailSafe({
+            userId: this.lastID,
+            to: normalizedEmail,
+            scenario: 'registration',
+            subject: 'Welcome to Library Management System',
+            text: `Hello ${name}, your library account ${username} has been registered successfully.`,
+            html: `<p>Hello ${name},</p><p>Your library account <strong>${username}</strong> has been registered successfully.</p>`
+          });
 
           res.status(201).json({
             ...payload,
             name,
-            email,
+            email: normalizedEmail,
             token,
           });
         }
       );
-    });
+        });
+      })
+      .catch(codeErr => {
+        res.status(400).json({ error: codeErr.message });
+      });
   });
 };
 
@@ -147,15 +247,17 @@ exports.getAllUsers = (req, res) => {
 // 添加用户（管理员）
 exports.addUser = (req, res) => {
   const { username, password, role, name, email } = req.body;
-  
-  // 检查用户名是否已存在
-  db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  // 检查用户名和邮箱是否已存在
+  findUserByUsernameOrEmail(username, normalizedEmail, (err, existingUser) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (existingUser) {
-      res.status(400).json({ error: 'Username already exists' });
+      const isEmailMatch = normalizeEmail(existingUser.email) === normalizedEmail;
+      res.status(400).json({ error: isEmailMatch ? 'Email already exists' : 'Username already exists' });
       return;
     }
     
@@ -168,7 +270,7 @@ exports.addUser = (req, res) => {
 
       db.run(
         'INSERT INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)',
-        [username, hash, role, name, email],
+        [username, hash, role, name, normalizedEmail],
         function(err) {
           if (err) {
             res.status(500).json({ error: err.message });
@@ -178,7 +280,7 @@ exports.addUser = (req, res) => {
           // 为新用户创建状态记录
           db.run('INSERT INTO user_status (user_id, status) VALUES (?, ?)', [this.lastID, 'active']);
           
-          res.json({ id: this.lastID, username, role, name, email });
+          res.json({ id: this.lastID, username, role, name, email: normalizedEmail });
         }
       );
     });
@@ -195,14 +297,16 @@ exports.updateUser = (req, res) => {
   // 构建更新语句
   let updateFields = [];
   let params = [];
+  let normalizedEmail = null;
   
   if (body.hasOwnProperty('name') && body.name) {
     updateFields.push('name = ?');
     params.push(body.name);
   }
   if (body.hasOwnProperty('email') && body.email) {
+    normalizedEmail = normalizeEmail(body.email);
     updateFields.push('email = ?');
-    params.push(body.email);
+    params.push(normalizedEmail);
   }
   if (body.hasOwnProperty('phone')) {
     updateFields.push('phone = ?');
@@ -234,7 +338,7 @@ exports.updateUser = (req, res) => {
   params.push(id);
   const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
 
-  db.run(sql, params, function(err) {
+  const runUpdate = () => db.run(sql, params, function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -271,13 +375,45 @@ exports.updateUser = (req, res) => {
       }
     );
   });
+
+  if (normalizedEmail) {
+    db.get(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?',
+      [normalizedEmail, id],
+      (err, existingUser) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (existingUser) {
+          res.status(400).json({ error: 'Email already exists' });
+          return;
+        }
+
+        runUpdate();
+      }
+    );
+    return;
+  }
+
+  runUpdate();
 };
 
 // 删除用户（管理员）
 exports.deleteUser = (req, res) => {
   const { id } = req.params;
-  
-  // 开始事务
+  const userId = Number(id);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+
+  if (userId === req.user.id) {
+    res.status(400).json({ error: 'Cannot delete your own account' });
+    return;
+  }
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION', (err) => {
       if (err) {
@@ -285,56 +421,87 @@ exports.deleteUser = (req, res) => {
         return;
       }
 
-      // 检查用户是否有未归还的借阅记录
-      db.get('SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (?, ?, ?) AND return_date IS NULL', [id, 'borrowing', 'borrowed', 'returning'], (err, result) => {
+      db.get('SELECT id, role FROM users WHERE id = ?', [userId], (err, targetUser) => {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
-
-        if (result.count > 0) {
+        if (!targetUser) {
           db.run('ROLLBACK');
-          res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
+          res.status(404).json({ error: 'User not found' });
+          return;
+        }
+        if (targetUser.role === 'admin') {
+          db.run('ROLLBACK');
+          res.status(400).json({ error: 'Cannot delete an admin account' });
           return;
         }
 
-        // 删除用户状态记录
-        db.run('DELETE FROM user_status WHERE user_id = ?', [id], (err) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 删除用户
-          db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
+        db.get(
+          `SELECT COUNT(*) as count FROM borrow_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_BORROW_STATUSES)})`,
+          [userId, ...ACTIVE_BORROW_STATUSES],
+          (err, borrowResult) => {
             if (err) {
               db.run('ROLLBACK');
               res.status(500).json({ error: err.message });
               return;
             }
-            if (this.changes === 0) {
+
+            if (borrowResult.count > 0) {
               db.run('ROLLBACK');
-              res.status(404).json({ error: 'User not found' });
+              res.status(400).json({ error: 'Cannot delete user: they have active borrowing records' });
               return;
             }
 
-            db.run('COMMIT', (err) => {
-              if (err) {
-                res.status(500).json({ error: err.message });
-                return;
+            db.get(
+              `SELECT COUNT(*) as count FROM reservation_records WHERE user_id = ? AND status IN (${placeholders(ACTIVE_RESERVATION_STATUSES)})`,
+              [userId, ...ACTIVE_RESERVATION_STATUSES],
+              (err, reservationResult) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                if (reservationResult.count > 0) {
+                  db.run('ROLLBACK');
+                  res.status(400).json({ error: 'Cannot delete user: they have active reservations' });
+                  return;
+                }
+
+                db.run('DELETE FROM user_status WHERE user_id = ?', [userId], (err) => {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: err.message });
+                    return;
+                  }
+
+                  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run('COMMIT', (err) => {
+                      if (err) {
+                        res.status(500).json({ error: err.message });
+                        return;
+                      }
+                      res.json({ message: 'User deleted' });
+                    });
+                  });
+                });
               }
-              res.json({ message: 'User deleted' });
-            });
-          });
-        });
+            );
+          }
+        );
       });
     });
   });
 };
 
-// 获取用户借阅记录（需要登录，只能查看自己的记录或管理员）
 exports.getUserBorrowRecords = (req, res) => {
   const { id } = req.params;
   
@@ -576,25 +743,42 @@ exports.requestPasswordReset = (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1h' } // 1小时过期
     );
-
-    res.json({ 
-      message: 'User found. You can now reset your password.',
-      token: resetToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name
-      }
+    const resetUrl = buildResetPasswordUrl(resetToken);
+    sendMailSafe({
+      userId: user.id,
+      to: user.email,
+      scenario: 'password_reset',
+      subject: 'Library account password reset',
+      text: `Hello ${user.name}, use this link to reset your password within 1 hour: ${resetUrl}`,
+      html: `<p>Hello ${user.name},</p><p>Use this link to reset your password within 1 hour:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
+    });
+    sendVerificationCode({
+      email: user.email,
+      purpose: 'password_reset'
+    })
+      .then(() => {
+        res.json({
+          message: 'User found. Password reset email and verification code sent if email delivery is enabled.',
+          token: resetToken,
+          user: {
+            id: user.id,
+            username: user.username,
+            name: user.name
+          }
+        });
+      })
+      .catch(mailErr => {
+        res.status(500).json({ error: mailErr.message });
     });
   });
 };
 
 // 重置密码
 exports.resetPassword = (req, res) => {
-  const { token, newPassword } = req.body;
+  const { token, newPassword, verificationCode } = req.body;
 
-  if (!token || !newPassword) {
-    res.status(400).json({ error: 'Token and new password are required' });
+  if (!token || !newPassword || !verificationCode) {
+    res.status(400).json({ error: 'Token, new password and verification code are required' });
     return;
   }
 
@@ -603,26 +787,39 @@ exports.resetPassword = (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { id } = decoded;
 
-    // 加密新密码
-    bcrypt.hash(newPassword, 10, (hashErr, hash) => {
-      if (hashErr) {
-        res.status(500).json({ error: 'Failed to hash password' });
+    db.get('SELECT id, email FROM users WHERE id = ?', [id], (userErr, user) => {
+      if (userErr) {
+        res.status(500).json({ error: userErr.message });
+        return;
+      }
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
         return;
       }
 
-      // 更新密码
-      db.run('UPDATE users SET password = ? WHERE id = ?', [hash, id], function(err) {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        if (this.changes === 0) {
-          res.status(404).json({ error: 'User not found' });
-          return;
-        }
+      verifyCode({ email: user.email, purpose: 'password_reset', code: verificationCode })
+        .then(() => {
+          // 加密新密码
+          bcrypt.hash(newPassword, 10, (hashErr, hash) => {
+            if (hashErr) {
+              res.status(500).json({ error: 'Failed to hash password' });
+              return;
+            }
 
-        res.json({ message: 'Password reset successfully' });
-      });
+            // 更新密码
+            db.run('UPDATE users SET password = ? WHERE id = ?', [hash, id], function(err) {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              res.json({ message: 'Password reset successfully' });
+            });
+          });
+        })
+        .catch(codeErr => {
+          res.status(400).json({ error: codeErr.message });
+        });
     });
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
