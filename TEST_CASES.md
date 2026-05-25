@@ -457,6 +457,20 @@
   - 注册和重置密码缺少验证码、验证码错误、验证码过期或重复使用时提交失败
   - 密码重置链接进入现有登录页重置密码表单，输入正确验证码后能提交新密码
   - 配置缺失或发信失败时接口/日志返回明确错误，业务主流程不因通知邮件失败而中断
+
+### 测试用例 8.11：Books 页面分页
+- **测试场景**：读者浏览 Books 页面大量书籍
+- **操作步骤**：
+  1. 登录普通用户账号
+  2. 打开 `/books`
+  3. 查看列表底部分页控件
+  4. 点击 Next、Previous、First、Last
+  5. 切换搜索、分类和 Available/Borrowed/Reserved 快速筛选
+- **预期结果**：
+  - 每页最多显示 12 本书
+  - 分页摘要显示当前范围和筛选后的总数
+  - 首页禁用 First/Previous，末页禁用 Next/Last
+  - 搜索、分类或快速筛选变化后自动回到第一页
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state

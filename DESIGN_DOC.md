@@ -52,6 +52,7 @@
 - Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，并每 2.5 秒轮询订单状态，`paid` 自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记、`expired` 提示重新创建订单；模拟支付成功按钮受 `ALIPAY_MODE=sandbox` / `ALIPAY_SIMULATION_ENABLED` 控制，模拟成功后再标记支付单和关联罚款为 `paid`；同一批罚款复用 pending 订单，expired 订单不能模拟成功，paid 订单不能过期，管理员/图书管理员可通过 Income Dashboard 查看收入汇总、订单列表并过期待支付订单。
 - My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
+- Books 页面在搜索、分类和可用性筛选后按每页 12 本进行前端分页，只向 `BookList` 传入当前页数据，减少列表副本详情加载压力。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 - Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
 - ShowAPI ISBN 返回值按系统书籍模型归一化，包含 `gist -> description`、`img -> cover_image`、`pubdate -> publish_date`、`page -> page_count`；当前模型未覆盖的 provider 专有字段不落库。

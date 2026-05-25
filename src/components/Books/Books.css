@@ -401,6 +401,63 @@
   color: var(--primary-color);
 }
 
+.books-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #E5E7EB;
+  border-radius: var(--border-radius-lg);
+  background: #F8FAFC;
+}
+
+.books-pagination-summary {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.books-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.books-pagination-controls button {
+  min-width: 72px;
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.books-pagination-controls button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.books-pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.books-pagination-controls span {
+  min-width: 92px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* 热门图书部分 */
 .books-sidebar {
   position: sticky;
@@ -1966,6 +2023,20 @@
 
   .quick-filter-group {
     overflow-x: auto;
+  }
+
+  .books-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .books-pagination-controls {
+    flex-wrap: wrap;
+  }
+
+  .books-pagination-controls button,
+  .books-pagination-controls span {
+    flex: 1 1 88px;
   }
 
   .isbn-input-group button {

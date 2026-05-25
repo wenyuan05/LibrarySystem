@@ -1816,3 +1816,19 @@ This file documents all bug fixes applied to the project.
   - Added Send Code and verification-code fields to the registration form and reset-password form.
 - **Reason**: Registration and password reset needed email ownership verification instead of only sending informational emails after the action.
 
+### Fix 135: Add pagination to Books page
+- **Files modified**:
+  - `src/pages/BooksPage.jsx`
+  - `src/components/Books/Books.css`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added frontend pagination to the Books page with 12 books per page.
+  - Added First, Previous, Next, and Last controls with disabled states.
+  - Added a visible range summary for the current filtered result set.
+  - Reset the current page when search, category, or quick availability filters change.
+  - Passed only the current page of books to `BookList`, reducing per-page copy-detail loading work.
+- **Reason**: Large book lists made the Books page dense and caused unnecessary detail loading for every filtered book at once.
+

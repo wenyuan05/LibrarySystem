@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import BookList from '../components/Books/BookList';
 import { booksAPI, borrowAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
 
 const BooksPage = () => {
+  const BOOKS_PER_PAGE = 12;
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -115,16 +117,19 @@ const BooksPage = () => {
   const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
+    setCurrentPage(1);
     fetchBooks(selectedCategory, term);
   };
 
   const handleCategoryChange = (e) => {
     const category = e.target.value;
     setSelectedCategory(category);
+    setCurrentPage(1);
     fetchBooks(category, searchTerm);
   };
 
   const handleSearchClick = () => {
+    setCurrentPage(1);
     fetchBooks(selectedCategory, searchTerm);
   };
 
@@ -168,6 +173,18 @@ const BooksPage = () => {
     { label: 'Unavailable Titles', value: unavailableBooks, hint: 'Currently out of stock' },
     { label: 'Top Borrow Count', value: topBorrowCount, hint: 'Most borrowed title' }
   ];
+
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
+  const pagedBooks = useMemo(() => {
+    const startIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+    return filteredBooks.slice(startIndex, startIndex + BOOKS_PER_PAGE);
+  }, [filteredBooks, currentPage]);
+  const pageStart = filteredBooks.length === 0 ? 0 : (currentPage - 1) * BOOKS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
+
+  useEffect(() => {
+    setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
 
   return (
     <div className="books-page-shell fade-in">
@@ -218,7 +235,10 @@ const BooksPage = () => {
                   type="button"
                   key={filter.id}
                   className={quickFilter === filter.id ? 'active' : ''}
-                  onClick={() => setQuickFilter(filter.id)}
+                  onClick={() => {
+                    setQuickFilter(filter.id);
+                    setCurrentPage(1);
+                  }}
                 >
                   {filter.label}
                 </button>
@@ -279,12 +299,50 @@ const BooksPage = () => {
         </div>
 
         <BookList
-          books={filteredBooks}
+          books={pagedBooks}
           loading={booksLoading}
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
           onReservationsChanged={fetchActiveReservations}
         />
+        {!booksLoading && filteredBooks.length > 0 && (
+          <div className="books-pagination" aria-label="Books pagination">
+            <div className="books-pagination-summary">
+              Showing {pageStart}-{pageEnd} of {filteredBooks.length}
+            </div>
+            <div className="books-pagination-controls">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <aside className="books-sidebar">
