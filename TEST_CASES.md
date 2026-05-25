@@ -516,6 +516,16 @@
   - paid 状态后 Fine Records 自动刷新罚款记录并停止轮询
   - expired 或 failed 状态后停止轮询
   - `/payment-result` 页面在终态后不再继续发起定时状态请求
+
+### 测试用例 8.15：数据库 schema 单一定义
+- **测试场景**：检查数据库初始化文件维护性
+- **操作步骤**：
+  1. 搜索 `backend/db.js` 中 `payments`、`email_logs`、`email_verification_codes` 的建表语句
+  2. 启动后端或加载数据库模块
+- **预期结果**：
+  - 每张表只保留一个 `CREATE TABLE IF NOT EXISTS` 定义
+  - 支付、邮件日志和邮箱验证码相关索引仍会创建
+  - 数据库模块可正常加载
 ## Test Cases Update - 2026-05-13
 
 ### Test Case: Prevent deleting users with active lending state

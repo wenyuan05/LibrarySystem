@@ -1913,3 +1913,14 @@ This file documents all bug fixes applied to the project.
   - Kept positive integer validation for age-filtered cleanup and rejected invalid values.
 - **Reason**: JSON bodies can send `days` as a string, and `"0"` should behave the same as numeric `0`.
 
+### Fix 140: Remove duplicate schema definitions
+- **Files modified**:
+  - `backend/db.js`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed duplicate `CREATE TABLE IF NOT EXISTS` blocks for `payments`, `email_logs`, and `email_verification_codes`.
+  - Kept the original schema definitions in the main initialization section.
+  - Kept existing index creation for payment, email log, and email verification tables.
+- **Reason**: Duplicate table definitions made schema maintenance harder even though `IF NOT EXISTS` prevented runtime failures.
+

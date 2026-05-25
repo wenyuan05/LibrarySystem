@@ -316,57 +316,6 @@ db.serialize(() => {
     // 字段已存在，忽略错误
   });
 
-  // 为现有数据库创建支付记录表
-  db.run(`
-    CREATE TABLE IF NOT EXISTS payments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      provider TEXT NOT NULL DEFAULT 'alipay',
-      payment_type TEXT NOT NULL DEFAULT 'fine',
-      out_trade_no TEXT NOT NULL UNIQUE,
-      provider_trade_no TEXT,
-      amount REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      subject TEXT,
-      qr_code TEXT,
-      payment_url TEXT,
-      borrow_record_ids TEXT,
-      raw_notify TEXT,
-      paid_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  // 为现有数据库创建邮件发送日志表
-  db.run(`
-    CREATE TABLE IF NOT EXISTS email_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      to_email TEXT NOT NULL,
-      subject TEXT NOT NULL,
-      scenario TEXT,
-      status TEXT NOT NULL,
-      error_message TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  // 为现有数据库创建邮件验证码表
-  db.run(`
-    CREATE TABLE IF NOT EXISTS email_verification_codes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL,
-      purpose TEXT NOT NULL,
-      code_hash TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      used_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
   // 插入一些示例数据
   const insertBook = db.prepare('INSERT OR IGNORE INTO books (title, author, isbn, publisher, publish_date, language, page_count) VALUES (?, ?, ?, ?, ?, ?, ?)');
   insertBook.run('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 'Scribner', '1925-04-10', 'English', 180);
