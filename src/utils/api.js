@@ -63,10 +63,18 @@ export const authAPI = {
   },
 
   // 用户注册
-  register: async ({ username, password, name, email }) => {
+  register: async ({ username, password, name, email, verificationCode }) => {
     return request('/users/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, name, email }),
+      body: JSON.stringify({ username, password, name, email, verificationCode }),
+    });
+  },
+
+  // 发送邮箱验证码
+  sendEmailVerificationCode: async ({ email, purpose }) => {
+    return request('/users/email-verification/send', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
     });
   },
 
@@ -79,10 +87,10 @@ export const authAPI = {
   },
 
   // 重置密码
-  resetPassword: async (token, newPassword) => {
+  resetPassword: async (token, newPassword, verificationCode) => {
     return request('/users/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token, newPassword }),
+      body: JSON.stringify({ token, newPassword, verificationCode }),
     });
   },
 };

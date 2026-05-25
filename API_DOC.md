@@ -60,9 +60,12 @@
   "username": "newuser",
   "password": "password123",
   "name": "New User",
-  "email": "newuser@example.com"
+  "email": "newuser@example.com",
+  "verificationCode": "123456"
 }
 ```
+
+**说明**：注册前需先调用 `POST /api/users/email-verification/send`，`purpose` 传 `registration`，并提交邮箱收到的 6 位验证码。
 
 **响应**：
 ```json
@@ -245,7 +248,7 @@
 **响应**：
 ```json
 {
-  "message": "User found. Password reset email sent if email delivery is enabled.",
+  "message": "User found. Password reset email and verification code sent if email delivery is enabled.",
   "token": "<reset_token>",
   "user": {
     "id": 2,
@@ -256,8 +259,52 @@
 ```
 
 **说明**：
-- 当后端 `EMAIL_ENABLED=true` 时会向账户邮箱发送重置链接。
+- 当后端 `EMAIL_ENABLED=true` 时会向账户邮箱发送重置链接和 6 位验证码。
 - 当前版本仍返回 `token`，用于兼容现有前端本地重置流程。
+
+#### 3.1.13 POST /api/users/email-verification/send
+**功能**：发送邮箱验证码
+
+**请求体**：
+```json
+{
+  "email": "user@example.com",
+  "purpose": "registration"
+}
+```
+
+`purpose` 可选值：
+- `registration`：注册邮箱验证码
+- `password_reset`：重置密码邮箱验证码
+
+**响应**：
+```json
+{
+  "message": "Verification code sent",
+  "email": "user@example.com",
+  "purpose": "registration",
+  "expires_at": "2026-05-25T10:30:00.000Z"
+}
+```
+
+#### 3.1.14 POST /api/users/reset-password
+**功能**：重置密码
+
+**请求体**：
+```json
+{
+  "token": "<reset_token>",
+  "newPassword": "newpassword123",
+  "verificationCode": "123456"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Password reset successfully"
+}
+```
 
 ### 3.2 书籍管理接口
 

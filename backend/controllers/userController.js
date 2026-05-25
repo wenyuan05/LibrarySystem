@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { getEmailConfig } = require('../config/emailConfig');
 const { sendMailSafe } = require('../services/emailService');
+const { sendVerificationCode, verifyCode } = require('../services/emailVerificationService');
 const {
   ACTIVE_BORROW_STATUSES,
   ACTIVE_RESERVATION_STATUSES,
@@ -64,13 +65,75 @@ exports.login = (req, res) => {
   });
 };
 
+exports.sendEmailVerificationCode = (req, res) => {
+  const { email, purpose } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!normalizedEmail || !purpose) {
+    res.status(400).json({ error: 'Email and purpose are required' });
+    return;
+  }
+  if (!emailRegex.test(normalizedEmail)) {
+    res.status(400).json({ error: 'Invalid email format' });
+    return;
+  }
+
+  if (!['registration', 'password_reset'].includes(purpose)) {
+    res.status(400).json({ error: 'Invalid verification purpose' });
+    return;
+  }
+
+  const sendCode = () => {
+    sendVerificationCode({ email: normalizedEmail, purpose })
+      .then(result => {
+        res.json({
+          message: 'Verification code sent',
+          email: result.email,
+          purpose: result.purpose,
+          expires_at: result.expiresAt
+        });
+      })
+      .catch(err => {
+        res.status(500).json({ error: err.message });
+      });
+  };
+
+  if (purpose === 'registration') {
+    db.get('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [normalizedEmail], (err, existingUser) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (existingUser) {
+        res.status(400).json({ error: 'Email already exists' });
+        return;
+      }
+      sendCode();
+    });
+    return;
+  }
+
+  db.get('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [normalizedEmail], (err, user) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!user) {
+      res.status(404).json({ error: 'User not found with the provided email' });
+      return;
+    }
+    sendCode();
+  });
+};
+
 // 用户注册（普通用户自助注册）
 exports.register = (req, res) => {
-  const { username, password, name, email } = req.body;
+  const { username, password, name, email, verificationCode } = req.body;
   const normalizedEmail = normalizeEmail(email);
 
-  if (!username || !password || !name || !email) {
-    res.status(400).json({ error: 'Username, password, name and email are required' });
+  if (!username || !password || !name || !email || !verificationCode) {
+    res.status(400).json({ error: 'Username, password, name, email and verification code are required' });
     return;
   }
 
@@ -86,8 +149,10 @@ exports.register = (req, res) => {
       return;
     }
 
-    // 加密密码并插入新用户，角色默认为 user
-    bcrypt.hash(password, 10, (hashErr, hash) => {
+    verifyCode({ email: normalizedEmail, purpose: 'registration', code: verificationCode })
+      .then(() => {
+        // 加密密码并插入新用户，角色默认为 user
+        bcrypt.hash(password, 10, (hashErr, hash) => {
       if (hashErr) {
         res.status(500).json({ error: 'Failed to hash password' });
         return;
@@ -129,7 +194,11 @@ exports.register = (req, res) => {
           });
         }
       );
-    });
+        });
+      })
+      .catch(codeErr => {
+        res.status(400).json({ error: codeErr.message });
+      });
   });
 };
 
@@ -683,25 +752,33 @@ exports.requestPasswordReset = (req, res) => {
       text: `Hello ${user.name}, use this link to reset your password within 1 hour: ${resetUrl}`,
       html: `<p>Hello ${user.name},</p><p>Use this link to reset your password within 1 hour:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
     });
-
-    res.json({ 
-      message: 'User found. Password reset email sent if email delivery is enabled.',
-      token: resetToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name
-      }
+    sendVerificationCode({
+      email: user.email,
+      purpose: 'password_reset'
+    })
+      .then(() => {
+        res.json({
+          message: 'User found. Password reset email and verification code sent if email delivery is enabled.',
+          token: resetToken,
+          user: {
+            id: user.id,
+            username: user.username,
+            name: user.name
+          }
+        });
+      })
+      .catch(mailErr => {
+        res.status(500).json({ error: mailErr.message });
     });
   });
 };
 
 // 重置密码
 exports.resetPassword = (req, res) => {
-  const { token, newPassword } = req.body;
+  const { token, newPassword, verificationCode } = req.body;
 
-  if (!token || !newPassword) {
-    res.status(400).json({ error: 'Token and new password are required' });
+  if (!token || !newPassword || !verificationCode) {
+    res.status(400).json({ error: 'Token, new password and verification code are required' });
     return;
   }
 
@@ -710,26 +787,39 @@ exports.resetPassword = (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { id } = decoded;
 
-    // 加密新密码
-    bcrypt.hash(newPassword, 10, (hashErr, hash) => {
-      if (hashErr) {
-        res.status(500).json({ error: 'Failed to hash password' });
+    db.get('SELECT id, email FROM users WHERE id = ?', [id], (userErr, user) => {
+      if (userErr) {
+        res.status(500).json({ error: userErr.message });
+        return;
+      }
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
         return;
       }
 
-      // 更新密码
-      db.run('UPDATE users SET password = ? WHERE id = ?', [hash, id], function(err) {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        if (this.changes === 0) {
-          res.status(404).json({ error: 'User not found' });
-          return;
-        }
+      verifyCode({ email: user.email, purpose: 'password_reset', code: verificationCode })
+        .then(() => {
+          // 加密新密码
+          bcrypt.hash(newPassword, 10, (hashErr, hash) => {
+            if (hashErr) {
+              res.status(500).json({ error: 'Failed to hash password' });
+              return;
+            }
 
-        res.json({ message: 'Password reset successfully' });
-      });
+            // 更新密码
+            db.run('UPDATE users SET password = ? WHERE id = ?', [hash, id], function(err) {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              res.json({ message: 'Password reset successfully' });
+            });
+          });
+        })
+        .catch(codeErr => {
+          res.status(400).json({ error: codeErr.message });
+        });
     });
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });

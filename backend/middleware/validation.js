@@ -18,9 +18,9 @@ exports.validateLoginBody = (req, res, next) => {
 
 // 注册请求体验证中间件
 exports.validateRegisterBody = (req, res, next) => {
-  const { username, password, name, email } = req.body;
-  if (!username || !password || !name || !email) {
-    res.status(400).json({ error: 'Username, password, name and email are required' });
+  const { username, password, name, email, verificationCode } = req.body;
+  if (!username || !password || !name || !email || !verificationCode) {
+    res.status(400).json({ error: 'Username, password, name, email and verification code are required' });
     return;
   }
   if (username.length < 3 || username.length > 20) {
@@ -38,6 +38,10 @@ exports.validateRegisterBody = (req, res, next) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     res.status(400).json({ error: 'Invalid email format' });
+    return;
+  }
+  if (!/^\d{6}$/.test(String(verificationCode).trim())) {
+    res.status(400).json({ error: 'Verification code must be 6 digits' });
     return;
   }
   next();
@@ -279,7 +283,7 @@ exports.validatePasswordResetRequest = (req, res, next) => {
 
 // 密码重置体验证中间件
 exports.validatePasswordReset = (req, res, next) => {
-  const { token, newPassword } = req.body;
+  const { token, newPassword, verificationCode } = req.body;
   if (!token) {
     res.status(400).json({ error: 'Token is required' });
     return;
@@ -288,8 +292,16 @@ exports.validatePasswordReset = (req, res, next) => {
     res.status(400).json({ error: 'New password is required' });
     return;
   }
+  if (!verificationCode) {
+    res.status(400).json({ error: 'Verification code is required' });
+    return;
+  }
   if (newPassword.length < 6) {
     res.status(400).json({ error: 'New password must be at least 6 characters' });
+    return;
+  }
+  if (!/^\d{6}$/.test(String(verificationCode).trim())) {
+    res.status(400).json({ error: 'Verification code must be 6 digits' });
     return;
   }
   next();

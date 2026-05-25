@@ -18,6 +18,7 @@
 | payments | 支付记录 |
 | notifications | 站内通知 |
 | email_logs | 邮件发送记录 |
+| email_verification_codes | 邮箱验证码记录 |
 | system_logs | 系统日志 |
 | announcements | 公告信息 |
 | announcement_reads | 公告已读记录 |
@@ -220,7 +221,7 @@
 | user_id | INTEGER | | 关联用户ID，外键关联users表 |
 | to_email | TEXT | NOT NULL | 收件邮箱 |
 | subject | TEXT | NOT NULL | 邮件标题 |
-| scenario | TEXT | | 发送场景（registration/password_reset/notification/test/general） |
+| scenario | TEXT | | 发送场景（registration/registration_verification/password_reset/password_reset_verification/notification/test/general） |
 | status | TEXT | NOT NULL | 处理状态（skipped/logged/sent/failed） |
 | error_message | TEXT | | 失败或跳过原因 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
@@ -230,7 +231,26 @@
 - `EMAIL_MODE=log` 时只写日志和控制台输出，不连接 QQ 邮箱 SMTP。
 - `EMAIL_MODE=smtp` 且配置完整时通过 QQ 邮箱 SMTP 发信，失败原因写入 `error_message`。
 
-### 2.12 system_logs 表
+### 2.12 email_verification_codes 表
+
+**功能**：保存注册和密码重置邮箱验证码的哈希、用途和过期状态
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
+| email | TEXT | NOT NULL | 验证邮箱 |
+| purpose | TEXT | NOT NULL | 用途（registration/password_reset） |
+| code_hash | TEXT | NOT NULL | bcrypt 哈希后的验证码 |
+| expires_at | TEXT | NOT NULL | 过期时间 |
+| used_at | TEXT | | 使用时间，非空表示已消费 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**说明**：
+- 每次发送同一邮箱同一用途的新验证码时，旧的未使用验证码会被标记为已使用。
+- 验证码有效期为 10 分钟，校验通过后立即写入 `used_at` 防止重复使用。
+- 数据库只保存验证码哈希，不保存明文验证码。
+
+### 2.13 system_logs 表
 
 **功能**：存储系统操作日志
 
@@ -243,7 +263,7 @@
 | ip_address | TEXT | | 操作IP地址 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 操作时间 |
 
-### 2.13 notifications 表
+### 2.14 notifications 表
 
 **功能**：存储站内通知，当前用于预约书籍可借提醒
 
@@ -258,7 +278,7 @@
 | related_id | INTEGER | | 关联业务记录ID，如 reservation_records.id |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.14 announcements 表
+### 2.15 announcements 表
 
 **功能**：存储系统公告
 
@@ -272,7 +292,7 @@
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.15 announcement_reads 表
+### 2.16 announcement_reads 表
 
 **功能**：按用户记录已读公告，避免已读公告重复触发弹窗提醒
 
@@ -301,6 +321,8 @@
 | idx_email_logs_user_id | email_logs | user_id | | 加速用户邮件记录查询 |
 | idx_email_logs_status | email_logs | status | | 加速邮件状态筛选 |
 | idx_email_logs_created_at | email_logs | created_at | | 加速邮件发送时间排序 |
+| idx_email_verification_codes_email_purpose | email_verification_codes | email, purpose | | 加速验证码校验 |
+| idx_email_verification_codes_expires_at | email_verification_codes | expires_at | | 加速验证码过期筛选 |
 | idx_reservation_records_user_id | reservation_records | user_id | | 加速用户预约记录查询 |
 | idx_reservation_records_book_id | reservation_records | book_id | | 加速书籍预约记录查询 |
 | idx_reservation_records_status | reservation_records | status | | 加速预约状态查询 |
@@ -327,6 +349,7 @@ users ── payments ── borrow_records
 users ── reservation_records ── books
 users ── notifications
 users ── email_logs
+users.email ── email_verification_codes.email
 reservation_records ── notifications.related_id
 announcements ── announcement_reads ── users
 books ── book_categories ── categories

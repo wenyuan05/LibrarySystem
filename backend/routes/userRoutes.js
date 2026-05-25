@@ -7,6 +7,9 @@ const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody, valid
 // 用户登录
 router.post('/login', validateLoginBody, userController.login);
 
+// 发送邮箱验证码（注册或密码重置）
+router.post('/email-verification/send', userController.sendEmailVerificationCode);
+
 // 用户注册（普通用户自助注册）
 router.post('/register', validateRegisterBody, userController.register);
 

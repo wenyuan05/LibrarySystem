@@ -1791,3 +1791,28 @@ This file documents all bug fixes applied to the project.
   - Kept local development usable through `EMAIL_MODE=log` and documented that QQ Mail requires an SMTP authorization code instead of the login password.
 - **Reason**: Release 3 requires real email delivery for account and notification flows while preserving a local test mode that does not depend on external SMTP credentials.
 
+### Fix 134: Add email verification codes for registration and password reset
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/services/emailVerificationService.js`
+  - `backend/controllers/userController.js`
+  - `backend/routes/userRoutes.js`
+  - `backend/middleware/validation.js`
+  - `src/components/Login/Login.jsx`
+  - `src/components/Login/Login.css`
+  - `src/context/AuthContext.jsx`
+  - `src/utils/api.js`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `API_DOC.md`
+  - `DATABASE_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `email_verification_codes` with hashed codes, purpose, expiry, and used status.
+  - Added `POST /api/users/email-verification/send` for registration and password reset verification codes.
+  - Required a 6-digit email verification code when registering and when submitting a password reset.
+  - Sent a password reset verification code alongside the existing reset link email.
+  - Added Send Code and verification-code fields to the registration form and reset-password form.
+- **Reason**: Registration and password reset needed email ownership verification instead of only sending informational emails after the action.
+

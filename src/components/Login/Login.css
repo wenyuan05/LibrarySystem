@@ -77,6 +77,26 @@
   text-align: left;
 }
 
+.verification-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+}
+
+.verification-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.verification-button {
+  flex: 0 0 112px;
+  min-height: 38px;
+  margin-top: 0;
+  padding: 0 var(--spacing-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* 登录信息 */
 .login-info {
   margin-top: var(--spacing-lg);

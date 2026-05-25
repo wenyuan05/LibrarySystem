@@ -29,11 +29,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 注册函数（注册成功后自动登录）
-  const register = async ({ username, password, name, email }) => {
+  const register = async ({ username, password, name, email, verificationCode }) => {
     try {
       setLoading(true);
       setError(null);
-      const userData = await authAPI.register({ username, password, name, email });
+      const userData = await authAPI.register({ username, password, name, email, verificationCode });
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       return userData;

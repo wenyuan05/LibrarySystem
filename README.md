@@ -696,6 +696,8 @@ npm run dev
    - 后端新增邮件配置、邮件发送服务和 `email_logs` 发送记录表
    - 支持 `EMAIL_MODE=log` 本地演示模式和 `EMAIL_MODE=smtp` 真实 QQ 邮箱发信模式
    - 注册成功、请求重置密码、预约到书通知会触发邮件发送
+   - 注册和重置密码流程新增 6 位邮箱验证码，验证码哈希保存到 `email_verification_codes`，10 分钟过期且验证后失效
+   - 注册页提供 Send Code 按钮，重置密码页要求输入随重置邮件发送的验证码
    - 管理员可通过 `/api/system/email/status` 查看安全配置摘要，通过 `/api/system/email/test` 发送测试邮件
    - System Settings 右侧提供 Email Test 卡片，管理员可在前端查看模式/配置状态并触发测试邮件
 

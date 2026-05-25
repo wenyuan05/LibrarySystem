@@ -234,6 +234,19 @@ db.serialize(() => {
     )
   `);
 
+  // 创建邮件验证码表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_verification_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // 将已有用户的明文密码迁移为哈希（兼容旧数据）
   db.all('SELECT id, password FROM users', (err, rows) => {
     if (!err && Array.isArray(rows)) {
@@ -338,6 +351,19 @@ db.serialize(() => {
       error_message TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // 为现有数据库创建邮件验证码表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS email_verification_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -446,6 +472,8 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_user_id ON email_logs(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status)');
   db.run('CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON email_logs(created_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_verification_codes_email_purpose ON email_verification_codes(email, purpose)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_email_verification_codes_expires_at ON email_verification_codes(expires_at)');
   
   // 预约记录表索引
   db.run('CREATE INDEX IF NOT EXISTS idx_reservation_records_user_id ON reservation_records(user_id)');
