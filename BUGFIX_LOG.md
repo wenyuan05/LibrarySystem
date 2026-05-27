@@ -1932,3 +1932,17 @@ This file documents all bug fixes applied to the project.
   - Updated the `deleteCopy` wrapper comment from updating copy status to deleting a single copy.
 - **Reason**: Keep API wrapper comments aligned with behavior for easier maintenance.
 
+### Fix 142: Allow profile updates without role-change false positives
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `src/components/Users/EditUserForm.jsx`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Stopped the profile edit form from submitting `role` unless an admin is editing a non-admin user's role.
+  - Changed user update validation so an unchanged `role` value is ignored instead of treated as a role modification.
+  - Kept non-admin role changes forbidden and kept admin creation through the update endpoint blocked.
+  - Documented the user update role behavior and added a profile update regression test case.
+- **Reason**: Editing personal information could fail with `Forbidden: only admin can modify user role` when the request carried an unchanged role value.
+

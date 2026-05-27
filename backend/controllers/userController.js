@@ -298,6 +298,7 @@ exports.updateUser = (req, res) => {
   let updateFields = [];
   let params = [];
   let normalizedEmail = null;
+  const requestedRole = body.hasOwnProperty('role') && body.role ? body.role : null;
   
   if (body.hasOwnProperty('name') && body.name) {
     updateFields.push('name = ?');
@@ -316,28 +317,6 @@ exports.updateUser = (req, res) => {
     updateFields.push('address = ?');
     params.push(body.address);
   }
-  if (body.hasOwnProperty('role') && body.role) {
-    // 只有admin可以修改角色，且不能将其他用户修改为admin
-    if (req.user.role !== 'admin') {
-      res.status(403).json({ error: 'Forbidden: only admin can modify user role' });
-      return;
-    }
-    if (body.role === 'admin') {
-      res.status(403).json({ error: 'Cannot set user role to admin' });
-      return;
-    }
-    updateFields.push('role = ?');
-    params.push(body.role);
-  }
-
-  if (updateFields.length === 0) {
-    res.status(400).json({ error: 'No fields to update' });
-    return;
-  }
-
-  params.push(id);
-  const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
-
   const runUpdate = () => db.run(sql, params, function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -376,7 +355,20 @@ exports.updateUser = (req, res) => {
     );
   });
 
-  if (normalizedEmail) {
+  const validateEmailAndRun = () => {
+    if (updateFields.length === 0) {
+      res.status(400).json({ error: 'No fields to update' });
+      return;
+    }
+
+    params.push(id);
+    sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+    if (!normalizedEmail) {
+      runUpdate();
+      return;
+    }
+
     db.get(
       'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?',
       [normalizedEmail, id],
@@ -393,10 +385,41 @@ exports.updateUser = (req, res) => {
         runUpdate();
       }
     );
+  };
+
+  let sql;
+
+  if (!requestedRole) {
+    validateEmailAndRun();
     return;
   }
 
-  runUpdate();
+  db.get('SELECT role FROM users WHERE id = ?', [id], (err, targetUser) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!targetUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (requestedRole !== targetUser.role) {
+      // 只有admin可以修改角色，且不能将其他用户修改为admin
+      if (req.user.role !== 'admin') {
+        res.status(403).json({ error: 'Forbidden: only admin can modify user role' });
+        return;
+      }
+      if (requestedRole === 'admin') {
+        res.status(403).json({ error: 'Cannot set user role to admin' });
+        return;
+      }
+      updateFields.push('role = ?');
+      params.push(requestedRole);
+    }
+
+    validateEmailAndRun();
+  });
 };
 
 // 删除用户（管理员）

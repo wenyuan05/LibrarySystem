@@ -11,9 +11,9 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     name: user.name || '',
     email: user.email || '',
     phone: user.phone || '',
-    address: user.address || '',
-    role: user.role || ''
+    address: user.address || ''
   });
+  const [selectedRole, setSelectedRole] = useState(user.role || 'user');
   const [loading, setLoading] = useState(false);
   const modalRef = useRef(null);
 
@@ -30,7 +30,12 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     setLoading(true);
 
     try {
-      const updatedUser = await usersAPI.update(user.id, formData);
+      const payload = { ...formData };
+      if (currentUser?.role === 'admin' && user.role !== 'admin') {
+        payload.role = selectedRole;
+      }
+
+      const updatedUser = await usersAPI.update(user.id, payload);
       showToast('User updated successfully!', 'success');
       onUserUpdated(updatedUser);
     } catch (err) {
@@ -157,8 +162,8 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
               <select
                 id="role"
                 name="role"
-                value={formData.role}
-                onChange={handleChange}
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
                 disabled={loading}
                 className="form-input"
               >
