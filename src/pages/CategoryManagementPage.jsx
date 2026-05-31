@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { categoryAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import './CategoryManagementPage.css';
@@ -16,7 +16,7 @@ const CategoryManagementPage = () => {
   const inputRef = useRef(null);
 
   // Get all categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await categoryAPI.getAll();
@@ -27,12 +27,12 @@ const CategoryManagementPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Fetch categories on initialization
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   // Create new category
   const handleCreateCategory = async (e) => {

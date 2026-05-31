@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { announcementAPI } from '../utils/api';
 
@@ -7,12 +7,7 @@ const AnnouncementsPage = () => {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  // Load announcements list
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
-
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       setLoading(true);
       const data = await announcementAPI.getAll();
@@ -25,7 +20,12 @@ const AnnouncementsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Load announcements list
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
   if (loading) {
     return <div className="loading">Loading announcements...</div>;

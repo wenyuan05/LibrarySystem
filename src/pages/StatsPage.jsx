@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { statsAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import './StatsPage.css';
@@ -68,7 +68,7 @@ const StatsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Get borrowing business statistics
-  const fetchBorrowStats = async () => {
+  const fetchBorrowStats = useCallback(async () => {
     try {
       const data = await statsAPI.getBorrowStats();
       setBorrowStats(data);
@@ -76,10 +76,10 @@ const StatsPage = () => {
       showToast('Failed to fetch borrowing statistics', 'error');
       console.error('Error fetching borrow stats:', error);
     }
-  };
+  }, [showToast]);
 
   // Get monthly borrowing statistics
-  const fetchMonthlyStats = async (year) => {
+  const fetchMonthlyStats = useCallback(async (year) => {
     try {
       const data = await statsAPI.getMonthlyStats(year);
       setMonthlyStats(data);
@@ -87,10 +87,10 @@ const StatsPage = () => {
       showToast('Failed to fetch monthly statistics', 'error');
       console.error('Error fetching monthly stats:', error);
     }
-  };
+  }, [showToast]);
 
   // Get popular books statistics
-  const fetchPopularBooks = async () => {
+  const fetchPopularBooks = useCallback(async () => {
     try {
       const data = await statsAPI.getPopularBooksStats();
       setPopularBooks(data);
@@ -98,7 +98,7 @@ const StatsPage = () => {
       showToast('Failed to fetch popular books statistics', 'error');
       console.error('Error fetching popular books stats:', error);
     }
-  };
+  }, [showToast]);
 
   // Fetch all statistics on initialization
   useEffect(() => {
@@ -113,7 +113,7 @@ const StatsPage = () => {
     };
 
     fetchAllStats();
-  }, [selectedYear]);
+  }, [fetchBorrowStats, fetchMonthlyStats, fetchPopularBooks, selectedYear]);
 
   // Handle year selection change
   const handleYearChange = (e) => {

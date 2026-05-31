@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
@@ -43,7 +43,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   const dropdownRef = useRef(null);
   const csvInputRef = useRef(null);
 
-  const getMetadataCacheKey = (isbn, provider = selectedProvider) => `${provider}:${isbn}`;
+  const getMetadataCacheKey = useCallback((isbn, provider = selectedProvider) => `${provider}:${isbn}`, [selectedProvider]);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -168,10 +168,10 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
         status
       };
     });
-  }, [existingIsbnSet, metadataCache, parsedIsbns, selectedProvider, isbnProviders]);
+  }, [existingIsbnSet, getMetadataCacheKey, metadataCache, parsedIsbns, selectedProvider, isbnProviders]);
 
-  const importablePreview = batchPreview.filter(item => item.status === 'success');
-  const blockedPreview = batchPreview.filter(item => item.status !== 'success');
+  const importablePreview = useMemo(() => batchPreview.filter(item => item.status === 'success'), [batchPreview]);
+  const blockedPreview = useMemo(() => batchPreview.filter(item => item.status !== 'success'), [batchPreview]);
 
   useEffect(() => {
     if (activeTab !== 'batch') return undefined;
@@ -207,7 +207,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [activeTab, importablePreview, metadataCache, selectedProvider]);
+  }, [activeTab, getMetadataCacheKey, importablePreview, metadataCache, selectedProvider]);
 
   const handleProviderChange = (event) => {
     setSelectedProvider(event.target.value);

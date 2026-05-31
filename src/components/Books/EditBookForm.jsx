@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
@@ -13,6 +13,12 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
   const { showToast } = useToast();
   const titleInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const handleModalClose = useCallback((e) => {
+    e.stopPropagation();
+    if (onCancel) {
+      onCancel();
+    }
+  }, [onCancel]);
 
   // 初始化表单数据和焦点管理
   useEffect(() => {
@@ -69,7 +75,7 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleModalClose]);
 
   // 关闭下拉菜单当点击外部
   useEffect(() => {
@@ -164,13 +170,6 @@ const EditBookForm = ({ book, onEditComplete, onCancel }) => {
       console.error(err);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleModalClose = (e) => {
-    e.stopPropagation();
-    if (onCancel) {
-      onCancel();
     }
   };
 

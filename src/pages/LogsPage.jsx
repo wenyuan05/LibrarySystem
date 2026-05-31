@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { logAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import './LogsPage.css';
@@ -17,7 +17,7 @@ const LogsPage = () => {
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Fetch system logs
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = {
@@ -34,7 +34,7 @@ const LogsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [limit, offset, showToast, sortOrder]);
 
   // Toggle message expansion
   const toggleMessageExpansion = (logId) => {
@@ -97,7 +97,7 @@ const LogsPage = () => {
   // Fetch logs when pagination changes
   useEffect(() => {
     fetchLogs();
-  }, [limit, offset, sortOrder]);
+  }, [fetchLogs]);
 
   if (isLoading) {
     return <div className="loading">Loading...</div>;

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI } from '../../utils/api';
 import { useAuth } from '../../context/useAuth';
@@ -46,12 +46,12 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     }
   };
 
-  const handleModalClose = (e) => {
+  const handleModalClose = useCallback((e) => {
     e.stopPropagation();
     if (onCancel) {
       onCancel();
     }
-  };
+  }, [onCancel]);
 
   // 键盘事件处理
   useEffect(() => {
@@ -65,7 +65,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleModalClose]);
 
   // 关闭弹窗当点击外部
   useEffect(() => {
@@ -79,7 +79,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [handleModalClose]);
 
   if (!user) {
     return null;

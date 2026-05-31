@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
@@ -18,6 +18,24 @@ const BookDetailsPage = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedCopyId, setSelectedCopyId] = useState(null);
   const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
+
+  const fetchBookDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [bookData, copiesData] = await Promise.all([
+        booksAPI.getById(id),
+        booksAPI.getCopies(id)
+      ]);
+      setBook(bookData);
+      setCopies(copiesData);
+      // 不要重置borrowRecord和countdown，保持当前状态
+    } catch (err) {
+      showToast('Failed to load book details', 'error');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, showToast]);
 
   // 加载书籍详情和副本信息
   useEffect(() => {
@@ -45,7 +63,7 @@ const BookDetailsPage = () => {
       }
     };
     loadData();
-  }, [id, user]);
+  }, [fetchBookDetails, id, user?.id]);
 
   useEffect(() => {
     const fetchFeatureFlags = async () => {
@@ -60,7 +78,7 @@ const BookDetailsPage = () => {
     };
 
     fetchFeatureFlags();
-  }, [user]);
+  }, [user?.id]);
 
   // 倒计时效果
   useEffect(() => {
@@ -79,25 +97,7 @@ const BookDetailsPage = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [countdown]);
-
-  const fetchBookDetails = async () => {
-    try {
-      setLoading(true);
-      const [bookData, copiesData] = await Promise.all([
-        booksAPI.getById(id),
-        booksAPI.getCopies(id)
-      ]);
-      setBook(bookData);
-      setCopies(copiesData);
-      // 不要重置borrowRecord和countdown，保持当前状态
-    } catch (err) {
-      showToast('Failed to load book details', 'error');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [countdown, fetchBookDetails]);
 
   // 处理借阅书籍
   const [isBorrowing, setIsBorrowing] = useState(false);

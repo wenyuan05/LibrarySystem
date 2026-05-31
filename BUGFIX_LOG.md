@@ -2,6 +2,36 @@
 
 This file documents all bug fixes applied to the project.
 
+## 2026-05-31
+
+### Fix 1: Resolve React Hook dependency lint errors
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/EditBookForm.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Users/EditUserForm.jsx`
+  - `src/components/Users/UserList.jsx`
+  - `src/pages/AnnouncementsPage.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/pages/BookManagementPage.jsx`
+  - `src/pages/CategoryManagementPage.jsx`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/LogsPage.jsx`
+  - `src/pages/ProfilePage.jsx`
+  - `src/pages/ReservationsPage.jsx`
+  - `src/pages/ReturnApprovalPage.jsx`
+  - `src/pages/StatsPage.jsx`
+- **Changes**:
+  - Wrapped shared async loader functions in `useCallback` and wired effects to depend on the stabilized callbacks.
+  - Stabilized modal close handlers used by keyboard and outside-click listeners.
+  - Memoized Add Book batch preview subsets so dependent effects do not rerun because of new array references on every render.
+  - Moved Book Details data loading ahead of effects so countdown refresh and initial loading use the same stable callback.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: React Hook dependency warnings made the lint output noisy and could hide real regressions. Stabilizing these callbacks keeps effects explicit and prevents accidental stale closures.
+
 ## 2026-05-13
 
 ### Fix 6: Allow fine payment before return approval

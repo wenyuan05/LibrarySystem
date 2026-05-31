@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
@@ -18,7 +18,7 @@ const BookManagementPage = () => {
   const { showToast } = useToast();
 
   // Load books data
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       setBooksLoading(true);
       const data = await booksAPI.getAll();
@@ -30,7 +30,7 @@ const BookManagementPage = () => {
     } finally {
       setBooksLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Handle book addition
   const handleBookAdded = (newBook) => {
@@ -56,7 +56,7 @@ const BookManagementPage = () => {
   // Load books on component mount
   useEffect(() => {
     fetchBooks();
-  }, []);
+  }, [fetchBooks]);
 
   // Handle book edit
   const handleBookEdit = (updatedBook) => {

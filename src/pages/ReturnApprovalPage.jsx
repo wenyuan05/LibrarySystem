@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { borrowAPI } from '../utils/api';
 import './ReturnApprovalPage.css';
@@ -11,7 +11,7 @@ const ReturnApprovalPage = () => {
   const { showToast } = useToast();
 
   // Load returning requests to be approved
-  const fetchReturningRecords = async () => {
+  const fetchReturningRecords = useCallback(async () => {
     try {
       setLoading(true);
       const data = await borrowAPI.getReturningList();
@@ -22,12 +22,12 @@ const ReturnApprovalPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Load data on component mount
   useEffect(() => {
     fetchReturningRecords();
-  }, []);
+  }, [fetchReturningRecords]);
 
   // Handle return approval
   const handleApproveReturn = async (record) => {

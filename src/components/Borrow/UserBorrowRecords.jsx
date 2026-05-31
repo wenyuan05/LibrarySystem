@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
@@ -28,12 +28,7 @@ const UserBorrowRecords = () => {
     navigate('/users');
   };
 
-  // 加载用户信息和借阅记录
-  useEffect(() => {
-    fetchUserAndRecords();
-  }, [userId]);
-
-  const fetchUserAndRecords = async () => {
+  const fetchUserAndRecords = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -52,7 +47,12 @@ const UserBorrowRecords = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, userId]);
+
+  // 加载用户信息和借阅记录
+  useEffect(() => {
+    fetchUserAndRecords();
+  }, [fetchUserAndRecords]);
 
   // 处理归还书籍
   const handleReturnBook = async (record) => {

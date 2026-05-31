@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { borrowAPI } from '../utils/api';
@@ -13,12 +13,8 @@ const ReservationsPage = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  // 加载预约记录
-  useEffect(() => {
-    fetchReservations();
-  }, []);
-
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await borrowAPI.getReservations(user.id);
@@ -30,7 +26,12 @@ const ReservationsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, user?.id]);
+
+  // 加载预约记录
+  useEffect(() => {
+    fetchReservations();
+  }, [fetchReservations]);
 
   // 处理取消预约
   const handleCancelReservation = async (reservation) => {

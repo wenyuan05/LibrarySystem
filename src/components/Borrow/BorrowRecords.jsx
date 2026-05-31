@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
@@ -35,12 +35,8 @@ const BorrowRecords = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  // 加载借阅记录
-  useEffect(() => {
-    fetchBorrowRecords();
-  }, []);
-
-  const fetchBorrowRecords = async () => {
+  const fetchBorrowRecords = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await usersAPI.getBorrowRecords(user.id);
@@ -66,7 +62,12 @@ const BorrowRecords = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, user?.id]);
+
+  // 加载借阅记录
+  useEffect(() => {
+    fetchBorrowRecords();
+  }, [fetchBorrowRecords]);
 
   // 处理归还书籍
   const handleReturnBook = async (record) => {

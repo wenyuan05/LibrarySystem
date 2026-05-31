@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { paymentAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import './IncomeDashboardPage.css';
@@ -13,7 +13,7 @@ const IncomeDashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [expiringId, setExpiringId] = useState(null);
 
-  const loadDashboard = async (selectedStatus = status) => {
+  const loadDashboard = useCallback(async (selectedStatus = status) => {
     try {
       setIsLoading(true);
       const [summaryData, paymentRows] = await Promise.all([
@@ -32,11 +32,11 @@ const IncomeDashboardPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showToast, status]);
 
   useEffect(() => {
     loadDashboard(status);
-  }, [status]);
+  }, [loadDashboard, status]);
 
   const handleExpire = async (paymentId) => {
     try {

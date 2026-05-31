@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
@@ -29,12 +29,7 @@ const UserList = () => {
     navigate(`/user-borrow-records/${userId}`);
   };
 
-  // 加载用户数据
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await usersAPI.getAll();
@@ -45,7 +40,12 @@ const UserList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // 加载用户数据
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // 处理用户删除
   const handleDeleteUser = async (id) => {
