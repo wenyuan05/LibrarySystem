@@ -298,22 +298,23 @@ exports.updateUser = (req, res) => {
   let updateFields = [];
   let params = [];
   let normalizedEmail = null;
-  const requestedRole = body.hasOwnProperty('role') && body.role ? body.role : null;
+  const hasBodyField = (field) => Object.prototype.hasOwnProperty.call(body, field);
+  const requestedRole = hasBodyField('role') && body.role ? body.role : null;
   
-  if (body.hasOwnProperty('name') && body.name) {
+  if (hasBodyField('name') && body.name) {
     updateFields.push('name = ?');
     params.push(body.name);
   }
-  if (body.hasOwnProperty('email') && body.email) {
+  if (hasBodyField('email') && body.email) {
     normalizedEmail = normalizeEmail(body.email);
     updateFields.push('email = ?');
     params.push(normalizedEmail);
   }
-  if (body.hasOwnProperty('phone')) {
+  if (hasBodyField('phone')) {
     updateFields.push('phone = ?');
     params.push(body.phone);
   }
-  if (body.hasOwnProperty('address')) {
+  if (hasBodyField('address')) {
     updateFields.push('address = ?');
     params.push(body.address);
   }

@@ -2,6 +2,10 @@ const db = require('../db');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
 const { ACTIVE_BORROW_STATUSES, placeholders } = require('../utils/statusConstants');
 
+const STAFF_ROLES = ['admin', 'librarian'];
+const canManageBorrowRecords = (user) => user && STAFF_ROLES.includes(user.role);
+const canAccessBorrowUser = (req, userId) => Number(userId) === req.user.id || canManageBorrowRecords(req.user);
+
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
   const { user_id, book_id } = req.body;
@@ -536,8 +540,8 @@ exports.cancelReservation = function(req, res) {
 exports.getUserReservations = function(req, res) {
   const { user_id } = req.params;
   
-  // 非管理员只能查看自己的预约记录
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+  // 非管理员/馆员只能查看自己的预约记录
+  if (!canAccessBorrowUser(req, user_id)) {
     res.status(403).json({ error: 'Forbidden: cannot view other users\' reservations' });
     return;
   }
@@ -711,6 +715,11 @@ exports.confirmBorrow = function(req, res) {
             res.status(400).json({ error: 'No borrowing record found for confirmation' });
             return;
           }
+          if (!canAccessBorrowUser(req, record.user_id)) {
+            db.run('ROLLBACK');
+            res.status(403).json({ error: 'Forbidden: cannot confirm other users\' borrow requests' });
+            return;
+          }
           
           // 检查是否超时
           const now = new Date();
@@ -815,6 +824,11 @@ exports.confirmBorrow = function(req, res) {
 
 // 处理超时借阅
 exports.handleTimeoutBorrows = function(req, res) {
+  if (!canManageBorrowRecords(req.user)) {
+    res.status(403).json({ error: 'Forbidden: only admin or librarian can process timeout borrows' });
+    return;
+  }
+
   const now = new Date().toISOString();
   
   // 开始事务
@@ -1136,6 +1150,11 @@ exports.getReturningList = function(req, res) {
 
 // 检查和更新逾期记录
 exports.checkOverdueRecords = function(req, res) {
+  if (!canManageBorrowRecords(req.user)) {
+    res.status(403).json({ error: 'Forbidden: only admin or librarian can check overdue records' });
+    return;
+  }
+
   const today = new Date().toISOString().split('T')[0];
   
   // 开始事务

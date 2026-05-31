@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken, requireRole, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody, validatePasswordResetRequest, validatePasswordReset } = require('../middleware/validation');
 
 // 用户登录

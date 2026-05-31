@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAuth } from './AuthContext';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from './useAuth';
 import { NotificationContext } from './notificationHooks';
 import { notificationAPI } from '../utils/api';
 

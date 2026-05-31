@@ -168,12 +168,26 @@ npm install
 **根目录 .env 文件示例**：
 
 ```env
-# API Configuration
+# Frontend API configuration
 VITE_API_BASE_URL=/api
-FRONTEND_URL=
+```
+
+**backend 目录 .env 文件示例**：
+
+```env
+# Server configuration
+PORT=3001
+
+# CORS configuration
+FRONTEND_URL=*
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-here
+
+# Development seed accounts
+SEED_DEFAULT_USERS=false
+DEFAULT_ADMIN_PASSWORD=change-this-admin-password
+DEFAULT_USER_PASSWORD=change-this-user-password
 
 # Alipay sandbox payment configuration
 ALIPAY_ENABLED=false
@@ -190,16 +204,6 @@ ALIPAY_SIGN_TYPE=RSA2
 ALIPAY_CHARSET=utf-8
 ALIPAY_FORMAT=json
 ALIPAY_TIMEOUT_MS=10000
-```
-
-**backend 目录 .env 文件示例**：
-
-```env
-# API Configuration
-FRONTEND_URL=
-
-# JWT Configuration
-JWT_SECRET=your-secret-key-here
 
 # ISBN lookup provider configuration
 SHOWAPI_ISBN_APP_KEY=your_showapi_app_key
@@ -224,14 +228,18 @@ APP_PUBLIC_URL=http://localhost:5173
 
 **重要安全注意事项**：
 - 不要将 `.env` 文件提交到版本控制系统中
-- 使用强随机生成的 JWT_SECRET，特别是在生产环境中
+- 后端生产环境必须设置强随机 `JWT_SECRET`；未设置时服务会拒绝启动
+- 开发环境缺少 `JWT_SECRET` 时会生成临时随机密钥，重启后旧 token 会失效
 - 定期旋转 JWT_SECRET 以增强安全性
+- 生产环境默认不会插入示例账号；仅在明确需要时设置 `SEED_DEFAULT_USERS=true`
 - 确保 `.env` 文件的权限设置为只有所有者可以读取
 
 **环境变量说明**：
 - `VITE_API_BASE_URL`：后端 API 的基础 URL
 - `FRONTEND_URL`：前端应用的 URL，用于 CORS 配置
 - `JWT_SECRET`：用于生成和验证 JWT token 的密钥
+- `SEED_DEFAULT_USERS`：是否插入示例账号。开发环境默认插入，生产环境默认不插入；生产演示环境需要示例账号时显式设为 `true`
+- `DEFAULT_ADMIN_PASSWORD` / `DEFAULT_USER_PASSWORD`：示例管理员/普通用户初始密码，未配置时开发环境使用 `admin123` / `user123`
 - `ALIPAY_ENABLED`：是否启用支付宝支付配置校验；沙箱调试时设为 `true`
 - `ALIPAY_MODE`：支付宝模式，支持 `sandbox` 和 `production`，默认 `sandbox`
 - `ALIPAY_APP_ID`：支付宝开放平台应用 ID，需要由你从沙箱应用提供
@@ -309,14 +317,14 @@ npm run dev
      cp .env.example .env
      cp backend/.env.example backend/.env
      ```
-   - 编辑 `.env` 文件，设置 `JWT_SECRET` 为强随机字符串
-   - 编辑 `backend/.env` 文件，确保与根目录的 `.env` 文件中的 `JWT_SECRET` 一致
+   - 编辑 `.env` 文件，设置前端 `VITE_API_BASE_URL`
+   - 编辑 `backend/.env` 文件，设置生产 `JWT_SECRET`、`FRONTEND_URL` 和支付/邮件等后端配置
 
 4. **构建前端**：
    ```bash
    npm run build
    ```
-   构建产物将生成在 `dist` 目录中
+   构建前会通过 `prebuild` 自动清理旧 `dist`，构建产物将生成在 `dist` 目录中
 
 5. **部署前端静态文件**：
    - 将 `dist` 目录下的文件复制到 Nginx 根目录（如 `/var/www/html`）
@@ -704,6 +712,8 @@ npm run dev
 1. **管理员**：用户名 admin，密码 admin123
 2. **图书管理员**：用户名 librarian，密码 admin123
 3. **普通用户**：用户名 user1，密码 user123
+
+> 示例用户仅用于开发/演示。生产环境默认不插入这些账号；如确需演示账号，请显式设置 `SEED_DEFAULT_USERS=true` 并通过 `DEFAULT_ADMIN_PASSWORD` / `DEFAULT_USER_PASSWORD` 覆盖默认密码。
 
 ## 注意事项
 

@@ -1687,6 +1687,16 @@ api.get('/books').then(response => {
 6. **CSRF防护**：实现CSRF令牌验证
 7. **密码安全**：使用强密码哈希算法
 8. **Token管理**：实现token过期和刷新机制
+9. **JWT密钥**：生产环境必须设置强随机 `JWT_SECRET`，未设置时后端拒绝启动
+10. **示例账号**：生产环境默认不插入 `admin/admin123` 等示例账号，演示环境需显式设置 `SEED_DEFAULT_USERS=true` 并覆盖默认密码
+
+## 7.1 运行与审计说明
+
+- 前端 `npm run build` 会先执行 `prebuild` 清理旧 `dist`，再运行 Vite 构建。
+- 后端依赖已升级到 `nodemailer@8` 与 `sqlite3@6`，`npm audit --omit=dev` 应保持 0 vulnerabilities。
+- `/api/borrow/confirm-borrow` 只允许借阅记录本人、管理员或图书管理员确认。
+- `/api/borrow/handle-timeout` 与 `/api/borrow/check-overdue` 只允许管理员或图书管理员触发。
+
 ## 8. API Update - 2026-05-13
 
 ### 8.1 Book-management endpoint count

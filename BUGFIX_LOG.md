@@ -1946,3 +1946,34 @@ This file documents all bug fixes applied to the project.
   - Documented the user update role behavior and added a profile update regression test case.
 - **Reason**: Editing personal information could fail with `Forbidden: only admin can modify user role` when the request carried an unchanged role value.
 
+### Fix 143: Harden auth configuration, borrowing permissions, build cleanup, and dependency audit
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `backend/db.js`
+  - `backend/server.js`
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `eslint.config.js`
+  - `package.json`
+  - `scripts/clean-dist.mjs`
+  - `src/context/AuthContext.jsx`
+  - `src/context/useAuth.js`
+  - `src/pages/StatsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+- **Changes**:
+  - Added ownership/staff checks for borrow confirmation and limited timeout/overdue maintenance endpoints to admin/librarian users.
+  - Required `JWT_SECRET` in production and replaced the fixed development fallback with a random temporary secret.
+  - Disabled default demo account seeding in production unless `SEED_DEFAULT_USERS=true` is explicitly set.
+  - Split ESLint browser/ESM and backend CommonJS/Node configuration, and moved `useAuth` out of `AuthContext.jsx`.
+  - Added a `prebuild` cleanup script for `dist` to avoid stale Windows build output blocking Vite.
+  - Upgraded backend `nodemailer` and `sqlite3` to clear npm audit vulnerabilities.
+- **Verification**:
+  - `npm.cmd run build`
+  - `npm.cmd run lint` (0 errors, existing React Hook dependency warnings remain)
+  - `npm.cmd audit --omit=dev` in root and backend
+  - Backend SQLite smoke test with `SELECT 1 AS ok`
+- **Reason**: Close security issues found during the project scan and make build/audit checks repeatable.
+

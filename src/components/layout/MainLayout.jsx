@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+﻿import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/useAuth';
 import { announcementAPI } from '../../utils/api';
 import Sidebar from '../Sidebar/Sidebar';
 
