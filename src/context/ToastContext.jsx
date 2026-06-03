@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useContext, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Toast from '../components/Toast/Toast';
 
@@ -20,10 +20,10 @@ const generateUUID = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = (message, type = 'info', duration = 3000) => {
+  const showToast = useCallback((message, type = 'info', duration = 3000) => {
     const id = generateUUID();
     setToasts(prevToasts => [...prevToasts, { id, message, type, duration }]);
-  };
+  }, []);
 
   const removeToast = useCallback((id) => {
     setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
@@ -44,8 +44,10 @@ export const ToastProvider = ({ children }) => {
     </div>
   );
 
+  const contextValue = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       {typeof document !== 'undefined' ? createPortal(toastLayer, document.body) : toastLayer}
     </ToastContext.Provider>
