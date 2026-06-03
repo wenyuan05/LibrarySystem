@@ -311,6 +311,11 @@ npm run dev
    cd ..
    ```
 
+   `sqlite3` 是原生依赖，不能直接复用其他系统或容器中生成的 `node_modules`。本项目将后端
+   `sqlite3` 固定为 `5.1.7`，用于兼容宝塔面板中较旧 Linux/glibc 环境。如果服务器曾安装过
+   `sqlite3@6.x` 并报 `/lib64/libm.so.6: version 'GLIBC_2.38' not found`，请删除服务器上的
+   `backend/node_modules` 和旧 lockfile 后重新执行后端 `npm install`。
+
 3. **配置环境变量**：
    - 复制环境变量示例文件并配置：
      ```bash

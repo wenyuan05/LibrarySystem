@@ -4,6 +4,23 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-05-31
 
+### Fix 2: Pin sqlite3 to 5.1.7 for older Linux deployment
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Pinned backend `sqlite3` to `5.1.7` for compatibility with Baota/older Linux deployments that do not provide glibc 2.38.
+  - Removed the deployment requirement to rebuild SQLite from source, reducing the need for root access and server compiler tooling.
+  - Documented the server-side recovery steps for `GLIBC_2.38 not found` errors caused by incompatible `sqlite3@6.x` prebuilt binaries.
+  - Updated the design dependency table to match the current backend SQLite3 version.
+- **Verification**:
+  - `node -e "require('sqlite3'); console.log('sqlite3 ok')"`
+  - `npm.cmd audit --omit=dev` reports known transitive vulnerabilities from the older SQLite native build toolchain.
+- **Reason**: Deployments on older Linux distributions can fail when npm installs a `sqlite3@6.x` prebuilt binding built against a newer glibc. Pinning `sqlite3@5.1.7` favors Baota deployment compatibility over a clean npm audit report.
+
 ### Fix 1: Resolve React Hook dependency lint errors
 - **Files modified**:
   - `src/components/Books/AddBookForm.jsx`
