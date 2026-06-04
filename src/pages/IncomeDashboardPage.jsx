@@ -4,6 +4,8 @@ import { useToast } from '../context/ToastContext';
 import './IncomeDashboardPage.css';
 
 const formatMoney = (value) => `¥${(Number(value) || 0).toFixed(2)}`;
+const PAYMENT_PAGE_SIZE = 10;
+
 const IncomeLineChart = ({ data = [] }) => {
   const width = 720;
   const height = 240;
@@ -57,44 +59,74 @@ const IncomeDashboardPage = () => {
   const [analytics, setAnalytics] = useState(null);
   const [payments, setPayments] = useState([]);
   const [status, setStatus] = useState('');
+  const [paymentFilters, setPaymentFilters] = useState({ keyword: '', date_from: '', date_to: '' });
+  const [appliedPaymentFilters, setAppliedPaymentFilters] = useState(paymentFilters);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentsPagination, setPaymentsPagination] = useState({
+    page: 1,
+    page_size: PAYMENT_PAGE_SIZE,
+    total: 0,
+    total_pages: 1
+  });
   const [rangeFilters, setRangeFilters] = useState({ start_date: '', end_date: '' });
   const [appliedRange, setAppliedRange] = useState(rangeFilters);
   const [isLoading, setIsLoading] = useState(true);
   const [expiringId, setExpiringId] = useState(null);
 
-  const loadDashboard = useCallback(async (selectedStatus = status, selectedRange = appliedRange) => {
+  const loadDashboard = useCallback(async (
+    selectedStatus = status,
+    selectedRange = appliedRange,
+    selectedPaymentFilters = appliedPaymentFilters,
+    selectedPage = paymentPage
+  ) => {
     try {
       setIsLoading(true);
-      const [summaryData, analyticsData, paymentRows] = await Promise.all([
+      const [summaryData, analyticsData, paymentData] = await Promise.all([
         paymentAPI.getIncomeSummary(),
         paymentAPI.getIncomeAnalytics(selectedRange),
         paymentAPI.listPayments({
           status: selectedStatus,
           provider: 'alipay',
-          payment_type: 'fine'
+          payment_type: 'fine',
+          keyword: selectedPaymentFilters.keyword,
+          date_from: selectedPaymentFilters.date_from,
+          date_to: selectedPaymentFilters.date_to,
+          page: selectedPage,
+          page_size: PAYMENT_PAGE_SIZE
         })
       ]);
       setSummary(summaryData);
       setAnalytics(analyticsData);
-      setPayments(paymentRows);
+      setPayments(Array.isArray(paymentData) ? paymentData : paymentData.items || []);
+      setPaymentsPagination(Array.isArray(paymentData) ? {
+        page: 1,
+        page_size: PAYMENT_PAGE_SIZE,
+        total: paymentData.length,
+        total_pages: 1
+      } : paymentData.pagination || {
+        page: selectedPage,
+        page_size: PAYMENT_PAGE_SIZE,
+        total: 0,
+        total_pages: 1
+      });
     } catch (err) {
       showToast(err.message || 'Failed to load income dashboard', 'error');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [appliedRange, showToast, status]);
+  }, [appliedPaymentFilters, appliedRange, paymentPage, showToast, status]);
 
   useEffect(() => {
-    loadDashboard(status);
-  }, [loadDashboard, status]);
+    loadDashboard(status, appliedRange, appliedPaymentFilters, paymentPage);
+  }, [appliedPaymentFilters, appliedRange, loadDashboard, paymentPage, status]);
 
   const handleExpire = async (paymentId) => {
     try {
       setExpiringId(paymentId);
       await paymentAPI.expirePayment(paymentId);
       showToast('Payment expired successfully', 'success');
-      await loadDashboard(status);
+      await loadDashboard(status, appliedRange, appliedPaymentFilters, paymentPage);
     } catch (err) {
       showToast(err.message || 'Failed to expire payment', 'error');
       console.error(err);
@@ -106,6 +138,35 @@ const IncomeDashboardPage = () => {
   const handleRangeChange = (event) => {
     const { name, value } = event.target;
     setRangeFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentFilterChange = (event) => {
+    const { name, value } = event.target;
+    setPaymentFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentFilterSubmit = (event) => {
+    event.preventDefault();
+    if (paymentFilters.date_from && paymentFilters.date_to && paymentFilters.date_from > paymentFilters.date_to) {
+      showToast('Payment start date cannot be after end date', 'error');
+      return;
+    }
+
+    setPaymentPage(1);
+    setAppliedPaymentFilters(paymentFilters);
+  };
+
+  const handlePaymentFilterReset = () => {
+    const emptyFilters = { keyword: '', date_from: '', date_to: '' };
+    setStatus('');
+    setPaymentFilters(emptyFilters);
+    setAppliedPaymentFilters(emptyFilters);
+    setPaymentPage(1);
+  };
+
+  const handleStatusChange = (event) => {
+    setStatus(event.target.value);
+    setPaymentPage(1);
   };
 
   const handleRangeSubmit = async (event) => {
@@ -205,14 +266,45 @@ const IncomeDashboardPage = () => {
       <section className="payment-orders-section">
         <div className="payment-orders-header">
           <h2>Alipay Fine Payments</h2>
-          <select value={status} onChange={(event) => setStatus(event.target.value)} disabled={isLoading}>
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="expired">Expired</option>
-            <option value="failed">Failed</option>
-          </select>
         </div>
+
+        <form className="payment-orders-filters" onSubmit={handlePaymentFilterSubmit}>
+          <label>
+            Keyword
+            <input
+              type="search"
+              name="keyword"
+              value={paymentFilters.keyword}
+              onChange={handlePaymentFilterChange}
+              placeholder="Order, user, status"
+              disabled={isLoading}
+            />
+          </label>
+          <label>
+            Start
+            <input type="date" name="date_from" value={paymentFilters.date_from} onChange={handlePaymentFilterChange} disabled={isLoading} />
+          </label>
+          <label>
+            End
+            <input type="date" name="date_to" value={paymentFilters.date_to} onChange={handlePaymentFilterChange} disabled={isLoading} />
+          </label>
+          <label>
+            Status
+            <select value={status} onChange={handleStatusChange} disabled={isLoading}>
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="expired">Expired</option>
+              <option value="failed">Failed</option>
+            </select>
+          </label>
+          <button type="submit" className="btn-secondary" disabled={isLoading}>
+            Filter
+          </button>
+          <button type="button" className="btn-secondary" onClick={handlePaymentFilterReset} disabled={isLoading}>
+            Reset
+          </button>
+        </form>
 
         {isLoading ? (
           <div className="income-loading">Loading payments...</div>
@@ -263,6 +355,30 @@ const IncomeDashboardPage = () => {
             </table>
           </div>
         )}
+
+        <div className="payment-pagination">
+          <span>
+            Page {paymentsPagination.page} of {paymentsPagination.total_pages} · {paymentsPagination.total} record(s)
+          </span>
+          <div className="payment-pagination-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setPaymentPage(prev => Math.max(1, prev - 1))}
+              disabled={isLoading || paymentsPagination.page <= 1}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setPaymentPage(prev => Math.min(paymentsPagination.total_pages, prev + 1))}
+              disabled={isLoading || paymentsPagination.page >= paymentsPagination.total_pages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </section>
     </div>
   );

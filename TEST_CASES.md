@@ -797,6 +797,29 @@
   - `Past Year` clears the range inputs and restores the default monthly trend.
   - Invalid date order is rejected before submitting the request.
 
+### Test Case: Income dashboard payment list filtering and pagination
+
+- **Scenario**: Librarian reviews payment orders with pagination and filters.
+- **Steps**:
+  1. Log in as a librarian or admin.
+  2. Prepare more than 10 Alipay fine payment orders across multiple users, statuses, and creation dates.
+  3. Open `/income-dashboard`.
+  4. Confirm the payment list shows the first page and total record count.
+  5. Click `Next` and `Previous`.
+  6. Search by part of an order number, username, display name, status, and user ID.
+  7. Filter by created start/end dates.
+  8. Combine keyword, status, and date filters.
+  9. Try a created start date after the end date.
+  10. Click `Reset`.
+- **Expected result**:
+  - The list requests `GET /api/payments` with `page`, `page_size`, `keyword`, `status`, `date_from`, and `date_to`.
+  - Pagination shows the current page, total pages, and total records.
+  - Keyword search matches order number, username, display name, status, or user ID.
+  - Created date filtering is inclusive.
+  - Applying filters resets to page 1.
+  - Invalid date order is rejected before submitting the request.
+  - Reset clears keyword, status, and date filters, then returns to page 1.
+
 ### Test Case: Fine page Alipay simulation flow
 
 - **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.

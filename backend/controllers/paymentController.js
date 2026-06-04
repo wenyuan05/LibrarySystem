@@ -158,6 +158,15 @@ const getIncomeTrendOptions = (query) => {
   return { hasRange, granularity, startDate, endDate };
 };
 
+const parsePositiveInt = (value, fallback, maxValue) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return Math.min(parsed, maxValue);
+};
+
 const buildPaymentUrl = (payment) => {
   const baseUrl = process.env.ALIPAY_RETURN_URL || 'http://localhost:5173/payment-result';
   const params = new URLSearchParams({
@@ -594,11 +603,25 @@ exports.listPayments = function(req, res) {
     provider = 'alipay',
     payment_type,
     date_from,
-    date_to
+    date_to,
+    keyword
   } = req.query;
+  const page = parsePositiveInt(req.query.page, 1, 100000);
+  const pageSize = parsePositiveInt(req.query.page_size, 10, 100);
+  const offset = (page - 1) * pageSize;
 
   const where = [];
   const params = [];
+
+  if ((date_from && !isValidDateOnly(date_from)) || (date_to && !isValidDateOnly(date_to))) {
+    res.status(400).json({ error: 'date_from and date_to must use YYYY-MM-DD format' });
+    return;
+  }
+
+  if (date_from && date_to && date_from > date_to) {
+    res.status(400).json({ error: 'date_from cannot be after date_to' });
+    return;
+  }
 
   if (!ADMIN_ROLES.includes(req.user.role)) {
     where.push('p.user_id = ?');
@@ -633,22 +656,57 @@ exports.listPayments = function(req, res) {
     params.push(date_to);
   }
 
+  if (keyword && String(keyword).trim()) {
+    const value = `%${String(keyword).trim()}%`;
+    where.push(`(
+      p.out_trade_no LIKE ?
+      OR p.status LIKE ?
+      OR CAST(p.user_id AS TEXT) LIKE ?
+      OR u.username LIKE ?
+      OR u.name LIKE ?
+    )`);
+    params.push(value, value, value, value, value);
+  }
+
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  db.all(
-    `SELECT p.*, u.username, u.name
+  db.get(
+    `SELECT COUNT(*) as total
      FROM payments p
      LEFT JOIN users u ON p.user_id = u.id
-     ${whereSql}
-     ORDER BY p.created_at DESC
-     LIMIT 200`,
+     ${whereSql}`,
     params,
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
+    (countErr, countRow) => {
+      if (countErr) {
+        res.status(500).json({ error: countErr.message });
         return;
       }
 
-      res.json(rows.map(mapPaymentRow));
+      db.all(
+        `SELECT p.*, u.username, u.name
+         FROM payments p
+         LEFT JOIN users u ON p.user_id = u.id
+         ${whereSql}
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [...params, pageSize, offset],
+        (err, rows) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          const total = countRow?.total || 0;
+          res.json({
+            items: rows.map(mapPaymentRow),
+            pagination: {
+              page,
+              page_size: pageSize,
+              total,
+              total_pages: Math.max(1, Math.ceil(total / pageSize))
+            }
+          });
+        }
+      );
     }
   );
 };

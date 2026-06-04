@@ -693,10 +693,10 @@ npm run dev
    - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额
    - 本地 `/payment-result` 页面会根据 `out_trade_no` 查询后端订单状态，支持手动刷新并每 2.5 秒轮询，模拟支付成功后会显示最新状态
    - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
-   - 支持支付订单列表查询和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
+   - 支持支付订单列表分页查询、关键词过滤、创建时间过滤和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
    - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
    - 图书管理员可通过 `/api/payments/income/analytics` 获取收入折线图数据；未指定范围时按月展示过去一年收入，指定范围时自动按日、7 天区间或月份划分标度
-   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、动态收入折线图、日期区间收入查询、支付订单列表，并过期待支付订单
+   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、动态收入折线图、日期区间收入查询、分页支付订单列表，并按关键词、状态、创建时间过滤订单
    - `/api/payments/alipay/notify` 支持支付宝表单回调验签；沙箱回调成功后会按 `out_trade_no` 完成对应罚款支付单
 10. **QQ 邮箱邮件服务**：
    - 后端新增邮件配置、邮件发送服务和 `email_logs` 发送记录表

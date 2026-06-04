@@ -4,6 +4,27 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 4: Add payment list filters and pagination to Income Dashboard
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added paginated `GET /api/payments` responses with `items` and `pagination`.
+  - Added keyword filtering by order number, username, display name, status, and user ID.
+  - Added created-date range filtering with date validation.
+  - Added Dashboard controls for keyword, status, created date filters, reset, and previous/next page navigation.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `npm.cmd audit --omit=dev`
+  - `node -e "require('./routes/paymentRoutes'); require('./controllers/paymentController'); console.log('payment modules ok')"`
+- **Reason**: Income Dashboard payment records can grow beyond a single table view, so librarians need searchable, time-filtered, paginated order review.
+
 ### Fix 3: Add income trend and date-range analytics
 - **Files modified**:
   - `backend/controllers/paymentController.js`

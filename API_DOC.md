@@ -963,8 +963,38 @@
 - `provider`：可选，默认 `alipay`
 - `payment_type`：可选，例如 `fine`
 - `date_from` / `date_to`：可选，按创建日期筛选
+- `keyword`：可选，按订单号、用户名、姓名、状态或用户 ID 模糊筛选
+- `page`：可选，页码，默认 `1`
+- `page_size`：可选，每页数量，默认 `10`，最大 `100`
 
 **说明**：普通用户只能看到自己的支付订单；admin/librarian 可查看全部或按用户筛选。
+
+**响应**：
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "username": "reader",
+      "name": "Reader",
+      "out_trade_no": "ALI202606040101010000A1B2C3D4",
+      "amount": 5,
+      "status": "paid",
+      "provider": "alipay",
+      "payment_type": "fine",
+      "created_at": "2026-06-04 10:00:00",
+      "paid_at": "2026-06-04T02:01:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 10,
+    "total": 23,
+    "total_pages": 3
+  }
+}
+```
 
 #### 3.4.3 POST /api/payments/fines/alipay
 **功能**：创建支付宝罚款支付单（本地模拟）
