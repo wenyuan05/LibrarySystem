@@ -41,6 +41,16 @@
   transition: background-color 0.2s ease;
 }
 
+.reservations-page tr.reservation-record-row {
+  cursor: pointer;
+  outline: none;
+}
+
+.reservations-page tr.reservation-record-row:focus-visible {
+  background-color: var(--bg-tertiary);
+  box-shadow: inset 0 0 0 2px var(--primary-color);
+}
+
 .status-active {
   color: var(--success-color);
   font-weight: 500;

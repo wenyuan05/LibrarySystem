@@ -4,6 +4,30 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 10: Add announcement detail modal and record-to-book navigation
+- **Files modified**:
+  - `src/pages/AnnouncementsPage.jsx`
+  - `src/pages/AnnouncementsPage.css`
+  - `src/pages/ReservationsPage.jsx`
+  - `src/pages/ReservationsPage.css`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Made announcement cards open a full announcement detail modal rendered through a portal.
+  - Let the announcement modal grow with content and wrap long continuous text without inner horizontal scrolling.
+  - Made reservation rows and borrow-record rows keyboard/mouse clickable to navigate to the related book detail page.
+  - Checked book existence before navigating and showed an error when the related book no longer exists.
+  - Stopped row navigation from firing when users click row action buttons such as Cancel, Return, Renew, or Confirm.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `git diff --check`
+- **Reason**: Users need complete announcement details and quick navigation from history records back to the related book, while missing book references should fail visibly.
+
 ### Fix 9: Correct reader borrow confirmation cancel behavior
 - **Files modified**:
   - `backend/controllers/borrowController.js`

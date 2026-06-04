@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
-import { borrowAPI } from '../utils/api';
+import { booksAPI, borrowAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortHistoryRecords } from '../utils/historyList';
 import './ReservationsPage.css';
 
@@ -12,6 +13,7 @@ const ReservationsPage = () => {
   const [page, setPage] = useState(1);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const fetchReservations = useCallback(async () => {
     if (!user?.id) return;
@@ -39,17 +41,31 @@ const ReservationsPage = () => {
       if (!reservation.id) {
         throw new Error('Reservation ID not found');
       }
-      
+
       const result = await borrowAPI.cancelReservation(reservation.id);
-      
+
       // 更新预约记录
-      setReservations(reservations.map(r => 
+      setReservations(reservations.map(r =>
         r.id === reservation.id ? { ...r, status: 'cancelled' } : r
       ));
-      
+
       showToast(result.message, 'success');
     } catch (err) {
       showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  const handleOpenBookDetail = async (reservation) => {
+    try {
+      if (!reservation.book_id) {
+        throw new Error('Book ID not found in reservation');
+      }
+
+      await booksAPI.getById(reservation.book_id);
+      navigate(`/books/${reservation.book_id}`);
+    } catch (err) {
+      showToast(err.message || 'Book not found or has been removed', 'error');
       console.error(err);
     }
   };
@@ -68,7 +84,7 @@ const ReservationsPage = () => {
   return (
     <div className="reservations-page card fade-in">
       <h2>My Reservations</h2>
-      
+
       {reservations.length === 0 ? (
         <div className="empty-state">
           <p>No reservations found.</p>
@@ -101,7 +117,19 @@ const ReservationsPage = () => {
             </thead>
             <tbody>
               {visibleReservations.map(reservation => (
-                <tr key={reservation.id} className="fade-in">
+                <tr
+                  key={reservation.id}
+                  className="fade-in reservation-record-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenBookDetail(reservation)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenBookDetail(reservation);
+                    }
+                  }}
+                >
                   <td>{reservation.id}</td>
                   <td>{reservation.title}</td>
                   <td>{reservation.author}</td>
@@ -113,7 +141,10 @@ const ReservationsPage = () => {
                     {reservation.status === 'active' && (
                       <button
                         className="btn-danger"
-                        onClick={() => handleCancelReservation(reservation)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelReservation(reservation);
+                        }}
                       >
                         Cancel
                       </button>

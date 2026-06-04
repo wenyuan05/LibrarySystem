@@ -199,6 +199,16 @@
   background: #F9FAFB;
 }
 
+.borrow-records-table tbody tr.borrow-record-clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.borrow-records-table tbody tr.borrow-record-clickable:focus-visible {
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 2px var(--primary-color);
+}
+
 .borrow-records-table .title-cell {
   color: var(--text-primary);
   font-weight: 500;

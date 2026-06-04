@@ -174,6 +174,20 @@ const UserBorrowRecords = () => {
     }
   };
 
+  const handleOpenBookDetail = async (record) => {
+    try {
+      if (!record.book_id) {
+        throw new Error('Book ID not found in record');
+      }
+
+      await booksAPI.getById(record.book_id);
+      navigate(`/books/${record.book_id}`);
+    } catch (err) {
+      showToast(err.message || 'Book not found or has been removed', 'error');
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -260,7 +274,19 @@ const UserBorrowRecords = () => {
                 </thead>
                 <tbody>
                   {visibleRecords.map(record => (
-                    <tr key={record.id} className="fade-in">
+                    <tr
+                      key={record.id}
+                      className="fade-in borrow-record-clickable"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleOpenBookDetail(record)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleOpenBookDetail(record);
+                        }
+                      }}
+                    >
                       <td>{record.id}</td>
                       <td className="title-cell">{record.title}</td>
                       <td className="barcode-cell">
@@ -294,7 +320,10 @@ const UserBorrowRecords = () => {
                           <div className="action-buttons">
                             <button
                               className="btn-info"
-                              onClick={() => handleReturnBook(record)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReturnBook(record);
+                              }}
                             >
                               Return
                             </button>
@@ -304,7 +333,10 @@ const UserBorrowRecords = () => {
                           <div className="action-buttons">
                             <button
                               className="btn-info"
-                              onClick={() => openConfirmModal(record)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openConfirmModal(record);
+                              }}
                             >
                               Confirm
                             </button>
