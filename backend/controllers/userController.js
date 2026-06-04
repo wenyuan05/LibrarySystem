@@ -574,6 +574,7 @@ exports.getUserBorrowRecords = (req, res) => {
             // 获取用户借阅记录
             db.all(
               `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine,
+                      br.confirm_deadline,
                       br.copy_id, bc.copy_code
                FROM borrow_records br
                JOIN books b ON br.book_id = b.id

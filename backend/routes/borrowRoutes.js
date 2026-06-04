@@ -42,6 +42,9 @@ router.get('/returning', authenticateToken, borrowController.getReturningList);
 // 确认借阅（需要登录）
 router.post('/confirm-borrow', authenticateToken, validateConfirmBorrowBody, borrowController.confirmBorrow);
 
+// 取消待确认的借阅锁定（需要登录）
+router.post('/cancel-borrow-lock', authenticateToken, borrowController.cancelBorrowLock);
+
 // 处理超时借阅（需要登录，且只有管理员或图书管理员可以操作）
 router.post('/handle-timeout', authenticateToken, borrowController.handleTimeoutBorrows);
 

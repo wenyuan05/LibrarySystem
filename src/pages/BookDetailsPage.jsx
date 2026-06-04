@@ -167,6 +167,29 @@ const BookDetailsPage = () => {
     }
   };
 
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!borrowRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(borrowRecord.id);
+      setShowConfirmModal(false);
+      setBorrowRecord(null);
+      setSelectedCopyId(null);
+      setCountdown(0);
+      await fetchBookDetails();
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   // 处理预约书籍
   const handleReserve = async () => {
     try {
@@ -346,10 +369,24 @@ const BookDetailsPage = () => {
       {showConfirmModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>Confirm Borrowing</h3>
+            <div className="modal-header">
+              <h3>Confirm Borrowing</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
+              >
+                <img src="/打叉.svg" alt="" />
+              </button>
+            </div>
             <div className="modal-body">
               <p><strong>User:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {book.title}</p>
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatCountdown()}</strong>
+              </div>
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select 
@@ -365,11 +402,17 @@ const BookDetailsPage = () => {
               </div>
             </div>
             <div className="modal-actions">
-              <button 
+              <button
                 className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
               >
-                Cancel
+                Not Now
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
               <button 
                 className="btn-primary"

@@ -6,7 +6,7 @@
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
 | 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 22 |
-| 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
+| 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 15 |
 | 系统管理 | 系统设置、功能开关、公告、公告已读、日志 | 13 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
@@ -197,11 +197,14 @@
     "status": "returned",
     "fine": 0,
     "fine_status": "paid",
+    "confirm_deadline": "2024-01-01T10:00:00Z",
     "copy_id": 1,
     "copy_code": "CP-1-001"
   }
 ]
 ```
+
+**说明**：`status = "borrowing"` 的待确认记录会返回 `confirm_deadline`，前端用它在书籍列表、书籍详情和借阅记录确认弹窗中恢复剩余确认倒计时。
 
 #### 3.1.9 POST /api/users/:id/block
 **功能**：拉黑用户
@@ -770,7 +773,30 @@
 - `copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
 - 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
-#### 3.3.4 POST /api/borrow/handle-timeout
+#### 3.3.4 POST /api/borrow/cancel-borrow-lock
+**功能**：取消待确认的借阅锁定
+**权限**：借阅记录本人或admin/librarian
+
+**请求体**：
+```json
+{
+  "record_id": 10
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Borrow lock cancelled successfully"
+}
+```
+
+**说明**：
+- 仅允许取消 `status = "borrowing"` 的待确认借阅记录。
+- 取消后记录状态变为 `timeout`；若兼容旧数据时该记录已经绑定 `copy_id` 且副本仍为 `borrowing`，会释放该副本并重新计算书籍可用副本数。
+- 读者端 Confirm 弹窗中 `Cancel Lock` 调用该接口；`Not Now` 和右上角关闭按钮只隐藏弹窗，不取消锁定。
+
+#### 3.3.5 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
 **权限**：admin/librarian
 
@@ -782,7 +808,7 @@
 }
 ```
 
-#### 3.3.5 POST /api/borrow/approve-return
+#### 3.3.6 POST /api/borrow/approve-return
 **功能**：审批归还请求
 **权限**：admin/librarian
 
@@ -802,7 +828,7 @@
 
 **说明**：审批只确认归还状态、释放副本并触发预约可借通知。罚款已在用户提交归还时入账，审批阶段不会重复累计罚款；如果用户已提前支付，`fine_status` 保持 `"paid"`。
 
-#### 3.3.6 GET /api/borrow/returning
+#### 3.3.7 GET /api/borrow/returning
 **功能**：获取待审批的归还请求列表
 **权限**：admin/librarian
 
@@ -824,7 +850,7 @@
 ]
 ```
 
-#### 3.3.7 GET /api/borrow/borrowing
+#### 3.3.8 GET /api/borrow/borrowing
 **功能**：获取借阅中列表
 **权限**：admin/librarian
 
@@ -844,7 +870,7 @@
 ]
 ```
 
-#### 3.3.8 POST /api/borrow/reserve
+#### 3.3.9 POST /api/borrow/reserve
 **功能**：预约书籍
 
 **说明**：当系统设置 `reservation_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Reservations are currently disabled by the system administrator"}`。关闭预约不会影响用户取消已有预约。
@@ -867,7 +893,7 @@
 }
 ```
 
-#### 3.3.9 GET /api/borrow/reservations/:user_id
+#### 3.3.10 GET /api/borrow/reservations/:user_id
 **功能**：获取用户的预约记录
 
 **响应**：
@@ -884,7 +910,7 @@
 ]
 ```
 
-#### 3.3.10 POST /api/borrow/renew
+#### 3.3.11 POST /api/borrow/renew
 **功能**：续借图书
 
 **请求体**：
@@ -902,7 +928,7 @@
 }
 ```
 
-#### 3.3.11 GET /api/borrow/fines/:user_id
+#### 3.3.12 GET /api/borrow/fines/:user_id
 **功能**：获取用户罚款历史记录
 **权限**：本人或admin/librarian
 
@@ -928,7 +954,7 @@
 ]
 ```
 
-#### 3.3.12 POST /api/borrow/pay-fine
+#### 3.3.13 POST /api/borrow/pay-fine
 **状态**：已移除
 
 **说明**：旧的直接结清罚款接口已移除，避免绕过 Release 3 的支付宝支付订单、支付状态和收入流水。请使用 `POST /api/payments/fines/alipay` 创建罚款支付单，并通过支付宝通知、主动查询或本地模拟通知完成支付。

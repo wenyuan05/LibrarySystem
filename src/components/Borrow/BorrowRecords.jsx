@@ -9,6 +9,18 @@ import Barcode from '../Barcode';
 import './Borrow.css';
 
 const getFineAmount = (fine) => Number(fine) || 0;
+const getCountdownSeconds = (deadline) => {
+  if (!deadline) return 0;
+  const diffInSeconds = Math.floor((new Date(deadline) - new Date()) / 1000);
+  return Math.max(0, diffInSeconds);
+};
+
+const formatCountdown = (secondsLeft) => {
+  const minutes = Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const isActualPayableFine = (fine) => (
   fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
 );
@@ -25,6 +37,7 @@ const BorrowRecords = () => {
   const [confirmRecord, setConfirmRecord] = useState(null);
   const [confirmCopies, setConfirmCopies] = useState([]);
   const [selectedCopyId, setSelectedCopyId] = useState('');
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
   const [fines, setFines] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
   const [recordSortOrder, setRecordSortOrder] = useState('desc');
@@ -68,6 +81,22 @@ const BorrowRecords = () => {
   useEffect(() => {
     fetchBorrowRecords();
   }, [fetchBorrowRecords]);
+
+  useEffect(() => {
+    if (!confirmRecord?.confirm_deadline) {
+      setConfirmCountdown(0);
+      return undefined;
+    }
+
+    const updateCountdown = () => {
+      setConfirmCountdown(getCountdownSeconds(confirmRecord.confirm_deadline));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [confirmRecord?.confirm_deadline]);
 
   // 处理归还书籍
   const handleReturnBook = async (record) => {
@@ -128,6 +157,18 @@ const BorrowRecords = () => {
     }
   };
 
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  const resetConfirmModal = () => {
+    setShowConfirmModal(false);
+    setConfirmRecord(null);
+    setConfirmCopies([]);
+    setSelectedCopyId('');
+    setConfirmCountdown(0);
+  };
+
   // 处理确认借阅
   const handleConfirmBorrow = async () => {
     try {
@@ -142,10 +183,26 @@ const BorrowRecords = () => {
         r.id === confirmRecord.id ? { ...r, status: 'borrowed' } : r
       ));
       
-      setShowConfirmModal(false);
-      setConfirmRecord(null);
-      setConfirmCopies([]);
-      setSelectedCopyId('');
+      resetConfirmModal();
+      fetchBorrowRecords();
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!confirmRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(confirmRecord.id);
+      setRecords(prevRecords => prevRecords.map(r =>
+        r.id === confirmRecord.id ? { ...r, status: 'timeout' } : r
+      ));
+      resetConfirmModal();
       fetchBorrowRecords();
       showToast(result.message, 'success');
     } catch (err) {
@@ -364,14 +421,19 @@ const BorrowRecords = () => {
               <h3>Confirm Borrowing</h3>
               <button
                 className="modal-close"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
               >
-                ×
+                <img src="/打叉.svg" alt="" />
               </button>
             </div>
             <div className="modal-body">
               <p><strong>User:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {confirmRecord.title}</p>
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatCountdown(confirmCountdown)}</strong>
+              </div>
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select
@@ -401,9 +463,15 @@ const BorrowRecords = () => {
             <div className="modal-actions">
               <button
                 className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
               >
-                Cancel
+                Not Now
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
               <button
                 className="btn-primary"

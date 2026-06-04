@@ -15,6 +15,16 @@ import SkeletonLoader from './SkeletonLoader';
 
 import './Books.css';
 
+const ACTIVE_BORROW_STATUSES = new Set(['borrowing', 'borrowed', 'overdue', 'returning']);
+
+const isActiveBorrowRecord = (record) => (
+  !record.return_date && ACTIVE_BORROW_STATUSES.has(record.status)
+);
+
+const toBorrowingRecordsMap = (records) => (
+  new Map(records.filter(record => record.status === 'borrowing').map(record => [record.book_id, record]))
+);
+
 
 
 const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, onReservationsChanged, showEditButton = false, onEditBook, onManageCopies }) => {
@@ -44,11 +54,12 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
           const data = await usersAPI.getBorrowRecords(user.id);
 
-          // 过滤出未归还的借阅记录
+          // 过滤出仍会影响当前借阅状态的记录
 
-          const activeRecords = data.records.filter(record => !record.return_date);
+          const activeRecords = data.records.filter(isActiveBorrowRecord);
 
           setBorrowRecords(activeRecords);
+          setBorrowRecordsMap(toBorrowingRecordsMap(activeRecords));
 
         } catch (err) {
 
@@ -200,7 +211,41 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
   const [selectedCopyId, setSelectedCopyId] = useState(null);
 
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
+
   const [copies, setCopies] = useState(new Map()); // 存储书籍副本信息
+
+  const getCountdownSeconds = (deadline) => {
+    if (!deadline) return 0;
+    const diffInSeconds = Math.floor((new Date(deadline) - new Date()) / 1000);
+    return Math.max(0, diffInSeconds);
+  };
+
+  const formatConfirmCountdown = () => {
+    const minutes = Math.floor(confirmCountdown / 60);
+    const seconds = confirmCountdown % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  useEffect(() => {
+    if (!selectedBorrowRecord?.confirm_deadline) {
+      setConfirmCountdown(0);
+      return undefined;
+    }
+
+    const updateCountdown = () => {
+      setConfirmCountdown(getCountdownSeconds(selectedBorrowRecord.confirm_deadline));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [selectedBorrowRecord?.confirm_deadline]);
 
 
   const handleBorrowBook = async (bookId) => {
@@ -312,9 +357,10 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
       const data = await usersAPI.getBorrowRecords(user.id);
 
-      const activeRecords = data.records.filter(record => !record.return_date);
+      const activeRecords = data.records.filter(isActiveBorrowRecord);
 
       setBorrowRecords(activeRecords);
+      setBorrowRecordsMap(toBorrowingRecordsMap(activeRecords));
 
       // 从borrowRecordsMap中移除已确认的借阅记录
 
@@ -336,6 +382,51 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
     }
 
+  };
+
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!selectedBorrowRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(selectedBorrowRecord.id);
+      const cancelledBookId = selectedBookId;
+
+      setShowConfirmModal(false);
+      setSelectedBorrowRecord(null);
+      setSelectedCopyId(null);
+      setConfirmCountdown(0);
+
+      setBorrowRecords(prevRecords => prevRecords.filter(record => record.id !== selectedBorrowRecord.id));
+      setBorrowRecordsMap(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(cancelledBookId);
+        return newMap;
+      });
+
+      if (cancelledBookId) {
+        const [updatedBook, copiesData] = await Promise.all([
+          booksAPI.getById(cancelledBookId),
+          booksAPI.getCopies(cancelledBookId)
+        ]);
+
+        setCopies(prev => {
+          const newMap = new Map(prev);
+          newMap.set(cancelledBookId, copiesData);
+          return newMap;
+        });
+
+        if (updatedBook && onBookUpdated) {
+          onBookUpdated(updatedBook);
+        }
+      }
+
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
   };
 
 
@@ -758,13 +849,28 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
           <div className="modal-content">
 
-            <h3>Confirm Borrowing</h3>
+            <div className="modal-header">
+              <h3>Confirm Borrowing</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
+              >
+                <img src="/打叉.svg" alt="" />
+              </button>
+            </div>
 
             <div className="modal-body">
 
               <p><strong>User:</strong> {user?.name}</p>
 
               <p><strong>Book:</strong> {books.find(b => b.id === selectedBookId)?.title}</p>
+
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatConfirmCountdown()}</strong>
+              </div>
 
               <div className="copy-selection">
 
@@ -813,12 +919,19 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
               <button
                 className="btn-secondary"
 
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
 
               >
 
-                Cancel
+                Not Now
 
+              </button>
+
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
 
               <button

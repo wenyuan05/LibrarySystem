@@ -290,12 +290,42 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.modal-content h3 {
-  margin-top: 0;
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+  margin: 0;
   color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: var(--bg-secondary);
+}
+
+.modal-close img {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .modal-body {
@@ -330,10 +360,28 @@
   color: var(--text-primary);
 }
 
+.confirm-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.confirm-countdown strong {
+  color: var(--primary-color);
+  font-variant-numeric: tabular-nums;
+}
+
 .modal-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .modal-actions button {
@@ -363,6 +411,15 @@
 
 .modal-actions .btn-primary:hover {
   background-color: var(--primary-hover);
+}
+
+.modal-actions .btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.modal-actions .btn-danger:hover {
+  background-color: var(--danger-hover);
 }
 
 .book-actions {

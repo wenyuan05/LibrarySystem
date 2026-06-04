@@ -1048,6 +1048,30 @@
   color: var(--text-primary);
 }
 
+.modal-close img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.confirm-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.confirm-countdown strong {
+  color: var(--primary-color);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 书籍详情页 */
 .book-detail-section {
   padding: var(--spacing-xl);

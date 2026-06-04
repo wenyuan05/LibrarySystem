@@ -349,7 +349,15 @@ export const borrowAPI = {
       body: JSON.stringify({ record_id: recordId, copy_id: copyId }),
     });
   },
-  
+
+  // 取消待确认的借阅锁定
+  cancelBorrowLock: async (recordId) => {
+    return request('/borrow/cancel-borrow-lock', {
+      method: 'POST',
+      body: JSON.stringify({ record_id: recordId }),
+    });
+  },
+
   // 处理超时借阅
   handleTimeout: async () => {
     return request('/borrow/handle-timeout', {

@@ -4,6 +4,37 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 9: Correct reader borrow confirmation cancel behavior
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `backend/routes/borrowRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Borrow/Borrow.css`
+  - `src/pages/BookDetailsPage.css`
+  - `public/打叉.svg`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `POST /api/borrow/cancel-borrow-lock` so readers can explicitly cancel their own pending borrow lock.
+  - Changed Confirm Borrowing dialogs so `Cancel Lock` cancels the pending lock, while `Not Now` and the close icon only hide the dialog.
+  - Restored confirmation countdown display and kept it tied to `confirm_deadline` after the dialog is hidden and reopened.
+  - Returned `confirm_deadline` from user borrow records so My Borrow Records can restore the countdown correctly.
+  - Synchronized Books page pending-borrow state from active `borrowing` records only.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `git diff --check`
+  - `node -e "require('./backend/routes/userRoutes'); require('./backend/controllers/userController'); console.log('user modules ok')"`
+- **Reason**: The old Cancel button only closed the dialog, and some record views lost the confirmation countdown because `confirm_deadline` was not returned by the borrow-record API.
+
 ### Fix 8: Add fine accrual feature toggle
 - **Files modified**:
   - `backend/db.js`

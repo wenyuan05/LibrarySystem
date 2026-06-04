@@ -864,6 +864,121 @@ exports.confirmBorrow = function(req, res) {
   });
 };
 
+// 取消待确认的借阅锁定（需要登录）
+exports.cancelBorrowLock = function(req, res) {
+  const recordId = Number(req.body.record_id);
+
+  if (!Number.isInteger(recordId) || recordId <= 0) {
+    res.status(400).json({ error: 'Invalid borrow record id' });
+    return;
+  }
+
+  db.serialize(function() {
+    db.run('BEGIN TRANSACTION', function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get(
+        'SELECT id, user_id, book_id, copy_id, status FROM borrow_records WHERE id = ?',
+        [recordId],
+        function(err, record) {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          if (!record) {
+            db.run('ROLLBACK');
+            res.status(404).json({ error: 'Borrow record not found' });
+            return;
+          }
+
+          if (!canAccessBorrowUser(req, record.user_id)) {
+            db.run('ROLLBACK');
+            res.status(403).json({ error: 'Forbidden: cannot cancel other users\' borrow locks' });
+            return;
+          }
+
+          if (record.status !== 'borrowing') {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Only pending borrow locks can be cancelled' });
+            return;
+          }
+
+          db.run(
+            'UPDATE borrow_records SET status = ? WHERE id = ? AND status = ?',
+            ['timeout', record.id, 'borrowing'],
+            function(err) {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              const releaseCopy = (next) => {
+                if (!record.copy_id) {
+                  next(null);
+                  return;
+                }
+
+                db.run(
+                  'UPDATE book_copies SET status = ? WHERE id = ? AND status = ?',
+                  ['available', record.copy_id, 'borrowing'],
+                  next
+                );
+              };
+
+              releaseCopy(function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                db.get(
+                  'SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?',
+                  [record.book_id, 'available'],
+                  function(err, result) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run(
+                      'UPDATE books SET available_copies = ? WHERE id = ?',
+                      [result.available_count, record.book_id],
+                      function(err) {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('COMMIT', function(err) {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+
+                          res.json({ message: 'Borrow lock cancelled successfully' });
+                        });
+                      }
+                    );
+                  }
+                );
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+};
+
 // 处理超时借阅
 exports.handleTimeoutBorrows = function(req, res) {
   if (!canManageBorrowRecords(req.user)) {
