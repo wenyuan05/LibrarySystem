@@ -4,6 +4,8 @@ import { usersAPI } from '../../utils/api';
 import { useAuth } from '../../context/useAuth';
 import './Users.css';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
@@ -27,10 +29,16 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const email = formData.email.trim();
+    if (!EMAIL_REGEX.test(email)) {
+      showToast('Invalid email format', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload = { ...formData };
+      const payload = { ...formData, email };
       if (currentUser?.role === 'admin' && user.role !== 'admin') {
         payload.role = selectedRole;
       }
@@ -39,7 +47,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
       showToast('User updated successfully!', 'success');
       onUserUpdated(updatedUser);
     } catch (err) {
-      showToast('Failed to update user', 'error');
+      showToast(err.message || 'Failed to update user', 'error');
       console.error(err);
     } finally {
       setLoading(false);

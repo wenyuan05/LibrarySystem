@@ -11,6 +11,7 @@ const {
 } = require('../utils/statusConstants');
 
 const JWT_EXPIRES_IN = '7d';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 const buildResetPasswordUrl = (token) => {
@@ -305,8 +306,13 @@ exports.updateUser = (req, res) => {
     updateFields.push('name = ?');
     params.push(body.name);
   }
-  if (hasBodyField('email') && body.email) {
+  if (hasBodyField('email')) {
     normalizedEmail = normalizeEmail(body.email);
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      res.status(400).json({ error: 'Invalid email format' });
+      return;
+    }
+
     updateFields.push('email = ?');
     params.push(normalizedEmail);
   }

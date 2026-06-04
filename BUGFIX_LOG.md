@@ -4,6 +4,23 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 5: Validate email format when editing users
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `src/components/Users/EditUserForm.jsx`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend email format validation for `PUT /api/users/:id` whenever the request includes `email`.
+  - Added frontend validation before submitting the edit user form.
+  - Returned backend validation errors through the edit user toast.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/userRoutes'); require('./controllers/userController'); console.log('user modules ok')"`
+- **Reason**: Admin user editing previously relied on browser `type="email"` validation and backend uniqueness checks, so direct API requests could save invalid email values.
+
 ### Fix 4: Add payment list filters and pagination to Income Dashboard
 - **Files modified**:
   - `backend/controllers/paymentController.js`
