@@ -169,7 +169,6 @@ exports.borrowBook = function(req, res) {
   });
 });
 };
-
 // 归还书籍（需要登录）
 exports.returnBook = function(req, res) {
   const { user_id, book_id } = req.body;
@@ -1244,94 +1243,5 @@ exports.getUserFines = function(req, res) {
       return;
     }
     res.json(fines);
-  });
-};
-
-// 支付罚款
-exports.payFine = function(req, res) {
-  const { user_id } = req.body;
-  
-  // 普通用户只能支付自己的罚款；管理员和图书管理员可代用户处理罚款
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'librarian') {
-    res.status(403).json({ error: 'Forbidden: cannot pay other users\' fines' });
-    return;
-  }
-
-  // 开始事务
-  db.serialize(function() {
-    db.run('BEGIN TRANSACTION', function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-
-      // 以已归还后产生的实际未支付罚款记录为准。
-      db.get(
-        `SELECT COALESCE(SUM(fine), 0) as total_fine
-         FROM borrow_records
-         WHERE user_id = ?
-           AND fine > 0
-           AND fine_status = ?
-           AND status IN ('returning', 'returned')`,
-        [user_id, 'unpaid'],
-        function(err, user) {
-        if (err) {
-          db.run('ROLLBACK');
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        if (user.total_fine <= 0) {
-          db.run('ROLLBACK');
-          res.status(400).json({ error: 'No fines to pay' });
-          return;
-        }
-
-        // 更新用户所有未支付的罚款记录为已支付
-        db.run(
-          `UPDATE borrow_records
-           SET fine_status = ?
-           WHERE user_id = ?
-             AND fine_status = ?
-             AND status IN ('returning', 'returned')`,
-          ['paid', user_id, 'unpaid'],
-          function(err) {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 重新同步缓存字段，兼容旧数据或部分付款状态。
-          db.run(
-            `UPDATE users
-             SET total_fine = (
-               SELECT COALESCE(SUM(fine), 0)
-               FROM borrow_records
-               WHERE user_id = ?
-                 AND fine > 0
-                 AND fine_status = 'unpaid'
-                 AND status IN ('returning', 'returned')
-             )
-             WHERE id = ?`,
-            [user_id, user_id],
-            function(err) {
-            if (err) {
-              db.run('ROLLBACK');
-              res.status(500).json({ error: err.message });
-              return;
-            }
-
-            db.run('COMMIT', function(err) {
-              if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              res.json({ message: 'Fines paid successfully', amount: user.total_fine });
-            });
-          }
-          );
-        });
-      });
-    });
   });
 };

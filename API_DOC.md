@@ -744,7 +744,7 @@
 }
 ```
 
-**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`，用户无需等待图书管理员审批即可调用 `pay-fine` 支付。
+**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`。用户无需等待图书管理员审批即可通过支付宝支付订单支付实际罚款。
 
 #### 3.3.3 POST /api/borrow/confirm-borrow
 **功能**：确认借阅
@@ -925,25 +925,9 @@
 ```
 
 #### 3.3.12 POST /api/borrow/pay-fine
-**功能**：支付所有未支付罚款
-**权限**：本人或admin/librarian
+**状态**：已移除
 
-**说明**：接口直接汇总 `borrow_records` 中 `fine > 0` 且 `fine_status = "unpaid"` 的记录，支持支付 `returning` 状态下已经计算出的罚款。支付成功后相关罚款记录标记为 `"paid"`，并重新同步用户 `total_fine`。
-
-**请求体**：
-```json
-{
-  "user_id": 2
-}
-```
-
-**响应**：
-```json
-{
-  "message": "Fines paid successfully",
-  "amount": 2.5
-}
-```
+**说明**：旧的直接结清罚款接口已移除，避免绕过 Release 3 的支付宝支付订单、支付状态和收入流水。请使用 `POST /api/payments/fines/alipay` 创建罚款支付单，并通过支付宝通知、主动查询或本地模拟通知完成支付。
 
 ### 3.4 支付接口
 
@@ -1058,7 +1042,44 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.4.9 POST /api/payments/:id/expire
+#### 3.4.9 GET /api/payments/income/analytics
+**功能**：收入趋势和任意日期范围收入查询
+**权限**：admin/librarian
+
+**查询参数**：
+- `start_date`：可选，查询起始日期，格式 `YYYY-MM-DD`
+- `end_date`：可选，查询结束日期，格式 `YYYY-MM-DD`
+
+**说明**：不传日期参数时，`trend` 默认返回过去一年按月统计的已支付支付宝罚款收入。传入 `start_date` / `end_date` 后，折线图数据会限定在指定范围内，并自动选择标度：31 天内按日、180 天内按 7 天区间、超过 180 天按月。只传其中一个日期时按单日查询。
+
+**响应**：
+```json
+{
+  "trend": {
+    "granularity": "month",
+    "start_date": "2025-07-01",
+    "end_date": "2026-06-04",
+    "buckets": [
+      {
+        "key": "2025-07",
+        "label": "2025-07",
+        "start_date": "2025-07-01",
+        "end_date": "2025-07-31",
+        "income": 15,
+        "paid_count": 3
+      }
+    ]
+  },
+  "range": {
+    "start_date": "2025-07-01",
+    "end_date": "2026-06-04",
+    "total_income": 20,
+    "paid_count": 4
+  }
+}
+```
+
+#### 3.4.10 POST /api/payments/:id/expire
 **功能**：手动过期待支付订单
 **权限**：本人或admin/librarian
 

@@ -407,6 +407,17 @@ export const paymentAPI = {
   getIncomeSummary: async () => {
     return request('/payments/income/summary');
   },
+
+  getIncomeAnalytics: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    const query = params.toString();
+    return request(`/payments/income/analytics${query ? `?${query}` : ''}`);
+  },
 };
 
 // 通知相关API

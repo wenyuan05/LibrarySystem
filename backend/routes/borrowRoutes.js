@@ -51,7 +51,4 @@ router.post('/check-overdue', authenticateToken, borrowController.checkOverdueRe
 // 获取用户的罚款记录（需要登录）
 router.get('/fines/:user_id', authenticateToken, borrowController.getUserFines);
 
-// 支付罚款（需要登录）
-router.post('/pay-fine', authenticateToken, borrowController.payFine);
-
 module.exports = router;

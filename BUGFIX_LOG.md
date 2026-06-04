@@ -4,6 +4,49 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 3: Add income trend and date-range analytics
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `GET /api/payments/income/analytics` for admin/librarian users.
+  - Returned default monthly buckets for the past year when no date range is specified.
+  - Added inclusive same-day and date-range income totals.
+  - Switched the chart series to the selected range when dates are provided.
+  - Added automatic chart granularity: daily for up to 31 days, 7-day buckets for up to 180 days, and monthly buckets for longer ranges.
+  - Added an Income Dashboard line chart, date range query form, and default past-year reset.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `npm.cmd audit --omit=dev`
+  - `node -e "require('./routes/paymentRoutes'); require('./controllers/paymentController'); console.log('payment analytics modules ok')"`
+- **Reason**: Librarians need to review yearly income trends and query exact income for arbitrary dates or time ranges from the Income Dashboard.
+
+### Fix 2: Remove legacy direct fine settlement endpoint
+- **Files modified**:
+  - `backend/routes/borrowRoutes.js`
+  - `backend/controllers/borrowController.js`
+  - `package.json`
+  - `package-lock.json`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed `POST /api/borrow/pay-fine` so fines can no longer be marked paid without a payment order.
+  - Updated documentation and regression notes to point fine settlement through `POST /api/payments/fines/alipay`.
+  - Upgraded `react-router-dom` to `7.16.0`, clearing the root frontend npm audit findings.
+- **Verification**:
+  - `npm.cmd audit --omit=dev`
+- **Reason**: Release 3 fine payments must flow through Alipay-shaped payment orders and income records. The legacy direct settlement endpoint could bypass that business flow.
+
 ### Fix 1: Isolate authentication per browser tab
 - **Files modified**:
   - `src/context/AuthContext.jsx`

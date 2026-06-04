@@ -725,6 +725,7 @@
   - Linked fine records become `fine_status = paid`.
   - `users.total_fine` is recalculated from remaining unpaid fines.
   - `GET /api/payments/income/summary` includes the paid amount for admin/librarian users.
+  - `GET /api/payments/income/analytics` returns a trend series, defaults to monthly buckets for the past year, and switches buckets to the selected date range when dates are provided.
   - Repeating the simulated notify call is idempotent and does not duplicate income.
   - If linked fines were already paid by another flow while the payment was pending, simulated notify is rejected and does not add income.
   - Expired orders cannot be simulated as paid.
@@ -772,6 +773,30 @@
   - If Alipay reports `TRADE_CLOSED`, the local payment becomes `expired`.
   - If the Alipay query times out, fails, or returns an amount mismatch, the local payment remains pending and the frontend polling keeps working without a 500 response.
 
+### Test Case: Income dashboard trend and range query
+
+- **Scenario**: Librarian reviews monthly income trend and queries income for a selected date range.
+- **Steps**:
+  1. Log in as a librarian or admin.
+  2. Create paid Alipay fine payment records across different months.
+  3. Open `/income-dashboard`.
+  4. Confirm the default line chart displays the past year by month.
+  5. Select the same start and end date, then submit the income query.
+  6. Select a date range within 31 days, then submit the income query.
+  7. Select a date range within 180 days, then submit the income query.
+  8. Select a date range longer than 180 days, then submit the income query.
+  9. Click `Past Year`.
+  10. Try a start date after the end date.
+- **Expected result**:
+  - The chart uses only paid Alipay fine payment income.
+  - The default chart shows monthly buckets for the past year and includes zero-value months.
+  - The same-day query returns a one-day trend and matching range total.
+  - Date ranges up to 31 days use daily buckets.
+  - Date ranges up to 180 days use 7-day buckets.
+  - Longer date ranges use monthly buckets.
+  - `Past Year` clears the range inputs and restores the default monthly trend.
+  - Invalid date order is rejected before submitting the request.
+
 ### Test Case: Fine page Alipay simulation flow
 
 - **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.
@@ -787,6 +812,7 @@
   - Fine Records shows Payable Fine separately from Estimated Fine.
   - Clicking `Pay with Alipay` creates a pending payment order only for actual unpaid fines and does not immediately mark fines as paid.
   - The page shows the simulated Alipay payment UI instead of directly calling the legacy fine settlement API.
+  - Direct `POST /api/borrow/pay-fine` requests return 404 because the legacy settlement endpoint is removed.
   - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
   - Fine Records polls `GET /api/payments/:id` every 2-3 seconds while a payment order is open.
   - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.

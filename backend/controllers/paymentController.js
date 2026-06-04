@@ -10,6 +10,7 @@ const canAccessUser = (req, userId) => (
 );
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const parseBorrowRecordIds = (value) => {
   try {
     const parsed = value ? JSON.parse(value) : [];
@@ -26,6 +27,136 @@ const generateOutTradeNo = () => {
 };
 
 const getPayableFineStatusClause = () => "status IN ('returning', 'returned')";
+
+const isValidDateOnly = (value) => {
+  if (!DATE_PATTERN.test(String(value || ''))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
+
+const addMonthsUtc = (date, months) => {
+  const copy = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  copy.setUTCMonth(copy.getUTCMonth() + months);
+  return copy;
+};
+
+const formatMonthKey = (date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+const formatDateKey = (date) => date.toISOString().slice(0, 10);
+
+const getLastTwelveMonthKeys = () => {
+  const currentMonth = new Date();
+  const start = addMonthsUtc(currentMonth, -11);
+  return Array.from({ length: 12 }, (_, index) => formatMonthKey(addMonthsUtc(start, index)));
+};
+
+const parseDateOnly = (value) => new Date(`${value}T00:00:00Z`);
+
+const addDaysUtc = (date, days) => {
+  const copy = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  copy.setUTCDate(copy.getUTCDate() + days);
+  return copy;
+};
+
+const getDaySpanInclusive = (startDate, endDate) => {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.floor((parseDateOnly(endDate) - parseDateOnly(startDate)) / msPerDay) + 1;
+};
+
+const getMonthEndDate = (monthKey, maxEndDate) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  const end = new Date(Date.UTC(year, month, 0));
+  const endKey = formatDateKey(end);
+  return endKey > maxEndDate ? maxEndDate : endKey;
+};
+
+const buildIncomeTrendBuckets = (startDate, endDate, granularity) => {
+  const buckets = [];
+
+  if (granularity === 'month') {
+    let cursor = new Date(Date.UTC(parseDateOnly(startDate).getUTCFullYear(), parseDateOnly(startDate).getUTCMonth(), 1));
+    const finalMonth = formatMonthKey(parseDateOnly(endDate));
+
+    while (formatMonthKey(cursor) <= finalMonth) {
+      const month = formatMonthKey(cursor);
+      const bucketStart = month === formatMonthKey(parseDateOnly(startDate)) ? startDate : `${month}-01`;
+      buckets.push({
+        key: month,
+        label: month,
+        start_date: bucketStart,
+        end_date: getMonthEndDate(month, endDate),
+        income: 0,
+        paid_count: 0
+      });
+      cursor = addMonthsUtc(cursor, 1);
+    }
+
+    return buckets;
+  }
+
+  if (granularity === 'week') {
+    let cursor = parseDateOnly(startDate);
+    while (formatDateKey(cursor) <= endDate) {
+      const bucketStart = formatDateKey(cursor);
+      const bucketEnd = formatDateKey(addDaysUtc(cursor, 6)) > endDate ? endDate : formatDateKey(addDaysUtc(cursor, 6));
+      buckets.push({
+        key: `${bucketStart}_${bucketEnd}`,
+        label: `${bucketStart.slice(5)}~${bucketEnd.slice(5)}`,
+        start_date: bucketStart,
+        end_date: bucketEnd,
+        income: 0,
+        paid_count: 0
+      });
+      cursor = addDaysUtc(cursor, 7);
+    }
+
+    return buckets;
+  }
+
+  let cursor = parseDateOnly(startDate);
+  while (formatDateKey(cursor) <= endDate) {
+    const day = formatDateKey(cursor);
+    buckets.push({
+      key: day,
+      label: day.slice(5),
+      start_date: day,
+      end_date: day,
+      income: 0,
+      paid_count: 0
+    });
+    cursor = addDaysUtc(cursor, 1);
+  }
+
+  return buckets;
+};
+
+const getIncomeTrendOptions = (query) => {
+  const hasRange = Boolean(query.start_date || query.end_date);
+
+  if (!hasRange) {
+    const monthKeys = getLastTwelveMonthKeys();
+    return {
+      hasRange,
+      granularity: 'month',
+      startDate: `${monthKeys[0]}-01`,
+      endDate: formatDateKey(new Date())
+    };
+  }
+
+  const startDate = query.start_date || query.end_date;
+  const endDate = query.end_date || query.start_date;
+  const daySpan = getDaySpanInclusive(startDate, endDate);
+  let granularity = 'month';
+  if (daySpan <= 31) {
+    granularity = 'day';
+  } else if (daySpan <= 180) {
+    granularity = 'week';
+  }
+
+  return { hasRange, granularity, startDate, endDate };
+};
 
 const buildPaymentUrl = (payment) => {
   const baseUrl = process.env.ALIPAY_RETURN_URL || 'http://localhost:5173/payment-result';
@@ -736,4 +867,84 @@ exports.getIncomeSummary = function(req, res) {
       }
     );
   });
+};
+
+exports.getIncomeAnalytics = function(req, res) {
+  const requestedStart = req.query.start_date || req.query.end_date || '';
+  const requestedEnd = req.query.end_date || req.query.start_date || '';
+
+  if ((requestedStart && !isValidDateOnly(requestedStart)) || (requestedEnd && !isValidDateOnly(requestedEnd))) {
+    res.status(400).json({ error: 'start_date and end_date must use YYYY-MM-DD format' });
+    return;
+  }
+
+  if (requestedStart && requestedEnd && requestedStart > requestedEnd) {
+    res.status(400).json({ error: 'start_date cannot be after end_date' });
+    return;
+  }
+
+  const trendOptions = getIncomeTrendOptions(req.query);
+  const trendBuckets = buildIncomeTrendBuckets(trendOptions.startDate, trendOptions.endDate, trendOptions.granularity);
+
+  db.all(
+    `SELECT date(paid_at) as paid_date,
+            COALESCE(SUM(amount), 0) as income,
+            COUNT(*) as paid_count
+     FROM payments
+     WHERE provider = 'alipay'
+       AND payment_type = 'fine'
+       AND status = 'paid'
+       AND date(paid_at) BETWEEN date(?) AND date(?)
+     GROUP BY date(paid_at)`,
+    [trendOptions.startDate, trendOptions.endDate],
+    (monthlyErr, rows) => {
+      if (monthlyErr) {
+        res.status(500).json({ error: monthlyErr.message });
+        return;
+      }
+
+      (rows || []).forEach(row => {
+        const bucket = trendBuckets.find(item => row.paid_date >= item.start_date && row.paid_date <= item.end_date);
+        if (bucket) {
+          bucket.income = roundMoney(bucket.income + row.income);
+          bucket.paid_count += row.paid_count || 0;
+        }
+      });
+
+      const rangeStart = trendOptions.startDate;
+      const rangeEnd = trendOptions.endDate;
+
+      db.get(
+        `SELECT COALESCE(SUM(amount), 0) as total_income,
+                COUNT(*) as paid_count
+         FROM payments
+         WHERE provider = 'alipay'
+           AND payment_type = 'fine'
+           AND status = 'paid'
+           AND date(paid_at) BETWEEN date(?) AND date(?)`,
+        [rangeStart, rangeEnd],
+        (rangeErr, rangeRow) => {
+          if (rangeErr) {
+            res.status(500).json({ error: rangeErr.message });
+            return;
+          }
+
+          res.json({
+            trend: {
+              granularity: trendOptions.granularity,
+              start_date: trendOptions.startDate,
+              end_date: trendOptions.endDate,
+              buckets: trendBuckets
+            },
+            range: {
+              start_date: rangeStart,
+              end_date: rangeEnd,
+              total_income: roundMoney(rangeRow?.total_income || 0),
+              paid_count: rangeRow?.paid_count || 0
+            }
+          });
+        }
+      );
+    }
+  );
 };

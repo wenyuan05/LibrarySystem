@@ -581,7 +581,7 @@ npm run dev
    - `fine_per_day` 支持设置为 `0` 以禁用逾期罚款
    - 用户提交归还申请时罚款立即累计到用户账户（total_fine），无需等待归还审批即可支付
    - 查询用户罚款历史记录，未支付记录优先展示
-   - 一键支付所有未支付罚款，支付接口以未支付罚款记录为准并同步 total_fine
+   - 罚款支付通过支付宝支付订单完成，支付成功后同步未支付罚款记录和 total_fine
    - 管理员和图书管理员可以查看并处理用户罚款
 6. **书籍副本管理**：
    - 为每本书创建多个副本
@@ -687,6 +687,7 @@ npm run dev
    - Fine Records 支付面板会每 2.5 秒轮询 `/api/payments/:id`；订单变为 `paid` 时自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记，变为 `expired` 时提示重新创建订单
    - 启用支付宝沙箱配置后，订单查询接口会对 pending 订单主动调用 `alipay.trade.query`；即使本地没有公网 notify，刷新或轮询也能在沙箱支付完成后同步本地订单状态
    - My Borrow Records 的罚款弹窗会跳转到 Fine Records 支付页，避免继续使用旧的直接结清接口
+   - 旧的 `/api/borrow/pay-fine` 直接结清接口已移除，避免绕过支付宝订单和收入流水
    - My Borrow Records 的罚款弹窗通过 portal 挂到页面根节点，确保始终按浏览器视口居中，并使用覆盖基础弹窗宽度限制的宽屏表格布局展示大量罚款记录
    - 后端 ISBN provider 代理使用 `undici` 的 `ProxyAgent`，该依赖记录在 `backend/package.json` 中；切换到 Release 3 分支后需要在 `backend` 目录执行 `npm install`
    - 本地模拟支付成功通过 `/api/payments/alipay/simulate-notify/:out_trade_no` 完成，只有 `ALIPAY_MODE=sandbox` 或 `ALIPAY_SIMULATION_ENABLED=true` 时前端显示模拟按钮，支付成功后同步更新罚款状态和用户实际未付罚款总额
@@ -694,7 +695,8 @@ npm run dev
    - 同一用户同一批实际罚款已有 pending 订单时会复用原订单，避免重复创建支付单
    - 支持支付订单列表查询和手动过期 pending 订单；过期订单不能模拟成功，已支付订单不能再过期，过期后再次支付会创建新订单
    - 图书管理员可通过 `/api/payments/income/summary` 查看已支付收入、今日收入、本月收入和最近支付记录
-   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、支付订单列表，并过期待支付订单
+   - 图书管理员可通过 `/api/payments/income/analytics` 获取收入折线图数据；未指定范围时按月展示过去一年收入，指定范围时自动按日、7 天区间或月份划分标度
+   - 管理员/图书管理员可通过 `/income-dashboard` 查看收入 dashboard、动态收入折线图、日期区间收入查询、支付订单列表，并过期待支付订单
    - `/api/payments/alipay/notify` 支持支付宝表单回调验签；沙箱回调成功后会按 `out_trade_no` 完成对应罚款支付单
 10. **QQ 邮箱邮件服务**：
    - 后端新增邮件配置、邮件发送服务和 `email_logs` 发送记录表
