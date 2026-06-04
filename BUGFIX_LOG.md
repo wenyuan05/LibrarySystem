@@ -4,6 +4,27 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 8: Add fine accrual feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `fine_enabled` as an enabled-by-default system setting.
+  - Added a Fines Enabled toggle to the admin System Settings page.
+  - Stopped new overdue records from accruing fines when disabled.
+  - Froze estimated fines for already-overdue unreturned records while disabled.
+  - Kept existing actual unpaid fine payment flows unchanged.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/borrowRoutes'); require('./controllers/borrowController'); console.log('fine toggle modules ok')"`
+- **Reason**: Admins need to pause fine accrual without blocking normal returns or payment of already-created fines.
+
 ### Fix 7: Add reservation feature toggle
 - **Files modified**:
   - `backend/db.js`

@@ -178,10 +178,17 @@ exports.returnBook = function(req, res) {
   }
   const return_date = new Date().toISOString().split('T')[0];
 
-  // 从系统设置获取每日罚款金额
-  db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], function(err, row) {
-    const parsedFinePerDay = (!err && row) ? parseFloat(row.value) : NaN;
-    const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
+  // 从系统设置获取罚款开关和每日罚款金额
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, settings) {
+    const settingsMap = {};
+    if (!err && Array.isArray(settings)) {
+      settings.forEach(setting => {
+        settingsMap[setting.key] = setting.value;
+      });
+    }
+    const fineEnabled = settingsMap.fine_enabled !== '0';
+    const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
+    const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
 
     // 开始事务
     db.serialize(function() {
@@ -193,7 +200,7 @@ exports.returnBook = function(req, res) {
 
         // 查找未归还的借阅记录
         db.get(
-          'SELECT id, due_date FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
+          'SELECT id, due_date, fine FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
           [user_id, book_id, 'borrowed', 'overdue'],
           function(err, record) {
             if (err) {
@@ -211,7 +218,9 @@ exports.returnBook = function(req, res) {
             let fine = 0;
             const due_date = new Date(record.due_date);
             const return_date_obj = new Date(return_date);
-            if (return_date_obj > due_date) {
+            if (!fineEnabled) {
+              fine = Number(record.fine) || 0;
+            } else if (return_date_obj > due_date) {
               const days_overdue = Math.ceil((return_date_obj - due_date) / (1000 * 60 * 60 * 24));
               fine = days_overdue * finePerDay;
             }
@@ -294,58 +303,81 @@ exports.getBorrowingList = function(req, res) {
         return;
       }
       
-      // 然后检查和更新逾期记录
-      const today = new Date().toISOString().split('T')[0];
-      let overdueSql = 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ?';
-      const overdueParams = ['overdue', 'borrowed', today];
-      
-      // 如果指定了用户ID，只更新该用户的记录
-      if (user_id) {
-        overdueSql += ' AND user_id = ?';
-        overdueParams.push(user_id);
-      } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
-        // 非管理员和非图书管理员默认只更新自己的记录
-        overdueSql += ' AND user_id = ?';
-        overdueParams.push(req.user.id);
-      }
-      
-      db.run(overdueSql, overdueParams, function(err) {
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, fineSettings) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        
-        // 构建查询语句
-        let sql = `
-          SELECT br.id, br.user_id, u.username, u.name as user_name,
-                 br.book_id, b.title, b.author,
-                 br.borrow_date, br.due_date, br.status, br.fine,
-                 br.copy_id, bc.copy_code
-          FROM borrow_records br
-          JOIN users u ON br.user_id = u.id
-          JOIN books b ON br.book_id = b.id
-          LEFT JOIN book_copies bc ON br.copy_id = bc.id
-          WHERE br.status = 'borrowed'
-        `;
-        const params = [];
 
-        // 如果指定了用户ID，只查询该用户的记录
+        const fineSettingsMap = {};
+        fineSettings.forEach(setting => {
+          fineSettingsMap[setting.key] = setting.value;
+        });
+        const fineEnabled = fineSettingsMap.fine_enabled !== '0';
+        const parsedFinePerDay = fineSettingsMap.fine_per_day !== undefined ? parseFloat(fineSettingsMap.fine_per_day) : NaN;
+        const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+
+        // 然后检查和更新逾期记录
+        const today = new Date().toISOString().split('T')[0];
+        let overdueSql = fineEnabled
+          ? `UPDATE borrow_records
+             SET status = ?,
+                 fine = ROUND((julianday(?) - julianday(due_date)) * ?, 2),
+                 fine_status = CASE WHEN ROUND((julianday(?) - julianday(due_date)) * ?, 2) > 0 THEN 'unpaid' ELSE fine_status END
+             WHERE status IN (?, ?) AND due_date < ? AND return_date IS NULL`
+          : 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ? AND return_date IS NULL';
+        const overdueParams = fineEnabled
+          ? ['overdue', today, finePerDay, today, finePerDay, 'borrowed', 'overdue', today]
+          : ['overdue', 'borrowed', today];
+
+        // 如果指定了用户ID，只更新该用户的记录
         if (user_id) {
-          sql += ' AND br.user_id = ?';
-          params.push(user_id);
+          overdueSql += ' AND user_id = ?';
+          overdueParams.push(user_id);
         } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
-          // 非管理员和非图书管理员默认只查询自己的记录
-          sql += ' AND br.user_id = ?';
-          params.push(req.user.id);
+          // 非管理员和非图书管理员默认只更新自己的记录
+          overdueSql += ' AND user_id = ?';
+          overdueParams.push(req.user.id);
         }
 
-        // 执行查询
-        db.all(sql, params, function(err, records) {
+        db.run(overdueSql, overdueParams, function(err) {
           if (err) {
             res.status(500).json({ error: err.message });
             return;
           }
-          res.json(records);
+
+          // 构建查询语句
+          let sql = `
+            SELECT br.id, br.user_id, u.username, u.name as user_name,
+                   br.book_id, b.title, b.author,
+                   br.borrow_date, br.due_date, br.status, br.fine,
+                   br.copy_id, bc.copy_code
+            FROM borrow_records br
+            JOIN users u ON br.user_id = u.id
+            JOIN books b ON br.book_id = b.id
+            LEFT JOIN book_copies bc ON br.copy_id = bc.id
+            WHERE br.status = 'borrowed'
+          `;
+          const params = [];
+
+          // 如果指定了用户ID，只查询该用户的记录
+          if (user_id) {
+            sql += ' AND br.user_id = ?';
+            params.push(user_id);
+          } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+            // 非管理员和非图书管理员默认只查询自己的记录
+            sql += ' AND br.user_id = ?';
+            params.push(req.user.id);
+          }
+
+          // 执行查询
+          db.all(sql, params, function(err, records) {
+            if (err) {
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            res.json(records);
+          });
         });
       });
     });
@@ -1175,9 +1207,24 @@ exports.checkOverdueRecords = function(req, res) {
         return;
       }
 
-      // 查找所有逾期的借阅记录
-      db.all(
-        'SELECT id FROM borrow_records WHERE status = ? AND due_date < ?',
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, fineSettings) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+
+        const fineSettingsMap = {};
+        fineSettings.forEach(setting => {
+          fineSettingsMap[setting.key] = setting.value;
+        });
+        const fineEnabled = fineSettingsMap.fine_enabled !== '0';
+        const parsedFinePerDay = fineSettingsMap.fine_per_day !== undefined ? parseFloat(fineSettingsMap.fine_per_day) : NaN;
+        const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+
+        // 查找所有逾期的借阅记录
+        db.all(
+        'SELECT id, due_date FROM borrow_records WHERE status = ? AND due_date < ?',
         ['borrowed', today],
         function(err, records) {
           if (err) {
@@ -1202,7 +1249,16 @@ exports.checkOverdueRecords = function(req, res) {
           
           records.forEach(function(record) {
             // 更新借阅记录状态为overdue
-            db.run('UPDATE borrow_records SET status = ? WHERE id = ?', ['overdue', record.id], function(err) {
+            const fine = fineEnabled
+              ? Math.round(Math.ceil((new Date(today) - new Date(record.due_date)) / (1000 * 60 * 60 * 24)) * finePerDay * 100) / 100
+              : 0;
+            const sql = fineEnabled
+              ? 'UPDATE borrow_records SET status = ?, fine = ?, fine_status = ? WHERE id = ?'
+              : 'UPDATE borrow_records SET status = ? WHERE id = ?';
+            const params = fineEnabled
+              ? ['overdue', fine, fine > 0 ? 'unpaid' : 'paid', record.id]
+              : ['overdue', record.id];
+            db.run(sql, params, function(err) {
               if (err) {
                 console.error('更新逾期记录失败:', err.message);
               }
@@ -1221,6 +1277,7 @@ exports.checkOverdueRecords = function(req, res) {
           });
         }
       );
+      });
     });
   });
 };

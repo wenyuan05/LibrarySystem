@@ -467,7 +467,7 @@
   4. 开启 Editable mode，修改一个已实现设置并保存
 - **预期结果**：
   - 页面以 Borrow Rules 和 Fine Rules 分组卡片展示
-  - 仅显示 `borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day` 对应设置
+  - 仅显示 `borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day` 对应设置
   - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
   - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
 
@@ -739,6 +739,25 @@
   - `POST /api/borrow/reserve` returns HTTP 403 with `Reservations are currently disabled by the system administrator`.
   - Existing reservations can still be cancelled.
   - Re-enabling the setting restores normal reserve controls and `reservation_enabled: true`.
+
+### Test Case: Fine accrual feature toggle
+
+- **Scenario**: Admin disables overdue fine accrual without blocking existing fine payments.
+- **Steps**:
+  1. Log in as admin and open `/system-settings`.
+  2. Enable Editable mode, switch `Fines Enabled` off, and save changes.
+  3. Create or select a borrowed record that becomes overdue after the setting is off.
+  4. Run the overdue check path or load borrowing records.
+  5. Return that overdue book.
+  6. Create or select an already overdue unreturned record with an existing estimated fine, keep the setting off, and reload overdue/fine views later.
+  7. Pay an existing actual unpaid fine through the Alipay fine payment flow.
+  8. Re-enable `Fines Enabled`.
+- **Expected result**:
+  - New overdue records created while `fine_enabled = 0` have `fine = 0`.
+  - Existing overdue unreturned records keep their current estimated fine but do not increase while the setting is off.
+  - Returning a book while fines are disabled does not add additional fine beyond the frozen amount.
+  - Existing actual unpaid fines remain payable and payment flow is unaffected.
+  - Re-enabling the setting restores normal fine accrual using `fine_per_day`.
 
 ### Test Case: Alipay backend configuration
 

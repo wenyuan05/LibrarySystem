@@ -79,6 +79,13 @@ const settingSections = [
     description: 'Define overdue charges and exception handling policies.',
     settings: [
       {
+        key: 'fine_enabled',
+        label: 'Fines Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn new overdue fine accrual on or off without affecting existing fine payments.'
+      },
+      {
         key: 'fine_per_day',
         label: 'Fine Per Day',
         type: 'number',
