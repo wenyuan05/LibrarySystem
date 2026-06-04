@@ -721,6 +721,25 @@
   - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.
   - Re-enabling the setting restores normal borrow controls and `borrow_enabled: true`.
 
+### Test Case: Reservation feature toggle
+
+- **Scenario**: Admin globally disables and re-enables reader reservations.
+- **Steps**:
+  1. Log in as admin and open `/system-settings`.
+  2. Enable Editable mode, switch `Reservations Enabled` off, and save changes.
+  3. Log in as a reader and open the Books page or a book detail page for a book with no available copies.
+  4. Check the Reserve control.
+  5. Call `POST /api/borrow/reserve` directly while the setting is off.
+  6. Cancel an existing active reservation while the setting is off.
+  7. Re-enable `Reservations Enabled` and save changes.
+- **Expected result**:
+  - `Reservations Enabled` is displayed as a sliding toggle with Enabled/Disabled text.
+  - Reader-facing reserve buttons are disabled and show `Reservations Disabled` while the setting is off.
+  - `GET /api/system/feature-flags` returns `reservation_enabled: false`.
+  - `POST /api/borrow/reserve` returns HTTP 403 with `Reservations are currently disabled by the system administrator`.
+  - Existing reservations can still be cancelled.
+  - Re-enabling the setting restores normal reserve controls and `reservation_enabled: true`.
+
 ### Test Case: Alipay backend configuration
 
 - **Scenario**: Backend loads Alipay sandbox configuration without exposing secrets.

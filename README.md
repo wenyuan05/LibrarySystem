@@ -561,8 +561,9 @@ npm run dev
 16. **系统设置**：
     - 管理员通过 `/system-settings` 管理全局配置
     - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
-    - 仅展示已被后端业务逻辑读取的设置项：`borrow_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
+    - 仅展示已被后端业务逻辑读取的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day`
     - `borrow_enabled` 为全局借阅功能开关，使用滑动式开关展示，关闭后读者无法发起或确认借阅，但不影响归还、预约、罚款支付等流程
+    - `reservation_enabled` 为全局预约功能开关，关闭后读者无法发起新预约，但仍可取消已有预约
     - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
 
 ### 后端功能

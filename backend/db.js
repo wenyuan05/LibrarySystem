@@ -328,6 +328,7 @@ db.serialize(() => {
   insertSetting.run('system_name', 'Library Management System', '系统名称');
   insertSetting.run('system_version', '1.0.0', '系统版本');
   insertSetting.run('borrow_enabled', '1', '是否启用借阅功能');
+  insertSetting.run('reservation_enabled', '1', '是否启用预约功能');
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
   insertSetting.run('max_borrows', '5', '最大借阅数量');

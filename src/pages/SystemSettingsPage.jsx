@@ -18,6 +18,13 @@ const settingSections = [
         helper: 'Turn reader borrowing requests on or off globally.'
       },
       {
+        key: 'reservation_enabled',
+        label: 'Reservations Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn reader reservation requests on or off globally without affecting existing cancellations.'
+      },
+      {
         key: 'borrow_period_days',
         label: 'Borrow Days',
         type: 'number',

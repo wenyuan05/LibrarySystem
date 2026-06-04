@@ -361,11 +361,21 @@ exports.reserveBook = function(req, res) {
     return;
   }
   const reservation_date = new Date().toISOString().split('T')[0];
-  
-  // 开始事务
-  db.serialize(function() {
-    console.log('Beginning transaction');
-    db.run('BEGIN TRANSACTION', function(err) {
+
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['reservation_enabled'], function(err, setting) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (setting && setting.value === '0') {
+      res.status(403).json({ error: 'Reservations are currently disabled by the system administrator' });
+      return;
+    }
+    // 开始事务
+    db.serialize(function() {
+      console.log('Beginning transaction');
+      db.run('BEGIN TRANSACTION', function(err) {
       if (err) {
         console.error('Error beginning transaction:', err);
         res.status(500).json({ error: err.message });
@@ -467,6 +477,7 @@ exports.reserveBook = function(req, res) {
           );
         });
       });
+    });
     });
   });
 };

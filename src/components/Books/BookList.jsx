@@ -22,6 +22,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
   const [reservationRecords, setReservationRecords] = useState([]);
   const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
+  const [reservationFeatureEnabled, setReservationFeatureEnabled] = useState(true);
 
   const { user } = useAuth();
 
@@ -102,6 +103,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
       try {
         const flags = await systemAPI.getFeatureFlags();
         setBorrowFeatureEnabled(flags.borrow_enabled !== false);
+        setReservationFeatureEnabled(flags.reservation_enabled !== false);
       } catch (err) {
         console.error('Failed to fetch feature flags:', err);
       }
@@ -691,10 +693,11 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
                           className="btn-secondary"
 
                           onClick={(e) => { e.stopPropagation(); handleReserveBook(book.id); }}
+                          disabled={!reservationFeatureEnabled}
 
                         >
 
-                          Reserve
+                          {reservationFeatureEnabled ? 'Reserve' : 'Reservations Disabled'}
 
                         </button>
 

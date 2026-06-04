@@ -4,6 +4,30 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 7: Add reservation feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `reservation_enabled` as an enabled-by-default system setting.
+  - Exposed `reservation_enabled` through `GET /api/system/feature-flags`.
+  - Added a Reservations Enabled toggle to the admin System Settings page.
+  - Blocked new reservation requests in `POST /api/borrow/reserve` when disabled.
+  - Disabled reader-facing reserve controls on the Books page and Book Details page when disabled.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/systemRoutes'); require('./routes/borrowRoutes'); console.log('reservation toggle modules ok')"`
+- **Reason**: Admins need a global switch to pause new reservations without affecting existing cancellation flows.
+
 ### Fix 6: Export book inventory with copy details
 - **Files modified**:
   - `backend/controllers/bookController.js`

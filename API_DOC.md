@@ -847,6 +847,8 @@
 #### 3.3.8 POST /api/borrow/reserve
 **功能**：预约书籍
 
+**说明**：当系统设置 `reservation_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Reservations are currently disabled by the system administrator"}`。关闭预约不会影响用户取消已有预约。
+
 **请求体**：
 ```json
 {
@@ -1253,6 +1255,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "system_name": "Library Management System",
   "system_version": "1.0.0",
   "borrow_enabled": "1",
+  "reservation_enabled": "1",
   "borrow_period_days": "14",
   "fine_per_day": "0.5",
   "max_borrows": "5",
@@ -1276,6 +1279,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 ```json
 {
   "borrow_enabled": "1",
+  "reservation_enabled": "1",
   "borrow_period_days": "21",
   "fine_per_day": "1.0"
 }
@@ -1297,11 +1301,13 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **说明**：
 - 该接口只暴露前端业务需要知道的功能开关，不返回完整系统设置。
 - `borrow_enabled` 为 `false` 时，读者端应禁用发起借阅和确认借阅入口；后端仍会在借阅接口强制校验。
+- `reservation_enabled` 为 `false` 时，读者端应禁用发起预约入口；后端仍会在预约接口强制校验，取消已有预约不受影响。
 
 **响应**：
 ```json
 {
-  "borrow_enabled": true
+  "borrow_enabled": true,
+  "reservation_enabled": true
 }
 ```
 

@@ -18,6 +18,7 @@ const BookDetailsPage = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedCopyId, setSelectedCopyId] = useState(null);
   const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
+  const [reservationFeatureEnabled, setReservationFeatureEnabled] = useState(true);
 
   const fetchBookDetails = useCallback(async () => {
     try {
@@ -72,6 +73,7 @@ const BookDetailsPage = () => {
       try {
         const flags = await systemAPI.getFeatureFlags();
         setBorrowFeatureEnabled(flags.borrow_enabled !== false);
+        setReservationFeatureEnabled(flags.reservation_enabled !== false);
       } catch (err) {
         console.error('Failed to fetch feature flags:', err);
       }
@@ -327,11 +329,12 @@ const BookDetailsPage = () => {
                 </div>
               )}
               {!borrowRecord && copies.filter(c => c.status === 'available').length <= 0 && (
-                <button 
+                <button
                   className="btn-secondary reserve-button"
                   onClick={handleReserve}
+                  disabled={!reservationFeatureEnabled}
                 >
-                  Reserve
+                  {reservationFeatureEnabled ? 'Reserve' : 'Reservations Disabled'}
                 </button>
               )}
             </div>
