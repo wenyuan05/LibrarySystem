@@ -460,11 +460,13 @@
 ```
 
 #### 3.2.8 GET /api/books/export
-**功能**：导出书籍信息到CSV
+**功能**：导出图书与副本组合信息到CSV
 **权限**：admin/librarian
 
+**说明**：导出结果按副本展开，每个副本一行并重复展示所属图书字段；没有副本的图书也会保留一行且副本字段为空。CSV 包含图书 ID、标题、作者、ISBN、馆藏数量、分类、图书创建/更新时间，以及副本 ID、编号、状态、位置、创建/更新时间。
+
 **响应**：
-- CSV文件下载
+- `text/csv; charset=utf-8` 文件下载，默认文件名 `books_with_copies_YYYY-MM-DD.csv`
 
 #### 3.2.9 GET /api/books/:book_id/copies
 **功能**：获取书籍的所有副本

@@ -15,6 +15,7 @@ const BookManagementPage = () => {
   const [editingBook, setEditingBook] = useState(null);
   const [managingCopiesBook, setManagingCopiesBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { showToast } = useToast();
 
   // Load books data
@@ -90,7 +91,26 @@ const BookManagementPage = () => {
     setFilteredBooks(books);
   }, [books]);
 
-
+  const handleExportBooks = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await booksAPI.export();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `books_with_copies_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast('Book data exported successfully.', 'success');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast(error.message || 'Export failed. Please try again.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="book-management-section card fade-in">
@@ -105,45 +125,13 @@ const BookManagementPage = () => {
           >
             Add New Book
           </button>
-          {/* 暂时隐藏导出按钮，待权限问题解决后再恢复 */}
-          {/* <button 
+          <button
             className="btn-secondary"
-            onClick={async () => {
-              try {
-                // 使用booksAPI.export()方法来调用导出接口
-                const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-                const token = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')).token : '';
-                
-                const response = await fetch(`${API_BASE_URL}/books/export`, {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'text/csv'
-                  }
-                });
-                
-                if (!response.ok) {
-                  const errorData = await response.json().catch(() => ({}));
-                  throw new Error(errorData.error || `Request failed with status ${response.status}`);
-                }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `books_${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-              } catch (error) {
-                console.error('Export failed:', error);
-                showToast('Export failed. Please try again.', 'error');
-              }
-            }}
+            onClick={handleExportBooks}
+            disabled={isExporting}
           >
-            Export Books
-          </button> */}
+            {isExporting ? 'Exporting...' : 'Export Books & Copies'}
+          </button>
         </div>
         <div className="management-search-bar">
           <div className="search-input-container">

@@ -44,7 +44,11 @@ const request = async (endpoint, options = {}) => {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Request failed with status ${response.status}`);
     }
-    
+
+    if (options.responseType === 'blob') {
+      return await response.blob();
+    }
+
     return await response.json();
   } catch (error) {
     console.error('API request error:', error);

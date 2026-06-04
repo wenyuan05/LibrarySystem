@@ -594,6 +594,23 @@
   - No book, copy, category link, borrow record, or reservation record is orphaned.
   - The frontend displays the backend error message.
 
+### Test Case: Export books with copy data
+
+- **Scenario**: Librarian exports inventory data from Book Management.
+- **Steps**:
+  1. Log in as a librarian.
+  2. Prepare books with multiple copies and at least one book category.
+  3. Open Book Management.
+  4. Click `Export Books & Copies`.
+  5. Open the downloaded CSV.
+- **Expected result**:
+  - The request calls `GET /api/books/export` with the current librarian token.
+  - The downloaded filename starts with `books_with_copies_`.
+  - Each copy is exported as one row with book fields repeated.
+  - Rows include book ID, title, author, ISBN, total copies, available copies, categories, copy ID, copy code, copy status, and copy location.
+  - CSV values containing commas or quotes are escaped correctly.
+  - Admin and librarian users can export; ordinary users cannot access the endpoint.
+
 ### Test Case: Delete one available copy
 
 - **Scenario**: Admin or librarian deletes a surplus available copy.

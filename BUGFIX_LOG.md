@@ -4,6 +4,27 @@ This file documents all bug fixes applied to the project.
 
 ## 2026-06-04
 
+### Fix 6: Export book inventory with copy details
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `src/pages/BookManagementPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed `GET /api/books/export` to export joined book and copy inventory data.
+  - Added one CSV row per book copy, including book metadata, categories, copy code, copy status, and copy location.
+  - Added robust CSV escaping and UTF-8 BOM output for spreadsheet compatibility.
+  - Restored the Book Management export button for admin/librarian users.
+  - Added blob response handling to the shared frontend request helper.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/bookRoutes'); require('./controllers/bookController'); console.log('book modules ok')"`
+- **Reason**: Librarians need an inventory export that combines the book table and copy table for operational review.
+
 ### Fix 5: Validate email format when editing users
 - **Files modified**:
   - `backend/controllers/userController.js`
