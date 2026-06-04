@@ -20,6 +20,7 @@ This file documents all bug fixes applied to the project.
   - Made announcement cards open a full announcement detail modal rendered through a portal.
   - Let the announcement modal grow with content and wrap long continuous text without inner horizontal scrolling.
   - Made reservation rows and borrow-record rows keyboard/mouse clickable to navigate to the related book detail page.
+  - Preserved the source page when navigating to book details so the Back button returns to the originating record page.
   - Checked book existence before navigating and showed an error when the related book no longer exists.
   - Stopped row navigation from firing when users click row action buttons such as Cancel, Return, Renew, or Confirm.
 - **Verification**:

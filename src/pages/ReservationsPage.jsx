@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI } from '../utils/api';
@@ -14,6 +14,7 @@ const ReservationsPage = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchReservations = useCallback(async () => {
     if (!user?.id) return;
@@ -63,7 +64,9 @@ const ReservationsPage = () => {
       }
 
       await booksAPI.getById(reservation.book_id);
-      navigate(`/books/${reservation.book_id}`);
+      navigate(`/books/${reservation.book_id}`, {
+        state: { from: `${location.pathname}${location.search}` }
+      });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');
       console.error(err);

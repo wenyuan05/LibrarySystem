@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '../../utils/historyList';
@@ -34,6 +34,7 @@ const UserBorrowRecords = () => {
   const [confirmCountdown, setConfirmCountdown] = useState(0);
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 处理返回用户列表
   const handleBackToUsers = () => {
@@ -181,7 +182,9 @@ const UserBorrowRecords = () => {
       }
 
       await booksAPI.getById(record.book_id);
-      navigate(`/books/${record.book_id}`);
+      navigate(`/books/${record.book_id}`, {
+        state: { from: `${location.pathname}${location.search}` }
+      });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');
       console.error(err);

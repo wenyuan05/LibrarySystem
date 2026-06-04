@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
@@ -47,6 +47,7 @@ const BorrowRecords = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchBorrowRecords = useCallback(async () => {
     if (!user?.id) return;
@@ -243,7 +244,9 @@ const BorrowRecords = () => {
       }
 
       await booksAPI.getById(record.book_id);
-      navigate(`/books/${record.book_id}`);
+      navigate(`/books/${record.book_id}`, {
+        state: { from: `${location.pathname}${location.search}` }
+      });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');
       console.error(err);

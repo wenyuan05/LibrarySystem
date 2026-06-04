@@ -621,7 +621,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
               className="book-card"
 
-              onClick={() => navigate(`/books/${book.id}`)}
+              onClick={() => navigate(`/books/${book.id}`, { state: { from: '/books' } })}
               style={{ cursor: 'pointer' }}
             >
               <div className="book-card-header">
