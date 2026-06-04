@@ -1619,14 +1619,14 @@ fetch('http://localhost:3001/api/users/login', {
 .then(response => response.json())
 .then(data => {
   const token = data.token;
-  // 存储token
-  localStorage.setItem('token', token);
+  // 当前前端按标签页隔离登录态，使用 sessionStorage 保存 token
+  sessionStorage.setItem('token', token);
 });
 
 // 获取书籍列表（带认证）
 fetch('http://localhost:3001/api/books', {
   headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
+    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
   }
 })
 .then(response => response.json())
@@ -1648,7 +1648,7 @@ const api = axios.create({
 
 // 请求拦截器添加认证
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -1660,7 +1660,7 @@ api.post('/users/login', {
   username: 'admin',
   password: 'admin123'
 }).then(response => {
-  localStorage.setItem('token', response.data.token);
+  sessionStorage.setItem('token', response.data.token);
 });
 
 // 获取书籍列表
@@ -1689,6 +1689,7 @@ api.get('/books').then(response => {
 8. **Token管理**：实现token过期和刷新机制
 9. **JWT密钥**：生产环境必须设置强随机 `JWT_SECRET`，未设置时后端拒绝启动
 10. **示例账号**：生产环境默认不插入 `admin/admin123` 等示例账号，演示环境需显式设置 `SEED_DEFAULT_USERS=true` 并覆盖默认密码
+11. **前端会话隔离**：当前前端使用 `sessionStorage` 保存登录 token，同一浏览器不同标签页可以使用不同账号
 
 ## 7.1 运行与审计说明
 

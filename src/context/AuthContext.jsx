@@ -3,6 +3,22 @@ import { authAPI } from '../utils/api';
 
 // 创建认证上下文
 const AuthContext = createContext();
+const AUTH_STORAGE_KEY = 'user';
+
+const getStoredUser = () => {
+  const sessionUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
+  if (sessionUser) {
+    return sessionUser;
+  }
+
+  const legacyUser = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (legacyUser) {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, legacyUser);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+
+  return legacyUser;
+};
 
 // 认证提供者组件
 export const AuthProvider = ({ children }) => {
@@ -17,8 +33,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const userData = await authAPI.login(username, password);
       setUser(userData);
-      // 存储用户信息到本地存储
-      localStorage.setItem('user', JSON.stringify(userData));
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
       return userData;
     } catch (err) {
       setError(err.message);
@@ -35,7 +50,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const userData = await authAPI.register({ username, password, name, email, verificationCode });
       setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
       return userData;
     } catch (err) {
       setError(err.message);
@@ -48,20 +63,21 @@ export const AuthProvider = ({ children }) => {
   // 登出函数
   const logout = () => {
     setUser(null);
-    // 从本地存储中移除用户信息
-    localStorage.removeItem('user');
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
-  // 初始化时检查本地存储中的用户信息
+  // 初始化时检查当前标签页会话中的用户信息
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = getStoredUser();
     if (storedUser) {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
       } catch (err) {
         console.error('Error parsing stored user:', err);
-        localStorage.removeItem('user');
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     }
     setLoading(false);

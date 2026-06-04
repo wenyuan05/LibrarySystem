@@ -3,15 +3,15 @@
 // the same reverse proxy as the backend without browser-side CORS issues.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// 从本地存储读取 token
+// 从当前标签页会话读取 token，避免多个标签页登录不同账号时互相覆盖。
 const getAuthToken = () => {
   try {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = sessionStorage.getItem('user');
     if (!storedUser) return null;
     const parsed = JSON.parse(storedUser);
     return parsed.token || null;
   } catch (e) {
-    console.error('Failed to read auth token from localStorage', e);
+    console.error('Failed to read auth token from sessionStorage', e);
     return null;
   }
 };

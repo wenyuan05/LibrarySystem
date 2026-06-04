@@ -2,6 +2,27 @@
 
 This file documents all bug fixes applied to the project.
 
+## 2026-06-04
+
+### Fix 1: Isolate authentication per browser tab
+- **Files modified**:
+  - `src/context/AuthContext.jsx`
+  - `src/utils/api.js`
+  - `src/pages/BookManagementPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed frontend auth storage from shared `localStorage` to per-tab `sessionStorage`.
+  - Updated API token reads to use the current tab's session user.
+  - Added a one-time migration from legacy `localStorage.user` to the current tab's `sessionStorage.user`.
+  - Documented that different tabs can now log in as different users without overwriting each other.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: Multiple browser tabs shared the same `localStorage.user`, so logging in or out in one tab changed the token used by other tabs while their UI could still show the previous account.
+
 ## 2026-05-31
 
 ### Fix 2: Pin sqlite3 to 5.1.7 for older Linux deployment
