@@ -8,8 +8,10 @@ import CopyManagementModal from '../components/Books/CopyManagementModal';
 import { booksAPI } from '../utils/api';
 
 const BookManagementPage = () => {
+  const BOOKS_PER_PAGE = 12;
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
@@ -84,12 +86,33 @@ const BookManagementPage = () => {
       );
       setFilteredBooks(filtered);
     }
+    setCurrentPage(1);
   };
 
-  // Update filtered books when books list changes
+  // Update filtered books when books list changes without disrupting the current page.
   useEffect(() => {
-    setFilteredBooks(books);
-  }, [books]);
+    if (searchTerm.trim() === '') {
+      setFilteredBooks(books);
+      return;
+    }
+
+    const normalizedSearch = searchTerm.toLowerCase();
+    setFilteredBooks(books.filter(book =>
+      book.title.toLowerCase().includes(normalizedSearch) ||
+      book.author.toLowerCase().includes(normalizedSearch) ||
+      book.isbn.includes(searchTerm)
+    ));
+  }, [books, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
+  const pageStartIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+  const pagedBooks = filteredBooks.slice(pageStartIndex, pageStartIndex + BOOKS_PER_PAGE);
+  const pageStart = filteredBooks.length === 0 ? 0 : pageStartIndex + 1;
+  const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
+
+  useEffect(() => {
+    setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
 
   const handleExportBooks = async () => {
     try {
@@ -166,7 +189,7 @@ const BookManagementPage = () => {
       )}
       
       {/* Edit Book Form */}
-      {editingBook && (
+      {editingBook && createPortal(
         <EditBookForm 
           book={editingBook}
           onEditComplete={(updatedBook) => {
@@ -174,7 +197,8 @@ const BookManagementPage = () => {
             setEditingBook(null);
           }}
           onCancel={() => setEditingBook(null)}
-        />
+        />,
+        document.body
       )}
 
       {managingCopiesBook && (
@@ -190,7 +214,7 @@ const BookManagementPage = () => {
 
       {/* Book List (with edit functionality) */}
       <BookList 
-        books={filteredBooks}
+        books={pagedBooks}
         loading={booksLoading}
         onBookUpdated={handleBookUpdated}
         onBookDeleted={handleBookDeleted}
@@ -198,6 +222,44 @@ const BookManagementPage = () => {
         onEditBook={setEditingBook}
         onManageCopies={setManagingCopiesBook}
       />
+      {!booksLoading && filteredBooks.length > 0 && (
+        <div className="books-pagination" aria-label="Managed books pagination">
+          <div className="books-pagination-summary">
+            Showing {pageStart}-{pageEnd} of {filteredBooks.length}
+          </div>
+          <div className="books-pagination-controls">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <span>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
