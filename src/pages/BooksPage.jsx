@@ -19,6 +19,7 @@ const BooksPage = () => {
   const [popularBooks, setPopularBooks] = useState([]);
   const [recentBorrowed, setRecentBorrowed] = useState([]);
   const [activeReservations, setActiveReservations] = useState([]);
+  const [isPopularExpanded, setIsPopularExpanded] = useState(false);
   const { user } = useAuth();
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
@@ -353,14 +354,22 @@ const BooksPage = () => {
       </div>
 
       <aside className="books-sidebar">
-        <section className="sidebar-widget popular-books-section">
+        <section className={`sidebar-widget popular-books-section ${isPopularExpanded ? 'is-expanded' : 'is-collapsed'}`}>
           <div className="popular-books-header">
             <div>
               <h3>Popular Books</h3>
               <p>Top 10 most borrowed</p>
             </div>
+            <button
+              type="button"
+              className="popular-books-toggle"
+              onClick={() => setIsPopularExpanded(prev => !prev)}
+              aria-expanded={isPopularExpanded}
+            >
+              {isPopularExpanded ? 'Collapse' : 'Expand'}
+            </button>
           </div>
-          {popularBooks.length > 0 ? (
+          {isPopularExpanded && popularBooks.length > 0 ? (
             <div className="popular-books-list">
               {popularBooks.map((book, index) => (
                 <div className="popular-book-item" key={book.id}>
@@ -372,6 +381,11 @@ const BooksPage = () => {
                   <span className="popular-book-count">{book.borrow_count}</span>
                 </div>
               ))}
+            </div>
+          ) : !isPopularExpanded && popularBooks.length > 0 ? (
+            <div className="popular-books-preview">
+              <strong>{popularBooks[0].title}</strong>
+              <span>{popularBooks[0].borrow_count} borrow(s)</span>
             </div>
           ) : (
             <p className="sidebar-empty">No borrow data yet.</p>
