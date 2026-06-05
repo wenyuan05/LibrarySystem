@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { paymentAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './IncomeDashboardPage.css';
 
 const formatMoney = (value) => `¥${(Number(value) || 0).toFixed(2)}`;
@@ -72,6 +73,7 @@ const IncomeDashboardPage = () => {
   const [appliedRange, setAppliedRange] = useState(rangeFilters);
   const [isLoading, setIsLoading] = useState(true);
   const [expiringId, setExpiringId] = useState(null);
+  const shouldScrollPaymentsRef = useRef(false);
 
   const loadDashboard = useCallback(async (
     selectedStatus = status,
@@ -109,9 +111,18 @@ const IncomeDashboardPage = () => {
         total: 0,
         total_pages: 1
       });
+      if (shouldScrollPaymentsRef.current) {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            scrollToListTop('#payment-orders-list-top');
+            shouldScrollPaymentsRef.current = false;
+          });
+        });
+      }
     } catch (err) {
       showToast(err.message || 'Failed to load income dashboard', 'error');
       console.error(err);
+      shouldScrollPaymentsRef.current = false;
     } finally {
       setIsLoading(false);
     }
@@ -167,6 +178,11 @@ const IncomeDashboardPage = () => {
   const handleStatusChange = (event) => {
     setStatus(event.target.value);
     setPaymentPage(1);
+  };
+
+  const handlePaymentPageChange = (nextPage) => {
+    shouldScrollPaymentsRef.current = true;
+    setPaymentPage(nextPage);
   };
 
   const handleRangeSubmit = async (event) => {
@@ -264,6 +280,7 @@ const IncomeDashboardPage = () => {
       </section>
 
       <section className="payment-orders-section">
+        <div id="payment-orders-list-top" />
         <div className="payment-orders-header">
           <h2>Alipay Fine Payments</h2>
         </div>
@@ -311,6 +328,7 @@ const IncomeDashboardPage = () => {
         ) : payments.length === 0 ? (
           <div className="income-empty">No payment orders found.</div>
         ) : (
+          <>
           <div className="payment-orders-table-wrap">
             <table className="payment-orders-table">
               <thead>
@@ -354,6 +372,7 @@ const IncomeDashboardPage = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <div className="payment-pagination">
@@ -364,7 +383,7 @@ const IncomeDashboardPage = () => {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setPaymentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => handlePaymentPageChange(Math.max(1, paymentsPagination.page - 1))}
               disabled={isLoading || paymentsPagination.page <= 1}
             >
               Previous
@@ -372,7 +391,7 @@ const IncomeDashboardPage = () => {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setPaymentPage(prev => Math.min(paymentsPagination.total_pages, prev + 1))}
+              onClick={() => handlePaymentPageChange(Math.min(paymentsPagination.total_pages, paymentsPagination.page + 1))}
               disabled={isLoading || paymentsPagination.page >= paymentsPagination.total_pages}
             >
               Next

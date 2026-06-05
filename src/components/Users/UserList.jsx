@@ -4,6 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import AddUserForm from './AddUserForm';
 import EditUserForm from './EditUserForm';
 import './Users.css';
@@ -162,6 +163,11 @@ const UserList = () => {
     safePage
   } = paginateRecords(filteredUsers, page, DEFAULT_HISTORY_PAGE_SIZE);
 
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#user-list-table-top');
+  };
+
   return (
     <div className="user-list">
       {/* 操作栏 */}
@@ -209,6 +215,7 @@ const UserList = () => {
         />
       )}
       
+      <div id="user-list-table-top" />
       <table>
         <thead>
           <tr>
@@ -286,7 +293,7 @@ const UserList = () => {
             type="button"
             className="btn-secondary"
             disabled={safePage <= 1}
-            onClick={() => setPage(safePage - 1)}
+            onClick={() => handlePageChange(safePage - 1)}
           >
             Previous
           </button>
@@ -295,7 +302,7 @@ const UserList = () => {
             type="button"
             className="btn-secondary"
             disabled={safePage >= totalPages}
-            onClick={() => setPage(safePage + 1)}
+            onClick={() => handlePageChange(safePage + 1)}
           >
             Next
           </button>

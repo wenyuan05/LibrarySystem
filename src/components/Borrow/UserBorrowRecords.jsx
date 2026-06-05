@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
 import './Borrow.css';
 
@@ -231,6 +232,11 @@ const UserBorrowRecords = () => {
     }
   };
 
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#user-borrow-records-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -329,6 +335,8 @@ const UserBorrowRecords = () => {
                 <p>No borrow records match the current filters.</p>
               </div>
             ) : (
+            <>
+            <div id="user-borrow-records-list-top" />
             <div className="borrow-records-table-wrap">
               <table className="borrow-records-table">
                 <colgroup>
@@ -434,12 +442,13 @@ const UserBorrowRecords = () => {
                 </tbody>
               </table>
             </div>
+            </>
             )}
             {filteredRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
               <div className="history-pagination">
                 <button
                   type="button"
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
                   Previous
@@ -447,7 +456,7 @@ const UserBorrowRecords = () => {
                 <span>Page {currentPage} of {totalPages}</span>
                 <button
                   type="button"
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                 >
                   Next

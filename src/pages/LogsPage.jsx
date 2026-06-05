@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import { logAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './LogsPage.css';
 
 const LogsPage = () => {
@@ -90,6 +91,7 @@ const LogsPage = () => {
   // Handle pagination
   const handlePageChange = (newOffset) => {
     setOffset(newOffset);
+    scrollToListTop('#logs-list-top');
   };
 
   const handleFilterChange = (e) => {
@@ -126,12 +128,14 @@ const LogsPage = () => {
   // Go to first page
   const goToFirstPage = () => {
     setOffset(0);
+    scrollToListTop('#logs-list-top');
   };
 
   // Go to last page
   const goToLastPage = () => {
     const lastPageOffset = Math.floor((total - 1) / limit) * limit;
     setOffset(lastPageOffset);
+    scrollToListTop('#logs-list-top');
   };
 
   // Fetch logs when pagination changes
@@ -239,6 +243,7 @@ const LogsPage = () => {
       </form>
 
       {/* Logs list */}
+      <div id="logs-list-top" />
       <div className="logs-list">
         {logs.length === 0 ? (
           <p>No logs found</p>

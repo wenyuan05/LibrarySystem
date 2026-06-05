@@ -5,6 +5,7 @@ import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords, sortFineRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
 import './Borrow.css';
 
@@ -293,6 +294,16 @@ const BorrowRecords = () => {
     }
   };
 
+  const handleRecordPageChange = (nextPage) => {
+    setRecordPage(nextPage);
+    scrollToListTop('#borrow-records-list-top');
+  };
+
+  const handleFinePageChange = (nextPage) => {
+    setFinePage(nextPage);
+    scrollToListTop('#borrow-fines-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
@@ -393,6 +404,8 @@ const BorrowRecords = () => {
               <p>No borrow records match the current filters.</p>
             </div>
           ) : (
+          <>
+          <div id="borrow-records-list-top" />
           <div className="borrow-records-table-wrap">
             <table className="borrow-records-table">
             <colgroup>
@@ -509,12 +522,13 @@ const BorrowRecords = () => {
             </tbody>
             </table>
           </div>
+          </>
           )}
           {filteredRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
             <div className="history-pagination">
               <button
                 type="button"
-                onClick={() => setRecordPage(Math.max(1, currentRecordPage - 1))}
+                onClick={() => handleRecordPageChange(Math.max(1, currentRecordPage - 1))}
                 disabled={currentRecordPage === 1}
               >
                 Previous
@@ -522,7 +536,7 @@ const BorrowRecords = () => {
               <span>Page {currentRecordPage} of {recordTotalPages}</span>
               <button
                 type="button"
-                onClick={() => setRecordPage(Math.min(recordTotalPages, currentRecordPage + 1))}
+                onClick={() => handleRecordPageChange(Math.min(recordTotalPages, currentRecordPage + 1))}
                 disabled={currentRecordPage === recordTotalPages}
               >
                 Next
@@ -636,6 +650,7 @@ const BorrowRecords = () => {
                     </button>
                   </div>
                   <div className="fines-table-wrap">
+                    <div id="borrow-fines-list-top" />
                     <table className="fines-table">
                       <colgroup>
                         <col className="fine-col-id" />
@@ -687,7 +702,7 @@ const BorrowRecords = () => {
                     <div className="history-pagination">
                       <button
                         type="button"
-                        onClick={() => setFinePage(Math.max(1, currentFinePage - 1))}
+                        onClick={() => handleFinePageChange(Math.max(1, currentFinePage - 1))}
                         disabled={currentFinePage === 1}
                       >
                         Previous
@@ -695,7 +710,7 @@ const BorrowRecords = () => {
                       <span>Page {currentFinePage} of {fineTotalPages}</span>
                       <button
                         type="button"
-                        onClick={() => setFinePage(Math.min(fineTotalPages, currentFinePage + 1))}
+                        onClick={() => handleFinePageChange(Math.min(fineTotalPages, currentFinePage + 1))}
                         disabled={currentFinePage === fineTotalPages}
                       >
                         Next

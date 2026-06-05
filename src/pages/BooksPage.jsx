@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/useAuth';
 import BookList from '../components/Books/BookList';
 import { booksAPI, borrowAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
+import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BooksPage = () => {
   const BOOKS_PER_PAGE = 12;
@@ -186,6 +187,11 @@ const BooksPage = () => {
     setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
   }, [totalPages]);
 
+  const handlePageChange = (nextPage) => {
+    setCurrentPage(nextPage);
+    scrollToListTop('#books-list-top');
+  };
+
   return (
     <div className="books-page-shell fade-in">
       <div className="books-section card">
@@ -298,6 +304,7 @@ const BooksPage = () => {
           </div>
         </div>
 
+        <div id="books-list-top" />
         <BookList
           books={pagedBooks}
           loading={booksLoading}
@@ -313,14 +320,14 @@ const BooksPage = () => {
             <div className="books-pagination-controls">
               <button
                 type="button"
-                onClick={() => setCurrentPage(1)}
+                onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
               >
                 First
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
               >
                 Previous
@@ -328,14 +335,14 @@ const BooksPage = () => {
               <span>Page {currentPage} of {totalPages}</span>
               <button
                 type="button"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
               >
                 Next
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage(totalPages)}
+                onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages}
               >
                 Last

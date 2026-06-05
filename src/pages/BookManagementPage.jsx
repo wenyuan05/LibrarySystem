@@ -6,6 +6,7 @@ import AddBookForm from '../components/Books/AddBookForm';
 import EditBookForm from '../components/Books/EditBookForm';
 import CopyManagementModal from '../components/Books/CopyManagementModal';
 import { booksAPI } from '../utils/api';
+import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BookManagementPage = () => {
   const BOOKS_PER_PAGE = 12;
@@ -114,6 +115,11 @@ const BookManagementPage = () => {
     setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
   }, [totalPages]);
 
+  const handlePageChange = (nextPage) => {
+    setCurrentPage(nextPage);
+    scrollToListTop('#managed-books-list-top');
+  };
+
   const handleExportBooks = async () => {
     try {
       setIsExporting(true);
@@ -213,6 +219,7 @@ const BookManagementPage = () => {
       )}
 
       {/* Book List (with edit functionality) */}
+      <div id="managed-books-list-top" />
       <BookList 
         books={pagedBooks}
         loading={booksLoading}
@@ -230,14 +237,14 @@ const BookManagementPage = () => {
           <div className="books-pagination-controls">
             <button
               type="button"
-              onClick={() => setCurrentPage(1)}
+              onClick={() => handlePageChange(1)}
               disabled={currentPage === 1}
             >
               First
             </button>
             <button
               type="button"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -245,14 +252,14 @@ const BookManagementPage = () => {
             <span>Page {currentPage} of {totalPages}</span>
             <button
               type="button"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next
             </button>
             <button
               type="button"
-              onClick={() => setCurrentPage(totalPages)}
+              onClick={() => handlePageChange(totalPages)}
               disabled={currentPage === totalPages}
             >
               Last

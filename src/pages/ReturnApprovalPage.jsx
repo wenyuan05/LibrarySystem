@@ -2,6 +2,7 @@
 import { useToast } from '../context/ToastContext';
 import { borrowAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortHistoryRecords } from '../utils/historyList';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './ReturnApprovalPage.css';
 
 const initialFilters = {
@@ -197,6 +198,11 @@ const ReturnApprovalPage = () => {
     setPage(1);
   };
 
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#return-approval-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading returning records...</div>;
   }
@@ -290,6 +296,7 @@ const ReturnApprovalPage = () => {
         </div>
       ) : (
         <>
+        <div id="return-approval-list-top" />
         <table>
           <thead>
             <tr>
@@ -334,7 +341,7 @@ const ReturnApprovalPage = () => {
               type="button"
               className="btn-secondary"
               disabled={safePage <= 1}
-              onClick={() => setPage(safePage - 1)}
+              onClick={() => handlePageChange(safePage - 1)}
             >
               Previous
             </button>
@@ -343,7 +350,7 @@ const ReturnApprovalPage = () => {
               type="button"
               className="btn-secondary"
               disabled={safePage >= totalPages}
-              onClick={() => setPage(safePage + 1)}
+              onClick={() => handlePageChange(safePage + 1)}
             >
               Next
             </button>

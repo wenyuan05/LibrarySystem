@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { borrowAPI, paymentAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortFineRecords } from '../utils/historyList';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './FineDetailsPage.css';
 
 const isActualPayableFine = (fine) => (
@@ -254,6 +255,11 @@ const FineDetailsPage = () => {
     setPage(1);
   };
 
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#fine-records-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading fine records...</div>;
   }
@@ -408,7 +414,10 @@ const FineDetailsPage = () => {
               <div className="no-fines">
                 <p>No fine records match the current filters.</p>
               </div>
-            ) : visibleFines.map(fine => (
+            ) : (
+              <>
+              <div id="fine-records-list-top" />
+              {visibleFines.map(fine => (
               <div key={fine.id} className="fine-item">
                 <div className="fine-book-info">
                   <h3>{fine.title}</h3>
@@ -438,12 +447,14 @@ const FineDetailsPage = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              ))}
+              </>
+            )}
             {filteredFines.length > DEFAULT_HISTORY_PAGE_SIZE && (
               <div className="history-pagination">
                 <button
                   type="button"
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
                   Previous
@@ -451,7 +462,7 @@ const FineDetailsPage = () => {
                 <span>Page {currentPage} of {totalPages}</span>
                 <button
                   type="button"
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                 >
                   Next

@@ -4,6 +4,7 @@ import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortHistoryRecords } from '../utils/historyList';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './ReservationsPage.css';
 
 const reservationMatchesFilters = (reservation, filters) => {
@@ -113,6 +114,11 @@ const ReservationsPage = () => {
     setPage(1);
   };
 
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#reservations-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading reservations...</div>;
   }
@@ -186,6 +192,8 @@ const ReservationsPage = () => {
               <p>No reservations match the current filters.</p>
             </div>
           ) : (
+          <>
+          <div id="reservations-list-top" />
           <table>
             <thead>
               <tr>
@@ -239,12 +247,13 @@ const ReservationsPage = () => {
               ))}
             </tbody>
           </table>
+          </>
           )}
           {filteredReservations.length > DEFAULT_HISTORY_PAGE_SIZE && (
             <div className="history-pagination">
               <button
                 type="button"
-                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
               >
                 Previous
@@ -252,7 +261,7 @@ const ReservationsPage = () => {
               <span>Page {currentPage} of {totalPages}</span>
               <button
                 type="button"
-                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
               >
                 Next
