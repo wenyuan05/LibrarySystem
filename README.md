@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-图书馆管理系统是一个基于React和Node.js的Web应用，用于管理图书馆的书籍信息，包括添加、查询、借阅和归还书籍等功能。系统支持用户认证、多角色权限管理、个人借阅记录查询等功能。
+图书馆管理系统是一个基于 React 和 Node.js 的 Web 应用，覆盖读者借阅、预约、归还、罚款支付，图书管理员书籍/副本管理、归还审批、收入看板，以及管理员用户、公告、分类、系统设置和日志管理等流程。系统支持多角色权限、站内通知、邮件验证码、支付宝沙箱支付、分页搜索和数据导出，适合中小型图书馆或课程项目验收演示。
 
 ## 技术栈
 
@@ -412,226 +412,73 @@ npm run dev
 
 ## 功能说明
 
-### 最新功能状态（2026-05-12）
+### 角色与权限
 
-- 角色数据值仍使用 `user/librarian/admin`，前端展示层将普通用户显示为 `Reader`，不改变后端权限与接口逻辑。
-- 借阅确认改为确认时选择副本：用户发起借阅后记录状态为 `borrowing`，不会提前占用或展示某个副本条形码；确认弹窗中选择可用副本后才绑定 `copy_id` 并显示 `copy_code`。
-- 书籍信息管理与副本管理拆分：书籍卡片提供 `Edit Info` 与 `Manage Copies`，副本管理弹窗支持新增副本、状态修改、单个位置确认、批量位置更新。
-- 每个副本拥有独立数据库 `id`、自动生成的 `copy_code` 条形码编号和 `location`；新增副本默认位置为 `Main Shelf`。
-- Reader 与 librarian 的借阅记录页面使用统一表格布局，展示 ID、Title、Barcode、日期、Status badge、Fine、Action，宽屏完整展示，小屏横向滚动；Fine 单元格使用借阅模块专用样式，避免被罚款详情页样式影响。
-- 借阅记录、用户借阅记录、预约记录、归还审批、罚款记录、支付订单、系统日志和用户管理列表均提供分页；核心记录列表支持关键词、状态和日期范围过滤。
-- 罚款接口保留已支付历史记录，页面总额只统计 `fine_status='unpaid'` 的未支付罚款。
-- 系统日志接口支持分页、按时间正序/倒序查询，并可按关键词、操作类型、用户 ID 和创建日期范围过滤。
-- Reader 书籍页升级为仪表盘布局：顶部统计卡、紧凑书籍卡片、搜索/分类/快捷状态筛选、右侧热门书籍/最近借阅/系统统计侧栏。
-- 书籍管理的 Add New Book 改为 portal 弹窗，脱离书籍页面容器层级；Single Book 只维护书籍元数据，副本数量与位置放到副本管理或批量导入的 Copy Settings。
-- Batch Import 使用现代双栏导入界面：左侧 ISBN 列表与 CSV/TXT 上传，右侧实时预览成功/重复/无效 ISBN，下方 Copy Settings 统一生成副本位置、数量和分类。
-- Release 3 ISBN 导入支持 API 节点选择与测试：管理员/图书管理员可在 Add New Book 中选择 OpenLibrary、Google Books 或 ShowAPI ISBN，测试节点可用性，并用选定节点执行单本查询和批量导入预览。
-- Release 2 新增站内通知：预约书籍在归还审批、新增可用副本或副本状态恢复 available 后，系统创建通知并在侧边栏显示未读数量，Reader 可在 `/notifications` 查看和标记已读。
-- 公告新增按用户已读状态：登录后如存在未读已发布公告，会触发全局弹窗提醒；确认后写入已读记录，不再重复提醒。
-- 公告管理新增/编辑表单改为 portal 弹窗，避免被页面内容层裁切，并优化公告列表为紧凑管理表格。
-- System Settings 改为现代 dashboard 分组卡片，仅展示后端业务已实现的参数：借阅功能开关、借阅期限、最大借阅数、借阅确认时长、最大续借次数、续借天数和每日罚款；功能开关使用滑动式 toggle 控件展示启用/禁用状态。
-- Release 3 新增借阅功能开关：管理员可通过 `borrow_enabled` 全局关闭读者借阅；前端借阅/确认按钮会显示 disabled 状态，后端也会拦截发起借阅和确认借阅请求。
-- 批量 ISBN 导入会汇总无效、重复、ISBN provider 查询失败和后端写入失败项，导入结果会展示完整失败原因。
-- 删除未使用的后端 `backend/test*.js` 临时测试脚本，保留数据检查与修复工具。
+- **Reader**：浏览书籍、查看详情、发起借阅、确认借阅、预约、续借、提交归还、查看个人借阅/罚款/通知/公告和个人资料。
+- **图书管理员**：管理书籍、分类、副本、用户、借阅记录、归还审批、预约记录、罚款记录、收入看板和图书副本组合导出。
+- **管理员**：拥有全部图书管理员能力，并额外管理公告、系统设置、系统日志和全局开关。
 
-### 前端功能
+### 读者端功能
 
-1. **用户认证**：登录界面，支持管理员、图书管理员和 Reader 登录
-   - 登录、注册、找回密码和重置密码表单均提供字段级前端校验
-   - 校验规则与后端保持一致：用户名 3-20 字符、密码至少 6 字符、姓名 2-50 字符、邮箱格式校验
-   - 找回密码要求邮箱或手机号至少填写一项，重置密码校验确认密码一致性和 reset token
-   - 登录用户信息保存在当前标签页的 `sessionStorage` 中；同一浏览器不同标签页可以登录不同账号，互不覆盖
-2. **侧边栏**：折叠式侧边栏，显示用户个人信息和导航菜单
-   - 根据用户角色显示不同的导航选项
-   - Reader：Books、My Borrows、Profile
-   - 图书管理员：Book Management、User Management、Borrow Records、Return Approval
-   - 管理员：所有功能
-3. **前端路由**：使用 React Router 实现多页面路由，包括：
-   - `/login` - 登录页面
-   - `/` - 首页（书籍列表）
-   - `/books` - 书籍列表
-   - `/books/:id` - 书籍详情
-   - `/borrow-records` - 个人借阅记录
-   - `/user-borrow-records/:userId` - 用户借阅记录管理（管理员/图书管理员）
-   - `/book-management` - 书籍管理（管理员/图书管理员）
-   - `/users` - 用户管理（管理员/图书管理员）
-   - `/profile` - 个人资料
-   - `/announcements` - 公告
-   - `/announcement-management` - 公告管理（管理员）
-   - `/notifications` - 站内通知
-   - `/category-management` - 分类管理（管理员/图书管理员）
-   - `/stats` - 统计分析
-   - `/return-approval` - 归还审批（管理员/图书管理员）
-   - `/logs` - 系统日志（管理员）
-   - `/system-settings` - 系统设置（管理员）
-   - `/reservations` - 预约管理
-4. **主布局**：包含侧边栏和顶部导航的响应式布局
-   - 侧边栏：显示用户信息和导航菜单
-   - 顶部导航：包含应用标题和用户菜单
-   - 内容区域：根据路由显示不同的页面内容
-5. **书籍管理**：
-   - 书籍列表展示，采用现代 dashboard 网格布局，并按每页 12 本分页显示
-   - 书籍列表在副本详情加载完成前使用 `available_copies` 缓存展示可用状态，避免加载中误标记为 Borrowed
-   - 搜索功能（支持按标题、作者、ISBN搜索），搜索栏提供输入框与统一图标按钮，支持分类筛选与 Available/Borrowed/Reserved 快捷筛选
-   - 点击书籍查看详情
-   - 借阅和归还书籍
-   - 删除书籍（管理员/图书管理员）
-   - ISBN导入：通过可选 ISBN API 节点查询并自动填充书籍信息（管理员/图书管理员）
-   - 右侧侧栏展示热门书籍 Top 10、最近借阅和系统统计
-6. **书籍管理专门板块**（管理员/图书管理员）：
-   - 通过 Add New Book portal 弹窗添加新书籍（包含ISBN格式验证和重复检查），避免被书籍页面容器裁切或遮挡
-   - 编辑书籍基础信息（与副本管理分离）
-   - 批量管理书籍
-   - 实时状态更新
-   - 管理页搜索栏使用独立布局，搜索输入与搜索按钮保持同一行对齐
-   - 通过独立弹窗管理书籍副本数量、状态、条形码和位置
-   - 新增副本时自动生成副本编号和条形码编号，并填充默认位置
-   - 副本位置支持单个确认保存和批量应用到全部副本；批量位置保存会按顺序提交，避免 SQLite 并发事务冲突
-   - ISBN单个/批量导入；批量导入支持 ISBN API 节点选择与测试、实时预览、CSV/TXT 上传、导入进度和 Copy Settings
-   - 批量导入会在前端和后端同时报告无效 ISBN、重复 ISBN、元数据查询失败和写入失败原因
-   - 管理员和图书管理员可在 Book Management 导出图书与副本组合 CSV；导出按副本展开，并拼接图书表与副本表字段
-7. **分类管理**（管理员/图书管理员）：
-   - 创建分类和带放大镜按钮的搜索分类卡片左侧固定展示，分类列表在右侧以双栏卡片显示
-   - 分类列表按每页 8 个分页展示，提供 First/Previous/Next/Last 控制
-   - 分类名过长时省略显示，鼠标悬停可查看完整名称
-8. **书籍详情页**：
-   - 显示书籍详细信息
-   - 显示所有副本信息（ID、条形码、状态、位置）
-   - 新的借阅流程：
-     - 点击借阅按钮后创建待确认记录，状态为borrowing
-     - 显示一小时倒计时
-     - 按钮变为confirm borrowing
-     - 点击确认后弹出确认界面
-     - 提供下拉菜单选择可用副本
-     - 用户点击确认后才绑定具体副本并正式借出
-9. **用户管理**：
-   - 用户列表展示（管理员/图书管理员）
-   - 添加新用户（包含用户名重复检查和表单验证）
-   - 编辑用户信息
-   - 搜索功能（支持按用户名、姓名、邮箱搜索）
-   - 用户列表按固定页大小分页展示，搜索后自动回到第一页
-   - 用户管理搜索栏使用独立布局，搜索输入与搜索按钮保持同一行对齐
-   - 删除用户（管理员，不能删除自己）
-   - 查看用户借阅记录（管理员/图书管理员）
-10. **借阅记录**：
-   - 个人借阅记录查询
-   - 借阅历史查看
-   - 条形码展示、状态 badge、罚款列和统一操作按钮
-   - 罚款金额使用借阅记录专用显示样式，支持数字/字符串金额统一格式化为 `¥0.00`
-   - 默认优先显示待确认、待还等待处理记录，再按 ID 展示最新记录
-   - 支持 `Ascending` / `Descending` 顺序切换、分页、关键词搜索、状态筛选和借阅日期范围筛选
-   - 罚款历史记录查看与未支付罚款支付，Fine Records 支持关键词、罚款状态和日期范围过滤
-   - 管理员/图书管理员查看和管理用户借阅记录，布局与 Reader 借阅记录保持一致
-   - 管理员/图书管理员手动归还书籍
-11. **归还审批**（管理员/图书管理员）：
-   - 查看待审批的归还请求列表
-   - 单条审批归还
-   - 一键批量审批所有待归还请求
-   - 支持按日期筛选审批
-   - 待审批列表支持关键词搜索、归还日期范围过滤和分页展示；`Approve by Date` 保留为批量审批操作
-12. **消息通知**：使用全局 toast 组件显示成功/失败消息，通过 ToastContext 管理全局消息状态
-    - 支持多种消息类型：info、success、error
-    - 消息自动消失（默认3秒）
-    - 可手动关闭消息
-    - 全局可访问的消息通知系统
-    - 支持多个消息堆叠显示
-    - 平滑的消息出现和消失动画
-    - 每个toast独立倒计时，按照创建顺序消失
-    - 当一个toast消失时，其他toast会平滑上移
-    - 手动关闭toast时也会有平滑的消失动画
-13. **站内通知与公告提醒**：
-    - 预约书籍归还审批、新增可用副本或副本状态改为 available 后，自动生成站内通知
-    - 侧边栏显示未读通知数量，Reader 可进入通知中心查看、单条已读或全部已读；已读操作会即时同步侧边栏 badge
-    - 已发布公告按用户记录已读状态；存在未读公告时，全局弹窗提醒一次
-    - 公告管理使用弹窗创建/编辑公告，发布开关和列表状态清晰分离
-14. **加载状态**：使用 SkeletonLoader 组件显示加载状态
-    - 书籍列表加载时显示骨架屏
-    - 提升用户体验，减少加载等待感
-    - 响应式设计，适配不同屏幕尺寸
-15. **数据验证**：
-    - 表单字段验证
-    - 数据格式检查
-    - 重复数据提示
-15. **安全性**：
-    - 前端输入验证
-    - 密码强度检查
-    - 登录页所有认证表单提供 inline 错误提示和提交前拦截
-    - 实时错误提示
-    - 权限控制展示
-    - 受保护路由，未登录用户自动跳转到登录页
-    - 管理员/图书管理员用户访问普通用户路径时自动重定向到管理员页面
-16. **系统设置**：
-    - 管理员通过 `/system-settings` 管理全局配置
-    - 页面采用分组卡片、搜索、Editable mode、顶部 Save Changes / Reset Defaults 和底部变更保存栏
-    - 仅展示已被后端业务逻辑读取的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`
-    - `borrow_enabled` 为全局借阅功能开关，使用滑动式开关展示，关闭后读者无法发起或确认借阅，但不影响归还、预约、罚款支付等流程
-    - `reservation_enabled` 为全局预约功能开关，关闭后读者无法发起新预约，但仍可取消已有预约
-    - API 仍支持 settings upsert，但未接入业务逻辑的配置不在前端设置页展示
+- 书籍首页采用 dashboard 布局，支持标题、作者、ISBN 搜索，分类筛选，以及 Available、Borrowed、Reserved 快捷筛选。
+- 书籍列表按每页 12 本分页展示，分页跳转后自动滚动到列表顶部；右侧模块包含可折叠热门书籍 Top 10、最近借阅和系统统计。
+- 书籍详情展示图书信息、简介和所有副本状态；从借阅记录或预约记录跳转详情时会保留来源地址，返回时回到原页面。
+- 借阅采用“发起后确认”流程：发起借阅后生成 `borrowing` 记录并保留倒计时，确认弹窗中选择可用副本后正式借出。
+- 确认弹窗中 `Cancel` 用于取消锁定，`Not Now` 和右上角关闭按钮用于暂时关闭弹窗；倒计时状态在列表页和借阅记录页之间保持一致。
+- 支持预约可借图书；预约功能关闭后不能发起新预约，但可以取消已有预约。
+- My Borrows 支持分页、关键词、状态和借阅日期范围过滤，记录行可跳转到对应图书详情；图书不存在时弹出错误提示。
+- Fine Records 支持关键词、罚款状态和日期范围过滤，未支付罚款通过支付宝订单支付。
+- 站内通知展示预约到书提醒，支持单条已读和全部已读。
+- 公告列表支持点击公告打开弹窗，完整展示公告标题、日期和正文；未读公告登录后只弹出提醒一次。
 
-### 后端功能
+### 图书与副本管理
 
-1. **数据库初始化**：自动创建SQLite数据库和表结构，并插入示例数据
-2. **API接口**：提供完整的CRUD操作接口，用于前端与数据库交互
-3. **用户认证**：验证用户登录信息，使用JWT进行身份验证
-4. **借阅管理**：处理书籍借阅和归还逻辑，更新书籍状态和借阅记录
-   - 新的借阅流程：支持借阅请求、确认借阅、超时处理
-   - 从系统设置读取借阅参数（借阅功能开关、借阅期限、确认时长、最大借阅数量等）
-   - `borrow_enabled = 0` 时，后端会拒绝发起借阅和确认借阅请求并返回 403
-   - 借阅前检查用户状态（是否拉黑）、罚款状态、借阅数量限制
-   - 图书管理员审批归还（单条或一键批量审批，支持按日期筛选）
-   - 逾期自动计算罚款
-5. **罚款管理**：
-   - 逾期罚款自动计算（基于 fine_per_day 系统设置）
-   - `fine_enabled` 可全局暂停新罚款产生和未归还逾期记录的预计罚款增长；`fine_per_day` 支持设置为 `0` 以配置零费率
-   - 用户提交归还申请时罚款立即累计到用户账户（total_fine），无需等待归还审批即可支付
-   - 查询用户罚款历史记录，未支付记录优先展示
-   - 罚款支付通过支付宝支付订单完成，支付成功后同步未支付罚款记录和 total_fine
-   - 管理员和图书管理员可以查看并处理用户罚款
-6. **书籍副本管理**：
-   - 为每本书创建多个副本
-   - 每个副本维护独立 id、copy_code 条形码编号、状态和位置
-   - 新增副本自动生成下一位 copy_code 并默认填充 Main Shelf
-   - 管理副本状态（available/borrowing/borrowed/reserved）
-   - 支持确认借阅时绑定具体可用副本
-   - 副本位置管理（如A1-01），方便定位实体书
-7. **ISBN导入**：
-   - 通过选定的 ISBN 查询 API 节点查询 ISBN 信息，当前内置 OpenLibrary、Google Books 和国内 ShowAPI ISBN 节点
-   - Add New Book 弹窗中提供节点下拉选择与 Test Node 操作，显示节点是否可用、延迟、最后测试时间和失败原因
-   - ShowAPI ISBN 节点通过后端环境变量 `SHOWAPI_ISBN_APP_KEY` 配置 appKey，未配置时会显示 key required 并在节点测试中返回不可用
-   - 后端外部 ISBN API 请求支持自动代理，默认检测 `127.0.0.1:7890` 可用时走代理，不可用时走默认网络
-   - 自动填充书籍详情（标题、作者、出版社、简介、封面等）
-   - ShowAPI ISBN 字段映射为：`pubdate -> publish_date`、`gist -> description`、`img -> cover_image`、`page -> page_count`
-   - ShowAPI 返回的 `edition`、`paper`、`format`、`price`、`binding`、`produce` 当前没有对应书籍字段，暂不落库
-   - 出版日期会尽量归一为 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，无法解析时显示原始返回值
-   - 支持单个和批量 ISBN 导入
-   - 批量导入时通过 Copy Settings 指定默认位置、每本副本数和分类，后端自动生成副本编号与条形码编号
-   - 批量导入会保留 ISBN 元数据中的语言和页数，缺省时使用默认值
-   - 批量导入会返回每个失败 ISBN 的具体原因，包含格式错误、重复、元数据缺失和数据库写入错误
-   - 批量导入事务会等待书籍、分类关联和所有副本写入完成后再提交并返回成功/失败统计
-8. **站内通知与公告已读**：
-   - `notifications` 表保存预约可借通知，支持未读数量、单条已读和全部已读
-   - 预约可借通知触发逻辑复用在归还审批、新增副本和副本状态恢复 available 场景
-   - `announcement_reads` 表按用户保存公告已读状态，避免已读公告重复弹窗
-   - 公告创建/编辑采用弹窗表单，保存后刷新公告列表
-9. **用户管理**：处理用户信息的增删改查
-10. **数据去重**：
-   - 书籍ISBN唯一检查
-   - 用户名唯一检查
-   - 数据库唯一索引约束
-11. **数据验证**：
-   - API请求参数验证
-   - 数据完整性检查
-   - 错误处理和提示
-12. **安全性**：
-   - 密码加密存储（使用bcrypt）
-   - JWT token认证
-   - 中间件权限控制
-   - 输入验证中间件
-   - 防SQL注入保护
-   - 严格的角色验证（支持'user'、'librarian'和'admin'）
-13. **项目维护**：
-    - Release 3 分支移除了旧的一次性数据库检查、迁移和修复脚本
-    - 当前数据库结构通过 `backend/db.js` 启动初始化和兼容迁移维护
+- Book Management 支持分页、关键词搜索和保留当前页编辑；编辑、添加和副本管理均使用居中 portal 弹窗。
+- 书籍基础信息与副本管理分离：`Edit Info` 维护图书元数据，`Manage Copies` 维护副本数量、状态、条形码和位置。
+- 副本拥有独立 `id`、`copy_code`、状态和位置；新增副本自动生成下一位编号并默认填充 `Main Shelf`。
+- 副本位置支持单个确认保存和批量应用到全部副本；批量保存按顺序提交，避免 SQLite 并发事务冲突。
+- 支持通过 OpenLibrary、Google Books、ShowAPI ISBN 节点进行单本 ISBN 查询和批量导入，导入前可测试节点可用性。
+- 批量导入支持 CSV/TXT 上传、实时预览、导入进度、默认副本数量/位置/分类设置，并返回无效、重复、查询失败和写入失败原因。
+- 图书管理员可导出图书与副本组合 CSV，按副本展开并拼接图书表和副本表字段。
+- 分类管理支持创建、搜索和分页展示，分类名过长时省略显示并可悬停查看完整名称。
+
+### 借阅、预约与归还
+
+- 借阅记录统一表格布局，展示 ID、书名、条形码、日期、状态、罚款和操作按钮。
+- Reader、图书管理员和管理员相关记录页面均支持分页；核心记录列表提供关键词、状态和时间范围过滤。
+- 归还审批支持单条审批、一键批量审批、按归还日期筛选和分页展示。
+- 预约记录支持分页、关键词搜索、状态筛选和时间过滤；点击记录可跳转对应图书详情。
+- 系统会在归还审批、新增可用副本或副本状态恢复 available 后，为预约用户生成站内通知。
+
+### 罚款、支付与收入
+
+- 逾期罚款基于 `fine_per_day` 自动计算；提交归还申请时将实际罚款累计到用户账户。
+- `fine_enabled` 可全局暂停新罚款产生和未归还逾期记录的预计罚款增长；`fine_per_day = 0` 表示仍保留罚款流程但费率为零。
+- 罚款支付通过支付宝订单完成，支付成功后同步罚款记录、用户未付罚款总额和收入流水。
+- 本地开发可使用模拟支付，沙箱配置完整时可生成支付宝沙箱 page pay 链接和 precreate 二维码内容。
+- 支付订单列表支持分页、关键词过滤、状态过滤、创建时间过滤和手动过期 pending 订单。
+- Income Dashboard 展示已支付收入、今日收入、本月收入、最近支付记录和收入折线图。
+- 未指定范围时收入折线图按月展示过去一年收入；指定日期范围时自动按日、7 天区间或月份划分标度。
+- Income Dashboard 的支付记录支持分页、关键词过滤和时间过滤，分页数据返回后自动滚动到列表顶部。
+
+### 用户、公告与系统管理
+
+- 用户管理支持新增、编辑、删除、搜索和分页；邮箱字段提供格式校验。
+- 管理员不能删除自己；删除用户会受到活跃借阅、预约和角色规则保护。
+- 公告管理支持创建、编辑、发布开关和列表管理；公告弹窗脱离页面容器限制，完整展示文本。
+- 系统日志支持分页、升序/降序、关键词、操作类型、用户 ID 和创建日期范围过滤。
+- System Settings 只展示已接入业务逻辑的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`。
+- `borrow_enabled` 关闭后读者无法发起或确认借阅，但不影响归还、预约取消、罚款支付等流程。
+- `reservation_enabled` 关闭后读者无法发起新预约，但不影响取消已有预约。
+- `fine_enabled` 关闭后不再产生新的逾期罚款，未归还逾期记录的预计罚款不再增长，不影响已有未支付罚款的正常支付。
+
+### 认证、通知与安全
+
+- 登录用户信息保存在当前标签页 `sessionStorage` 中，同一浏览器多个标签页可登录不同账号，互不覆盖。
+- 注册和重置密码流程使用 6 位邮箱验证码，验证码哈希保存、10 分钟过期且验证后失效。
+- 支持 QQ 邮箱 SMTP 发信和本地 log 模式；注册、重置密码和预约到书通知可触发邮件发送。
+- 密码使用 bcrypt 加密存储，后端通过 JWT、认证中间件、角色权限和输入验证保护接口。
+- 前后端均提供必要的数据校验，包括必填项、ISBN、邮箱、用户名、密码、重复数据和权限检查。
 
 ## 开发指南
 
@@ -752,47 +599,6 @@ npm run dev
    - 此文件已添加到 `.gitignore`，不会被提交到版本控制
    - 部署时需要确保此文件存在并包含正确的信息
 
-## 扩展建议
-
-1. 实现前端路由，添加更多页面
-2. 优化用户界面，添加更多动画效果
-3. 添加深色模式
-4. 添加数据可视化图表
-5. 优化移动端适配
-6. 添加国际化支持
-7. 开发移动端应用
-8. 添加扫码借书还书功能
-9. 集成在线支付罚款功能
-
 ## 许可证
 
 MIT License
-
-## Maintenance Update - 2026-05-13
-
-### Dangerous operation safeguards
-
-- User deletion is now admin-only and is blocked when the target user is the current account, an admin account, has active borrow records, or has active reservations.
-- Book deletion is blocked when the book has active borrow records, occupied copies, or active reservations.
-- Active borrow checks consistently include `borrowing`, `borrowed`, `overdue`, and `returning`, so return-pending and overdue records cannot be bypassed.
-- Copy-count reduction validates `total_copies` and refuses to remove more copies than are currently available.
-- System log clearing validates the `days` parameter before issuing a delete query.
-
-### Copy management
-
-- Copy Management now supports deleting a single copy through the modal action column.
-- Single-copy deletion calls `DELETE /api/books/copies/:id`.
-- A copy can be deleted only when it is `available`, is not the last copy for the book, and has no active borrow records.
-- After deletion, the backend recalculates `books.total_copies` and `books.available_copies` in the same transaction.
-- The Copy Management modal table layout was adjusted so the `Confirm` and `Delete` buttons are visible on desktop without dragging the horizontal scrollbar.
-
-### Books page filters
-
-- The `Reserved` quick filter now uses the current user's reservation records instead of a book-level status field.
-- Reservations with status `active` or `pending` are treated as reserved for the current reader.
-- After a reader reserves or cancels a reservation from the book card, the Books page refreshes its reservation filter data without requiring a page reload.
-
-### Books page search
-
-- The Books page search bar now reuses the shared icon search button used by other search bars.
-- The search button is aligned with the input field and reruns the search using the current title, author, or ISBN query.
