@@ -626,6 +626,11 @@ export const logAPI = {
     if (params.order) searchParams.append('order', params.order);
     if (params.level) searchParams.append('level', params.level);
     if (params.module) searchParams.append('module', params.module);
+    if (params.keyword) searchParams.append('keyword', params.keyword);
+    if (params.action) searchParams.append('action', params.action);
+    if (params.user_id) searchParams.append('user_id', params.user_id);
+    if (params.date_from) searchParams.append('date_from', params.date_from);
+    if (params.date_to) searchParams.append('date_to', params.date_to);
     return request(`/logs?${searchParams.toString()}`);
   },
   

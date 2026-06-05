@@ -6,11 +6,29 @@ import { booksAPI, borrowAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortHistoryRecords } from '../utils/historyList';
 import './ReservationsPage.css';
 
+const reservationMatchesFilters = (reservation, filters) => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  const matchesKeyword = !keyword || [
+    reservation.id,
+    reservation.title,
+    reservation.author,
+    reservation.status
+  ].some(value => String(value || '').toLowerCase().includes(keyword));
+  const matchesStatus = !filters.status || reservation.status === filters.status;
+  const recordDate = reservation.reserve_date || reservation.reservation_date || '';
+  const matchesStart = !filters.date_from || recordDate >= filters.date_from;
+  const matchesEnd = !filters.date_to || recordDate <= filters.date_to;
+
+  return matchesKeyword && matchesStatus && matchesStart && matchesEnd;
+};
+
 const ReservationsPage = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({ keyword: '', status: '', date_from: '', date_to: '' });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -73,11 +91,34 @@ const ReservationsPage = () => {
     }
   };
 
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFilterSubmit = (event) => {
+    event.preventDefault();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      showToast('Reservation start date cannot be after end date', 'error');
+      return;
+    }
+    setPage(1);
+    setAppliedFilters(filters);
+  };
+
+  const handleFilterReset = () => {
+    const emptyFilters = { keyword: '', status: '', date_from: '', date_to: '' };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setPage(1);
+  };
+
   if (loading) {
     return <div className="loading">Loading reservations...</div>;
   }
 
-  const sortedReservations = sortHistoryRecords(reservations, ['reserve_date'], sortOrder);
+  const filteredReservations = reservations.filter(reservation => reservationMatchesFilters(reservation, appliedFilters));
+  const sortedReservations = sortHistoryRecords(filteredReservations, ['reserve_date', 'reservation_date'], sortOrder);
   const {
     pageItems: visibleReservations,
     totalPages,
@@ -95,7 +136,7 @@ const ReservationsPage = () => {
       ) : (
         <>
           <div className="history-toolbar">
-            <span>{reservations.length} records</span>
+            <span>{filteredReservations.length} of {reservations.length} records</span>
             <button
               type="button"
               className="btn-secondary history-sort-button"
@@ -107,6 +148,44 @@ const ReservationsPage = () => {
               {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
             </button>
           </div>
+          <form className="reservation-filters" onSubmit={handleFilterSubmit}>
+            <label>
+              Keyword
+              <input
+                type="search"
+                name="keyword"
+                value={filters.keyword}
+                onChange={handleFilterChange}
+                placeholder="Title, author, status"
+              />
+            </label>
+            <label>
+              Status
+              <select name="status" value={filters.status} onChange={handleFilterChange}>
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="canceled">Canceled</option>
+                <option value="fulfilled">Fulfilled</option>
+              </select>
+            </label>
+            <label>
+              Reserve From
+              <input type="date" name="date_from" value={filters.date_from} onChange={handleFilterChange} />
+            </label>
+            <label>
+              Reserve To
+              <input type="date" name="date_to" value={filters.date_to} onChange={handleFilterChange} />
+            </label>
+            <button type="submit" className="btn-secondary">Filter</button>
+            <button type="button" className="btn-secondary" onClick={handleFilterReset}>Reset</button>
+          </form>
+          {filteredReservations.length === 0 ? (
+            <div className="empty-state">
+              <p>No reservations match the current filters.</p>
+            </div>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -160,7 +239,8 @@ const ReservationsPage = () => {
               ))}
             </tbody>
           </table>
-          {reservations.length > DEFAULT_HISTORY_PAGE_SIZE && (
+          )}
+          {filteredReservations.length > DEFAULT_HISTORY_PAGE_SIZE && (
             <div className="history-pagination">
               <button
                 type="button"

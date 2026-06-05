@@ -3,6 +3,7 @@ import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI } from '../../utils/api';
+import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords } from '../../utils/historyList';
 import AddUserForm from './AddUserForm';
 import EditUserForm from './EditUserForm';
 import './Users.css';
@@ -11,6 +12,7 @@ const UserList = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -141,16 +143,24 @@ const UserList = () => {
       );
       setFilteredUsers(filtered);
     }
+    setPage(1);
   };
 
   // 当用户列表变化时，更新过滤后的用户
   useEffect(() => {
     setFilteredUsers(users);
+    setPage(1);
   }, [users]);
 
   if (loading) {
     return <div className="loading">Loading users...</div>;
   }
+
+  const {
+    pageItems: visibleUsers,
+    totalPages,
+    safePage
+  } = paginateRecords(filteredUsers, page, DEFAULT_HISTORY_PAGE_SIZE);
 
   return (
     <div className="user-list">
@@ -212,7 +222,7 @@ const UserList = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredUsers.map(userItem => (
+          {visibleUsers.map(userItem => (
             <tr key={userItem.id} className="fade-in">
               <td>{userItem.id}</td>
               <td>{userItem.username}</td>
@@ -270,6 +280,27 @@ const UserList = () => {
           ))}
         </tbody>
       </table>
+      {filteredUsers.length > DEFAULT_HISTORY_PAGE_SIZE && (
+        <div className="pagination-controls">
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={safePage <= 1}
+            onClick={() => setPage(safePage - 1)}
+          >
+            Previous
+          </button>
+          <span>Page {safePage} of {totalPages}</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage(safePage + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

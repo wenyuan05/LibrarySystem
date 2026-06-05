@@ -33,8 +33,8 @@
 - 副本从书籍基础信息中拆分为独立管理弹窗：书籍卡片负责编辑书籍信息，`Manage Copies` 负责新增副本、状态调整、单个位置确认和批量位置更新。
 - 每个副本拥有数据库 `id`、唯一 `copy_code`、`status`、`location`；前端通过 `Barcode.jsx` 统一渲染条形码。
 - 借阅流程采用“先创建待确认记录，确认时选择副本”的设计，避免待确认阶段提前占用或展示错误副本。
-- Reader 与 librarian 的借阅记录页面复用同一套宽表格布局，包含条形码列、状态 badge、罚款列、分页和排序；罚款单元格使用 `borrow-fine-*` 专用类名，避免与罚款详情页、个人页的 `.fine-amount` 全局样式冲突。
-- 历史记录默认最新优先，排序切换按钮显示为 `Ascending` / `Descending`；借阅与罚款记录优先展示待确认、待还、未支付等待处理项；记录过多时分页。
+- Reader 与 librarian 的借阅记录页面复用同一套宽表格布局，包含条形码列、状态 badge、罚款列、分页、排序、关键词搜索、状态筛选和借阅日期范围筛选；罚款单元格使用 `borrow-fine-*` 专用类名，避免与罚款详情页、个人页的 `.fine-amount` 全局样式冲突。
+- 历史记录默认最新优先，排序切换按钮显示为 `Ascending` / `Descending`；借阅与罚款记录优先展示待确认、待还、未支付等待处理项；借阅记录、预约记录、归还审批、罚款记录、支付订单、系统日志和用户管理列表在记录过多时分页，并提供对应的关键词/状态/日期过滤入口。
 - 罚款接口返回历史罚款记录，已支付记录不再从历史中消失，前端总额仅统计未支付罚款。
 - Reader 书籍页采用企业 SaaS dashboard 布局：固定顶部导航、统计卡、紧凑书籍网格、搜索/分类/快捷筛选工具栏和右侧综合信息侧栏。
 - 书籍卡片增加封面缩略图、状态 badge、紧凑元数据、可用率进度条和 hover elevation，提升库存浏览密度。
@@ -197,14 +197,14 @@ src/
 | 个人资料 | /profile | user | 查看和更新个人信息、查看罚款、支付罚款 |
 | 公告列表 | /announcements | user | 查看系统公告，点击公告弹窗展示完整公告信息 |
 | 书籍管理 | /book-management | admin/librarian | 管理书籍（增删改查）、ISBN导入、批量导入、副本位置管理 |
-| 用户管理 | /users | admin/librarian | 管理用户（增删改查） |
-| 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录，点击记录跳转图书详情 |
-| 归还审批 | /return-approval | admin/librarian | 审批书籍归还、一键批量审批 |
+| 用户管理 | /users | admin/librarian | 管理用户（增删改查）、搜索和分页 |
+| 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录、搜索过滤分页，点击记录跳转图书详情 |
+| 归还审批 | /return-approval | admin/librarian | 审批书籍归还、一键批量审批、搜索过滤分页 |
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
-| 预约管理 | /reservations | user | 管理书籍预约，点击预约记录跳转图书详情 |
+| 预约管理 | /reservations | user | 管理书籍预约、搜索过滤分页，点击预约记录跳转图书详情 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
 | 系统设置 | /system-settings | admin | 管理已实现的借阅开关、借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
-| 系统日志 | /logs | admin | 查看系统操作日志 |
+| 系统日志 | /logs | admin | 查看系统操作日志、搜索过滤分页 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 
 ### 2.4 状态管理

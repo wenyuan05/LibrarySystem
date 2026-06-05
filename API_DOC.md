@@ -1532,20 +1532,28 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 - `limit`：返回数量，默认 50
 - `offset`：分页偏移，默认 0
 - `order`：时间排序，`desc` 为最新优先，`asc` 为最旧优先
+- `keyword`：可选，按操作类型、描述或用户 ID 模糊筛选
+- `action`：可选，按操作类型模糊筛选
+- `user_id`：可选，按用户 ID 精确筛选
+- `date_from`：可选，按创建日期起始值筛选，格式 `YYYY-MM-DD`
+- `date_to`：可选，按创建日期结束值筛选，格式 `YYYY-MM-DD`
 
 **响应**：
 ```json
-[
-  {
-    "id": 1,
-    "user_id": 1,
-    "username": "admin",
-    "action": "login",
-    "description": "User logged in",
-    "ip_address": "127.0.0.1",
-    "created_at": "2024-01-01 00:00:00"
-  }
-]
+{
+  "logs": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "action": "login",
+      "description": "User logged in",
+      "created_at": "2024-01-01 00:00:00"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
 ```
 
 #### 3.6.15 DELETE /api/logs/clear

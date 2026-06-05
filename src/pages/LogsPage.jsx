@@ -15,6 +15,14 @@ const LogsPage = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedDays, setSelectedDays] = useState(7);
   const [sortOrder, setSortOrder] = useState('desc');
+  const [filters, setFilters] = useState({
+    keyword: '',
+    action: '',
+    user_id: '',
+    date_from: '',
+    date_to: ''
+  });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
   // Fetch system logs
   const fetchLogs = useCallback(async () => {
@@ -23,7 +31,8 @@ const LogsPage = () => {
       const params = {
         limit,
         offset,
-        order: sortOrder
+        order: sortOrder,
+        ...appliedFilters
       };
       const data = await logAPI.getLogs(params);
       setLogs(data.logs);
@@ -34,7 +43,7 @@ const LogsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [limit, offset, showToast, sortOrder]);
+  }, [appliedFilters, limit, offset, showToast, sortOrder]);
 
   // Toggle message expansion
   const toggleMessageExpansion = (logId) => {
@@ -83,6 +92,37 @@ const LogsPage = () => {
     setOffset(newOffset);
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
+
+  const handleFilterSubmit = (e) => {
+    e.preventDefault();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      showToast('Start date cannot be later than end date', 'error');
+      return;
+    }
+    setAppliedFilters(filters);
+    setOffset(0);
+  };
+
+  const handleFilterReset = () => {
+    const emptyFilters = {
+      keyword: '',
+      action: '',
+      user_id: '',
+      date_from: '',
+      date_to: ''
+    };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setOffset(0);
+  };
+
   // Go to first page
   const goToFirstPage = () => {
     setOffset(0);
@@ -115,7 +155,10 @@ const LogsPage = () => {
             <select 
               id="limit" 
               value={limit} 
-              onChange={(e) => setLimit(parseInt(e.target.value))}
+              onChange={(e) => {
+                setLimit(parseInt(e.target.value));
+                setOffset(0);
+              }}
             >
               <option value="25">25</option>
               <option value="50">50</option>
@@ -141,6 +184,59 @@ const LogsPage = () => {
           {isClearing ? 'Clearing...' : 'Clear Logs'}
         </button>
       </div>
+
+      <form className="logs-filter-form" onSubmit={handleFilterSubmit}>
+        <label>
+          <span>Keyword</span>
+          <input
+            type="search"
+            name="keyword"
+            value={filters.keyword}
+            onChange={handleFilterChange}
+            placeholder="Action, description, user ID"
+          />
+        </label>
+        <label>
+          <span>Action</span>
+          <input
+            type="search"
+            name="action"
+            value={filters.action}
+            onChange={handleFilterChange}
+            placeholder="LOGIN, BORROW..."
+          />
+        </label>
+        <label>
+          <span>User ID</span>
+          <input
+            type="search"
+            name="user_id"
+            value={filters.user_id}
+            onChange={handleFilterChange}
+            placeholder="User ID"
+          />
+        </label>
+        <label>
+          <span>From</span>
+          <input
+            type="date"
+            name="date_from"
+            value={filters.date_from}
+            onChange={handleFilterChange}
+          />
+        </label>
+        <label>
+          <span>To</span>
+          <input
+            type="date"
+            name="date_to"
+            value={filters.date_to}
+            onChange={handleFilterChange}
+          />
+        </label>
+        <button type="submit" className="btn-secondary">Filter</button>
+        <button type="button" className="btn-secondary" onClick={handleFilterReset}>Reset</button>
+      </form>
 
       {/* Logs list */}
       <div className="logs-list">

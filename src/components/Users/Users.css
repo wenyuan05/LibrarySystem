@@ -287,3 +287,15 @@
   background-color: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
+
+.user-list .pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.user-list .pagination-controls span {
+  color: var(--text-secondary);
+}

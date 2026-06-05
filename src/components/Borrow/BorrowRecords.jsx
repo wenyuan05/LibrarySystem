@@ -27,6 +27,22 @@ const isActualPayableFine = (fine) => (
 const isEstimatedFine = (fine) => (
   fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
 );
+const recordMatchesFilters = (record, filters) => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  const matchesKeyword = !keyword || [
+    record.id,
+    record.title,
+    record.author,
+    record.copy_code,
+    record.status
+  ].some(value => String(value || '').toLowerCase().includes(keyword));
+  const matchesStatus = !filters.status || record.status === filters.status;
+  const recordDate = record.borrow_date || '';
+  const matchesStart = !filters.date_from || recordDate >= filters.date_from;
+  const matchesEnd = !filters.date_to || recordDate <= filters.date_to;
+
+  return matchesKeyword && matchesStatus && matchesStart && matchesEnd;
+};
 
 const BorrowRecords = () => {
   const [records, setRecords] = useState([]);
@@ -42,6 +58,8 @@ const BorrowRecords = () => {
   const [totalFine, setTotalFine] = useState(0);
   const [recordSortOrder, setRecordSortOrder] = useState('desc');
   const [recordPage, setRecordPage] = useState(1);
+  const [recordFilters, setRecordFilters] = useState({ keyword: '', status: '', date_from: '', date_to: '' });
+  const [appliedRecordFilters, setAppliedRecordFilters] = useState(recordFilters);
   const [fineSortOrder, setFineSortOrder] = useState('desc');
   const [finePage, setFinePage] = useState(1);
   const { user } = useAuth();
@@ -237,6 +255,28 @@ const BorrowRecords = () => {
     navigate(`/fines/${user.id}`);
   };
 
+  const handleRecordFilterChange = (event) => {
+    const { name, value } = event.target;
+    setRecordFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRecordFilterSubmit = (event) => {
+    event.preventDefault();
+    if (recordFilters.date_from && recordFilters.date_to && recordFilters.date_from > recordFilters.date_to) {
+      showToast('Borrow start date cannot be after end date', 'error');
+      return;
+    }
+    setRecordPage(1);
+    setAppliedRecordFilters(recordFilters);
+  };
+
+  const handleRecordFilterReset = () => {
+    const emptyFilters = { keyword: '', status: '', date_from: '', date_to: '' };
+    setRecordFilters(emptyFilters);
+    setAppliedRecordFilters(emptyFilters);
+    setRecordPage(1);
+  };
+
   const handleOpenBookDetail = async (record) => {
     try {
       if (!record.book_id) {
@@ -257,7 +297,8 @@ const BorrowRecords = () => {
     return <div className="loading">Loading borrow records...</div>;
   }
 
-  const sortedRecords = sortBorrowRecords(records, recordSortOrder);
+  const filteredRecords = records.filter(record => recordMatchesFilters(record, appliedRecordFilters));
+  const sortedRecords = sortBorrowRecords(filteredRecords, recordSortOrder);
   const {
     pageItems: visibleRecords,
     totalPages: recordTotalPages,
@@ -301,7 +342,7 @@ const BorrowRecords = () => {
       ) : (
         <>
           <div className="history-toolbar">
-            <span>{records.length} records</span>
+            <span>{filteredRecords.length} of {records.length} records</span>
             <button
               type="button"
               className="btn-secondary history-sort-button"
@@ -313,6 +354,45 @@ const BorrowRecords = () => {
               {recordSortOrder === 'desc' ? 'Ascending' : 'Descending'}
             </button>
           </div>
+          <form className="history-filters" onSubmit={handleRecordFilterSubmit}>
+            <label>
+              Keyword
+              <input
+                type="search"
+                name="keyword"
+                value={recordFilters.keyword}
+                onChange={handleRecordFilterChange}
+                placeholder="Title, barcode, status"
+              />
+            </label>
+            <label>
+              Status
+              <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
+                <option value="">All statuses</option>
+                <option value="borrowing">Borrowing</option>
+                <option value="borrowed">Borrowed</option>
+                <option value="overdue">Overdue</option>
+                <option value="returning">Returning</option>
+                <option value="returned">Returned</option>
+                <option value="timeout">Timeout</option>
+              </select>
+            </label>
+            <label>
+              Borrow From
+              <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
+            </label>
+            <label>
+              Borrow To
+              <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
+            </label>
+            <button type="submit" className="btn-secondary">Filter</button>
+            <button type="button" className="btn-secondary" onClick={handleRecordFilterReset}>Reset</button>
+          </form>
+          {filteredRecords.length === 0 ? (
+            <div className="empty-state">
+              <p>No borrow records match the current filters.</p>
+            </div>
+          ) : (
           <div className="borrow-records-table-wrap">
             <table className="borrow-records-table">
             <colgroup>
@@ -429,7 +509,8 @@ const BorrowRecords = () => {
             </tbody>
             </table>
           </div>
-          {records.length > DEFAULT_HISTORY_PAGE_SIZE && (
+          )}
+          {filteredRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
             <div className="history-pagination">
               <button
                 type="button"

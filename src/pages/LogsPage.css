@@ -438,3 +438,48 @@
 .logs-list::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary, #4a5568);
 }
+
+.logs-filter-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(100px, 0.8fr) repeat(2, minmax(130px, 1fr)) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary, #ffffff);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logs-filter-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.logs-filter-form span {
+  color: var(--text-secondary, #4a5568);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.logs-filter-form input {
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  background-color: var(--bg-secondary, #ffffff);
+  color: var(--text-primary, #1a202c);
+  font: inherit;
+}
+
+.logs-filter-form button {
+  min-height: 40px;
+}
+
+@media (max-width: 768px) {
+  .logs-filter-form {
+    grid-template-columns: 1fr;
+  }
+}
