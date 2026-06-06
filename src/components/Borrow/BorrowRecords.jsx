@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
@@ -46,6 +46,13 @@ const recordMatchesFilters = (record, filters) => {
 };
 
 const BorrowRecords = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialRecordFilters = {
+    keyword: searchParams.get('keyword') || '',
+    status: searchParams.get('status') || '',
+    date_from: searchParams.get('date_from') || '',
+    date_to: searchParams.get('date_to') || ''
+  };
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -57,9 +64,9 @@ const BorrowRecords = () => {
   const [confirmCountdown, setConfirmCountdown] = useState(0);
   const [fines, setFines] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
-  const [recordSortOrder, setRecordSortOrder] = useState('desc');
-  const [recordPage, setRecordPage] = useState(1);
-  const [recordFilters, setRecordFilters] = useState({ keyword: '', status: '', date_from: '', date_to: '' });
+  const [recordSortOrder, setRecordSortOrder] = useState(searchParams.get('sort') || 'desc');
+  const [recordPage, setRecordPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [recordFilters, setRecordFilters] = useState(initialRecordFilters);
   const [appliedRecordFilters, setAppliedRecordFilters] = useState(recordFilters);
   const [fineSortOrder, setFineSortOrder] = useState('desc');
   const [finePage, setFinePage] = useState(1);
@@ -74,7 +81,6 @@ const BorrowRecords = () => {
       setLoading(true);
       const data = await usersAPI.getBorrowRecords(user.id);
       setRecords(data.records);
-      setRecordPage(1);
       setOverdueCount(data.overdue_count || 0);
       
       // 如果有逾期记录，计算预估罚款并显示提醒
@@ -101,6 +107,19 @@ const BorrowRecords = () => {
   useEffect(() => {
     fetchBorrowRecords();
   }, [fetchBorrowRecords]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (recordPage > 1) nextParams.set('page', String(recordPage));
+    if (recordSortOrder !== 'desc') nextParams.set('sort', recordSortOrder);
+    if (appliedRecordFilters.keyword) nextParams.set('keyword', appliedRecordFilters.keyword);
+    if (appliedRecordFilters.status) nextParams.set('status', appliedRecordFilters.status);
+    if (appliedRecordFilters.date_from) nextParams.set('date_from', appliedRecordFilters.date_from);
+    if (appliedRecordFilters.date_to) nextParams.set('date_to', appliedRecordFilters.date_to);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [appliedRecordFilters, recordPage, recordSortOrder, setSearchParams]);
 
   useEffect(() => {
     if (!confirmRecord?.confirm_deadline) {
@@ -285,8 +304,16 @@ const BorrowRecords = () => {
       }
 
       await booksAPI.getById(record.book_id);
-      navigate(`/books/${record.book_id}`, {
-        state: { from: `${location.pathname}${location.search}` }
+      const fromParams = new URLSearchParams();
+      if (recordPage > 1) fromParams.set('page', String(recordPage));
+      if (recordSortOrder !== 'desc') fromParams.set('sort', recordSortOrder);
+      if (appliedRecordFilters.keyword) fromParams.set('keyword', appliedRecordFilters.keyword);
+      if (appliedRecordFilters.status) fromParams.set('status', appliedRecordFilters.status);
+      if (appliedRecordFilters.date_from) fromParams.set('date_from', appliedRecordFilters.date_from);
+      if (appliedRecordFilters.date_to) fromParams.set('date_to', appliedRecordFilters.date_to);
+      const from = `${location.pathname}${fromParams.toString() ? `?${fromParams.toString()}` : ''}`;
+      navigate(`/books/${record.book_id}?returnTo=${encodeURIComponent(from)}`, {
+        state: { from }
       });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');

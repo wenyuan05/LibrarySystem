@@ -216,6 +216,14 @@
   display: block;
 }
 
+.category-dropdown-menu-portal {
+  position: fixed;
+  right: auto;
+  z-index: 2600;
+  display: block;
+  border-radius: var(--border-radius);
+}
+
 .dropdown-item {
   display: block;
   width: 100%;

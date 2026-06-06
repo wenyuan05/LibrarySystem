@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/useAuth';
 import BookList from '../components/Books/BookList';
@@ -7,12 +8,17 @@ import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BooksPage = () => {
   const BOOKS_PER_PAGE = 12;
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const initialSearch = searchParams.get('search') || '';
+  const initialCategory = categoryParam && categoryParam !== 'all' ? Number(categoryParam) : 'all';
+  const normalizedInitialCategory = Number.isNaN(initialCategory) ? 'all' : initialCategory;
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [quickFilter, setQuickFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [selectedCategory, setSelectedCategory] = useState(normalizedInitialCategory);
+  const [quickFilter, setQuickFilter] = useState(searchParams.get('filter') || 'all');
   const [categories, setCategories] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -23,6 +29,10 @@ const BooksPage = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
+  const initialBooksQueryRef = useRef({
+    category: normalizedInitialCategory,
+    search: initialSearch
+  });
 
   const fetchBooks = useCallback(async (category = 'all', search = '') => {
     try {
@@ -106,7 +116,7 @@ const BooksPage = () => {
   };
 
   useEffect(() => {
-    fetchBooks();
+    fetchBooks(initialBooksQueryRef.current.category, initialBooksQueryRef.current.search);
     fetchCategories();
     fetchPopularBooks();
   }, [fetchBooks, fetchCategories, fetchPopularBooks]);
@@ -135,16 +145,14 @@ const BooksPage = () => {
     fetchBooks(selectedCategory, searchTerm);
   };
 
-  useEffect(() => {
+  const filteredBooks = useMemo(() => {
     const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
-    const nextBooks = books.filter(book => {
+    return books.filter(book => {
       if (quickFilter === 'available') return Number(book.available_copies || 0) > 0;
       if (quickFilter === 'borrowed') return Number(book.available_copies || 0) === 0;
       if (quickFilter === 'reserved') return reservedBookIds.has(Number(book.id));
       return true;
     });
-
-    setFilteredBooks(nextBooks);
   }, [books, quickFilter, activeReservations]);
 
   useEffect(() => {
@@ -185,13 +193,33 @@ const BooksPage = () => {
   const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
 
   useEffect(() => {
+    if (booksLoading) return;
+
     setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
-  }, [totalPages]);
+  }, [booksLoading, totalPages]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (currentPage > 1) nextParams.set('page', String(currentPage));
+    if (searchTerm.trim()) nextParams.set('search', searchTerm);
+    if (selectedCategory !== 'all') nextParams.set('category', String(selectedCategory));
+    if (quickFilter !== 'all') nextParams.set('filter', quickFilter);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, quickFilter, searchTerm, selectedCategory, setSearchParams]);
 
   const handlePageChange = (nextPage) => {
     setCurrentPage(nextPage);
     scrollToListTop('#books-list-top');
   };
+
+  const detailFromParams = new URLSearchParams();
+  if (currentPage > 1) detailFromParams.set('page', String(currentPage));
+  if (searchTerm.trim()) detailFromParams.set('search', searchTerm);
+  if (selectedCategory !== 'all') detailFromParams.set('category', String(selectedCategory));
+  if (quickFilter !== 'all') detailFromParams.set('filter', quickFilter);
+  const bookDetailFrom = `${location.pathname}${detailFromParams.toString() ? `?${detailFromParams.toString()}` : ''}`;
 
   return (
     <div className="books-page-shell fade-in">
@@ -312,6 +340,7 @@ const BooksPage = () => {
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
           onReservationsChanged={fetchActiveReservations}
+          detailFrom={bookDetailFrom}
         />
         {!booksLoading && filteredBooks.length > 0 && (
           <div className="books-pagination" aria-label="Books pagination">

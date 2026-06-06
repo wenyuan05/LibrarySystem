@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
@@ -10,10 +11,13 @@ import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BookManagementPage = () => {
   const BOOKS_PER_PAGE = 12;
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = Math.max(1, Number(searchParams.get('page')) || 1);
+  const initialSearch = searchParams.get('search') || '';
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
   const [managingCopiesBook, setManagingCopiesBook] = useState(null);
@@ -77,32 +81,20 @@ const BookManagementPage = () => {
 
   // Handle search button click
   const handleSearchClick = () => {
-    if (searchTerm.trim() === '') {
-      setFilteredBooks(books);
-    } else {
-      const filtered = books.filter(book => 
-        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.isbn.includes(searchTerm)
-      );
-      setFilteredBooks(filtered);
-    }
     setCurrentPage(1);
   };
 
-  // Update filtered books when books list changes without disrupting the current page.
-  useEffect(() => {
+  const filteredBooks = useMemo(() => {
     if (searchTerm.trim() === '') {
-      setFilteredBooks(books);
-      return;
+      return books;
     }
 
     const normalizedSearch = searchTerm.toLowerCase();
-    setFilteredBooks(books.filter(book =>
+    return books.filter(book =>
       book.title.toLowerCase().includes(normalizedSearch) ||
       book.author.toLowerCase().includes(normalizedSearch) ||
       book.isbn.includes(searchTerm)
-    ));
+    );
   }, [books, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
@@ -112,13 +104,29 @@ const BookManagementPage = () => {
   const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
 
   useEffect(() => {
+    if (booksLoading) return;
+
     setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
-  }, [totalPages]);
+  }, [booksLoading, totalPages]);
 
   const handlePageChange = (nextPage) => {
     setCurrentPage(nextPage);
     scrollToListTop('#managed-books-list-top');
   };
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (currentPage > 1) {
+      nextParams.set('page', String(currentPage));
+    }
+
+    if (searchTerm.trim()) {
+      nextParams.set('search', searchTerm);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, searchTerm, setSearchParams]);
 
   const handleExportBooks = async () => {
     try {
@@ -140,6 +148,15 @@ const BookManagementPage = () => {
       setIsExporting(false);
     }
   };
+
+  const detailFromParams = new URLSearchParams();
+  if (currentPage > 1) {
+    detailFromParams.set('page', String(currentPage));
+  }
+  if (searchTerm.trim()) {
+    detailFromParams.set('search', searchTerm);
+  }
+  const bookDetailFrom = `${location.pathname}${detailFromParams.toString() ? `?${detailFromParams.toString()}` : ''}`;
 
   return (
     <div className="book-management-section card fade-in">
@@ -228,6 +245,7 @@ const BookManagementPage = () => {
         showEditButton={true}
         onEditBook={setEditingBook}
         onManageCopies={setManagingCopiesBook}
+        detailFrom={bookDetailFrom}
       />
       {!booksLoading && filteredBooks.length > 0 && (
         <div className="books-pagination" aria-label="Managed books pagination">

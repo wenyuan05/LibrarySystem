@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI } from '../utils/api';
@@ -24,11 +24,18 @@ const reservationMatchesFilters = (reservation, filters) => {
 };
 
 const ReservationsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilters = {
+    keyword: searchParams.get('keyword') || '',
+    status: searchParams.get('status') || '',
+    date_from: searchParams.get('date_from') || '',
+    date_to: searchParams.get('date_to') || ''
+  };
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ keyword: '', status: '', date_from: '', date_to: '' });
+  const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'desc');
+  const [page, setPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(filters);
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -41,7 +48,6 @@ const ReservationsPage = () => {
       setLoading(true);
       const data = await borrowAPI.getReservations(user.id);
       setReservations(data);
-      setPage(1);
     } catch (err) {
       showToast('Failed to load reservations', 'error');
       console.error(err);
@@ -54,6 +60,19 @@ const ReservationsPage = () => {
   useEffect(() => {
     fetchReservations();
   }, [fetchReservations]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (page > 1) nextParams.set('page', String(page));
+    if (sortOrder !== 'desc') nextParams.set('sort', sortOrder);
+    if (appliedFilters.keyword) nextParams.set('keyword', appliedFilters.keyword);
+    if (appliedFilters.status) nextParams.set('status', appliedFilters.status);
+    if (appliedFilters.date_from) nextParams.set('date_from', appliedFilters.date_from);
+    if (appliedFilters.date_to) nextParams.set('date_to', appliedFilters.date_to);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [appliedFilters, page, setSearchParams, sortOrder]);
 
   // 处理取消预约
   const handleCancelReservation = async (reservation) => {
@@ -83,8 +102,16 @@ const ReservationsPage = () => {
       }
 
       await booksAPI.getById(reservation.book_id);
-      navigate(`/books/${reservation.book_id}`, {
-        state: { from: `${location.pathname}${location.search}` }
+      const fromParams = new URLSearchParams();
+      if (page > 1) fromParams.set('page', String(page));
+      if (sortOrder !== 'desc') fromParams.set('sort', sortOrder);
+      if (appliedFilters.keyword) fromParams.set('keyword', appliedFilters.keyword);
+      if (appliedFilters.status) fromParams.set('status', appliedFilters.status);
+      if (appliedFilters.date_from) fromParams.set('date_from', appliedFilters.date_from);
+      if (appliedFilters.date_to) fromParams.set('date_to', appliedFilters.date_to);
+      const from = `${location.pathname}${fromParams.toString() ? `?${fromParams.toString()}` : ''}`;
+      navigate(`/books/${reservation.book_id}?returnTo=${encodeURIComponent(from)}`, {
+        state: { from }
       });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');

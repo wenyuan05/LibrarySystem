@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI, systemAPI, usersAPI } from '../utils/api';
@@ -9,6 +9,7 @@ const BookDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [book, setBook] = useState(null);
@@ -207,8 +208,15 @@ const BookDetailsPage = () => {
 
   // 处理返回列表
   const handleBack = () => {
-    const from = location.state?.from;
-    navigate(from || '/books');
+    const from = location.state?.from || searchParams.get('returnTo');
+    const fallback = user?.role === 'librarian' ? '/book-management' : '/books';
+
+    if (from && from.startsWith('/')) {
+      navigate(from);
+      return;
+    }
+
+    navigate(fallback);
   };
 
   // 格式化倒计时

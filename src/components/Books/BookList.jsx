@@ -27,7 +27,7 @@ const toBorrowingRecordsMap = (records) => (
 
 
 
-const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, onReservationsChanged, showEditButton = false, onEditBook, onManageCopies }) => {
+const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, onReservationsChanged, showEditButton = false, onEditBook, onManageCopies, detailFrom = '/books' }) => {
   const [borrowRecords, setBorrowRecords] = useState([]);
 
   const [reservationRecords, setReservationRecords] = useState([]);
@@ -621,7 +621,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
               className="book-card"
 
-              onClick={() => navigate(`/books/${book.id}`, { state: { from: '/books' } })}
+              onClick={() => navigate(`/books/${book.id}?returnTo=${encodeURIComponent(detailFrom)}`, { state: { from: detailFrom } })}
               style={{ cursor: 'pointer' }}
             >
               <div className="book-card-header">

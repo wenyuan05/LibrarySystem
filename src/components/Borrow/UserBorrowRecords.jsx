@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '../../utils/historyList';
@@ -38,13 +38,20 @@ const recordMatchesFilters = (record, filters) => {
 
 const UserBorrowRecords = () => {
   const { userId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilters = {
+    keyword: searchParams.get('keyword') || '',
+    status: searchParams.get('status') || '',
+    date_from: searchParams.get('date_from') || '',
+    date_to: searchParams.get('date_to') || ''
+  };
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ keyword: '', status: '', date_from: '', date_to: '' });
+  const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'desc');
+  const [page, setPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(filters);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmRecord, setConfirmRecord] = useState(null);
@@ -71,7 +78,6 @@ const UserBorrowRecords = () => {
       // 获取用户借阅记录
       const recordsData = await usersAPI.getBorrowRecords(userId);
       setRecords(recordsData.records);
-      setPage(1);
       setOverdueCount(recordsData.overdue_count || 0);
     } catch (err) {
       showToast('Failed to load user borrow records', 'error');
@@ -85,6 +91,19 @@ const UserBorrowRecords = () => {
   useEffect(() => {
     fetchUserAndRecords();
   }, [fetchUserAndRecords]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (page > 1) nextParams.set('page', String(page));
+    if (sortOrder !== 'desc') nextParams.set('sort', sortOrder);
+    if (appliedFilters.keyword) nextParams.set('keyword', appliedFilters.keyword);
+    if (appliedFilters.status) nextParams.set('status', appliedFilters.status);
+    if (appliedFilters.date_from) nextParams.set('date_from', appliedFilters.date_from);
+    if (appliedFilters.date_to) nextParams.set('date_to', appliedFilters.date_to);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [appliedFilters, page, setSearchParams, sortOrder]);
 
   useEffect(() => {
     if (!confirmRecord?.confirm_deadline) {
@@ -223,8 +242,16 @@ const UserBorrowRecords = () => {
       }
 
       await booksAPI.getById(record.book_id);
-      navigate(`/books/${record.book_id}`, {
-        state: { from: `${location.pathname}${location.search}` }
+      const fromParams = new URLSearchParams();
+      if (page > 1) fromParams.set('page', String(page));
+      if (sortOrder !== 'desc') fromParams.set('sort', sortOrder);
+      if (appliedFilters.keyword) fromParams.set('keyword', appliedFilters.keyword);
+      if (appliedFilters.status) fromParams.set('status', appliedFilters.status);
+      if (appliedFilters.date_from) fromParams.set('date_from', appliedFilters.date_from);
+      if (appliedFilters.date_to) fromParams.set('date_to', appliedFilters.date_to);
+      const from = `${location.pathname}${fromParams.toString() ? `?${fromParams.toString()}` : ''}`;
+      navigate(`/books/${record.book_id}?returnTo=${encodeURIComponent(from)}`, {
+        state: { from }
       });
     } catch (err) {
       showToast(err.message || 'Book not found or has been removed', 'error');
