@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { logAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './LogsPage.css';
 
 const LogsPage = () => {
@@ -15,15 +17,24 @@ const LogsPage = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedDays, setSelectedDays] = useState(7);
   const [sortOrder, setSortOrder] = useState('desc');
+  const [filters, setFilters] = useState({
+    keyword: '',
+    action: '',
+    user_id: '',
+    date_from: '',
+    date_to: ''
+  });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
   // Fetch system logs
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = {
         limit,
         offset,
-        order: sortOrder
+        order: sortOrder,
+        ...appliedFilters
       };
       const data = await logAPI.getLogs(params);
       setLogs(data.logs);
@@ -34,7 +45,7 @@ const LogsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [appliedFilters, limit, offset, showToast, sortOrder]);
 
   // Toggle message expansion
   const toggleMessageExpansion = (logId) => {
@@ -81,23 +92,57 @@ const LogsPage = () => {
   // Handle pagination
   const handlePageChange = (newOffset) => {
     setOffset(newOffset);
+    scrollToListTop('#logs-list-top');
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
+
+  const handleFilterSubmit = (e) => {
+    e.preventDefault();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      showToast('Start date cannot be later than end date', 'error');
+      return;
+    }
+    setAppliedFilters(filters);
+    setOffset(0);
+  };
+
+  const handleFilterReset = () => {
+    const emptyFilters = {
+      keyword: '',
+      action: '',
+      user_id: '',
+      date_from: '',
+      date_to: ''
+    };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setOffset(0);
   };
 
   // Go to first page
   const goToFirstPage = () => {
     setOffset(0);
+    scrollToListTop('#logs-list-top');
   };
 
   // Go to last page
   const goToLastPage = () => {
     const lastPageOffset = Math.floor((total - 1) / limit) * limit;
     setOffset(lastPageOffset);
+    scrollToListTop('#logs-list-top');
   };
 
   // Fetch logs when pagination changes
   useEffect(() => {
     fetchLogs();
-  }, [limit, offset, sortOrder]);
+  }, [fetchLogs]);
 
   if (isLoading) {
     return <div className="loading">Loading...</div>;
@@ -115,7 +160,10 @@ const LogsPage = () => {
             <select 
               id="limit" 
               value={limit} 
-              onChange={(e) => setLimit(parseInt(e.target.value))}
+              onChange={(e) => {
+                setLimit(parseInt(e.target.value));
+                setOffset(0);
+              }}
             >
               <option value="25">25</option>
               <option value="50">50</option>
@@ -142,7 +190,61 @@ const LogsPage = () => {
         </button>
       </div>
 
+      <form className="logs-filter-form" onSubmit={handleFilterSubmit}>
+        <label>
+          <span>Keyword</span>
+          <input
+            type="search"
+            name="keyword"
+            value={filters.keyword}
+            onChange={handleFilterChange}
+            placeholder="Action, description, user ID"
+          />
+        </label>
+        <label>
+          <span>Action</span>
+          <input
+            type="search"
+            name="action"
+            value={filters.action}
+            onChange={handleFilterChange}
+            placeholder="LOGIN, BORROW..."
+          />
+        </label>
+        <label>
+          <span>User ID</span>
+          <input
+            type="search"
+            name="user_id"
+            value={filters.user_id}
+            onChange={handleFilterChange}
+            placeholder="User ID"
+          />
+        </label>
+        <label>
+          <span>From</span>
+          <input
+            type="date"
+            name="date_from"
+            value={filters.date_from}
+            onChange={handleFilterChange}
+          />
+        </label>
+        <label>
+          <span>To</span>
+          <input
+            type="date"
+            name="date_to"
+            value={filters.date_to}
+            onChange={handleFilterChange}
+          />
+        </label>
+        <button type="submit" className="btn-secondary">Filter</button>
+        <button type="button" className="btn-secondary" onClick={handleFilterReset}>Reset</button>
+      </form>
+
       {/* Logs list */}
+      <div id="logs-list-top" />
       <div className="logs-list">
         {logs.length === 0 ? (
           <p>No logs found</p>
@@ -223,7 +325,7 @@ const LogsPage = () => {
       )}
 
       {/* Clear logs modal */}
-      {showClearModal && (
+      {showClearModal && createPortal((
         <div className="modal-overlay">
           <div className="modal">
             <h3>Clear System Logs</h3>
@@ -276,7 +378,7 @@ const LogsPage = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

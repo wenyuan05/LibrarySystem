@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const { getAlipayConfig, getSafeAlipayConfig, validateAlipayConfig } = require('./config/alipayConfig');
 const { getEmailConfig, getSafeEmailConfig, validateEmailConfig } = require('./config/emailConfig');
@@ -9,7 +10,7 @@ console.log('Starting server...');
 
 // 引入数据库
 try {
-  const db = require('./db');
+  require('./db');
   console.log('Database module loaded successfully');
 } catch (error) {
   console.error('Error loading database module:', error);
@@ -21,10 +22,13 @@ const PORT = process.env.PORT || 3001;
 
 // 检查 JWT_SECRET 是否设置
 if (!process.env.JWT_SECRET) {
-  console.warn('⚠️  JWT_SECRET environment variable not set. Using a temporary secret for development only.');
-  console.warn('⚠️  This is insecure for production environments.');
-  // 仅在开发环境中使用默认值
-  process.env.JWT_SECRET = 'dev-secret';
+  if (process.env.NODE_ENV === 'production') {
+    console.error('JWT_SECRET environment variable is required in production.');
+    process.exit(1);
+  }
+
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('JWT_SECRET environment variable not set. Generated a temporary development-only secret.');
 }
 
 const alipayConfig = getAlipayConfig();

@@ -49,6 +49,11 @@ const normalizePublishDate = (value) => {
 };
 
 const ISBN_PATTERN = /^\d{10}(?:\d{3})?$/;
+const escapeCsvValue = (value) => {
+  const text = value === null || value === undefined ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
 const ISBN_LOOKUP_PROVIDERS = [
   {
     id: 'openlibrary',
@@ -864,53 +869,85 @@ exports.getPopularBooks = (req, res) => {
   });
 };
 
-// 导出图书信息到CSV（管理员）
+// 导出图书和副本组合信息到CSV（管理员/图书管理员）
 exports.exportBooks = (req, res) => {
-  // 查询所有图书信息
   const sql = `
-    SELECT b.id, b.title, b.author, b.isbn, 
+    SELECT b.id, b.title, b.author, b.isbn,
            b.description, b.total_copies, b.available_copies,
            b.publisher, b.publish_date, b.language, b.page_count,
-           GROUP_CONCAT(c.name, ', ') as categories
+           b.created_at as book_created_at, b.updated_at as book_updated_at,
+           GROUP_CONCAT(DISTINCT c.name) as categories,
+           bc_copy.id as copy_id, bc_copy.copy_code, bc_copy.status as copy_status,
+           bc_copy.location as copy_location, bc_copy.created_at as copy_created_at,
+           bc_copy.updated_at as copy_updated_at
     FROM books b
     LEFT JOIN book_categories bc ON b.id = bc.book_id
     LEFT JOIN categories c ON bc.category_id = c.id
-    GROUP BY b.id
+    LEFT JOIN book_copies bc_copy ON b.id = bc_copy.book_id
+    GROUP BY b.id, bc_copy.id
+    ORDER BY b.id ASC, bc_copy.id ASC
   `;
-  
-  db.all(sql, (err, books) => {
+
+  db.all(sql, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    
-    // 生成CSV内容
-    const headers = ['ID', 'Title', 'Author', 'ISBN', 'Status', 'Description', 'Total Copies', 'Available Copies', 'Publisher', 'Publish Date', 'Language', 'Page Count', 'Categories'];
+
+    const headers = [
+      'Book ID',
+      'Title',
+      'Author',
+      'ISBN',
+      'Book Status',
+      'Description',
+      'Total Copies',
+      'Available Copies',
+      'Publisher',
+      'Publish Date',
+      'Language',
+      'Page Count',
+      'Categories',
+      'Book Created At',
+      'Book Updated At',
+      'Copy ID',
+      'Copy Code',
+      'Copy Status',
+      'Copy Location',
+      'Copy Created At',
+      'Copy Updated At'
+    ];
     const csvContent = [
-      headers.join(','),
-      ...books.map(book => [
-        book.id,
-        `"${book.title}"`,
-        `"${book.author}"`,
-        book.isbn,
-        book.available_copies > 0 ? 'Available' : 'Not Available',
-        `"${book.description || ''}"`,
-        book.total_copies,
-        book.available_copies,
-        `"${book.publisher || ''}"`,
-        book.publish_date || '',
-        `"${book.language || ''}"`,
-        book.page_count || '',
-        `"${book.categories || ''}"`
-      ].join(','))
+      headers.map(escapeCsvValue).join(','),
+      ...rows.map(row => [
+        row.id,
+        row.title,
+        row.author,
+        row.isbn,
+        row.available_copies > 0 ? 'Available' : 'Not Available',
+        row.description,
+        row.total_copies,
+        row.available_copies,
+        row.publisher,
+        row.publish_date,
+        row.language,
+        row.page_count,
+        row.categories,
+        row.book_created_at,
+        row.book_updated_at,
+        row.copy_id,
+        row.copy_code,
+        row.copy_status,
+        row.copy_location,
+        row.copy_created_at,
+        row.copy_updated_at
+      ].map(escapeCsvValue).join(','))
     ].join('\n');
-    
-    // 设置响应头
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=books_${new Date().toISOString().split('T')[0]}.csv`);
-    
-    // 发送CSV内容
-    res.send(csvContent);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=books_with_copies_${new Date().toISOString().split('T')[0]}.csv`);
+
+    res.send(`\uFEFF${csvContent}`);
   });
 };
 

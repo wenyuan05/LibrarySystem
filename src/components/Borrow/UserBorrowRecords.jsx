@@ -1,39 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
-import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
+import { usersAPI, borrowAPI, booksAPI, systemAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
 import './Borrow.css';
 
 const getFineAmount = (fine) => Number(fine) || 0;
+const getCountdownSeconds = (deadline) => {
+  if (!deadline) return 0;
+  const diffInSeconds = Math.floor((new Date(deadline) - new Date()) / 1000);
+  return Math.max(0, diffInSeconds);
+};
+
+const formatCountdown = (secondsLeft) => {
+  const minutes = Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+const recordMatchesFilters = (record, filters) => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  const matchesKeyword = !keyword || [
+    record.id,
+    record.title,
+    record.author,
+    record.copy_code,
+    record.status
+  ].some(value => String(value || '').toLowerCase().includes(keyword));
+  const matchesStatus = !filters.status || record.status === filters.status;
+  const recordDate = record.borrow_date || '';
+  const matchesStart = !filters.date_from || recordDate >= filters.date_from;
+  const matchesEnd = !filters.date_to || recordDate <= filters.date_to;
+
+  return matchesKeyword && matchesStatus && matchesStart && matchesEnd;
+};
+const shouldShowRecordFine = (record, fineFeatureEnabled = true) => (
+  getFineAmount(record.fine) > 0 && (fineFeatureEnabled || ['returning', 'returned'].includes(record.status))
+);
 
 const UserBorrowRecords = () => {
   const { userId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilters = {
+    keyword: searchParams.get('keyword') || '',
+    status: searchParams.get('status') || '',
+    date_from: searchParams.get('date_from') || '',
+    date_to: searchParams.get('date_to') || ''
+  };
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'desc');
+  const [page, setPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [fineFeatureEnabled, setFineFeatureEnabled] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmRecord, setConfirmRecord] = useState(null);
   const [confirmCopies, setConfirmCopies] = useState([]);
   const [selectedCopyId, setSelectedCopyId] = useState('');
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 处理返回用户列表
   const handleBackToUsers = () => {
     navigate('/users');
   };
 
-  // 加载用户信息和借阅记录
-  useEffect(() => {
-    fetchUserAndRecords();
-  }, [userId]);
-
-  const fetchUserAndRecords = async () => {
+  const fetchUserAndRecords = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -44,7 +83,6 @@ const UserBorrowRecords = () => {
       // 获取用户借阅记录
       const recordsData = await usersAPI.getBorrowRecords(userId);
       setRecords(recordsData.records);
-      setPage(1);
       setOverdueCount(recordsData.overdue_count || 0);
     } catch (err) {
       showToast('Failed to load user borrow records', 'error');
@@ -52,7 +90,54 @@ const UserBorrowRecords = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, userId]);
+
+  // 加载用户信息和借阅记录
+  useEffect(() => {
+    fetchUserAndRecords();
+  }, [fetchUserAndRecords]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setFineFeatureEnabled(flags.fine_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch fine feature flag:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (page > 1) nextParams.set('page', String(page));
+    if (sortOrder !== 'desc') nextParams.set('sort', sortOrder);
+    if (appliedFilters.keyword) nextParams.set('keyword', appliedFilters.keyword);
+    if (appliedFilters.status) nextParams.set('status', appliedFilters.status);
+    if (appliedFilters.date_from) nextParams.set('date_from', appliedFilters.date_from);
+    if (appliedFilters.date_to) nextParams.set('date_to', appliedFilters.date_to);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [appliedFilters, page, setSearchParams, sortOrder]);
+
+  useEffect(() => {
+    if (!confirmRecord?.confirm_deadline) {
+      setConfirmCountdown(0);
+      return undefined;
+    }
+
+    const updateCountdown = () => {
+      setConfirmCountdown(getCountdownSeconds(confirmRecord.confirm_deadline));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [confirmRecord?.confirm_deadline]);
 
   // 处理归还书籍
   const handleReturnBook = async (record) => {
@@ -92,6 +177,18 @@ const UserBorrowRecords = () => {
     }
   };
 
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  const resetConfirmModal = () => {
+    setShowConfirmModal(false);
+    setConfirmRecord(null);
+    setConfirmCopies([]);
+    setSelectedCopyId('');
+    setConfirmCountdown(0);
+  };
+
   // 处理确认借阅
   const handleConfirmBorrow = async () => {
     try {
@@ -106,10 +203,7 @@ const UserBorrowRecords = () => {
         r.id === confirmRecord.id ? { ...r, status: 'borrowed' } : r
       ));
 
-      setShowConfirmModal(false);
-      setConfirmRecord(null);
-      setConfirmCopies([]);
-      setSelectedCopyId('');
+      resetConfirmModal();
       fetchUserAndRecords();
       showToast(result.message, 'success');
     } catch (err) {
@@ -118,11 +212,82 @@ const UserBorrowRecords = () => {
     }
   };
 
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!confirmRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(confirmRecord.id);
+      setRecords(prevRecords => prevRecords.map(r =>
+        r.id === confirmRecord.id ? { ...r, status: 'timeout' } : r
+      ));
+      resetConfirmModal();
+      fetchUserAndRecords();
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFilterSubmit = (event) => {
+    event.preventDefault();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      showToast('Borrow start date cannot be after end date', 'error');
+      return;
+    }
+    setPage(1);
+    setAppliedFilters(filters);
+  };
+
+  const handleFilterReset = () => {
+    const emptyFilters = { keyword: '', status: '', date_from: '', date_to: '' };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setPage(1);
+  };
+
+  const handleOpenBookDetail = async (record) => {
+    try {
+      if (!record.book_id) {
+        throw new Error('Book ID not found in record');
+      }
+
+      await booksAPI.getById(record.book_id);
+      const fromParams = new URLSearchParams();
+      if (page > 1) fromParams.set('page', String(page));
+      if (sortOrder !== 'desc') fromParams.set('sort', sortOrder);
+      if (appliedFilters.keyword) fromParams.set('keyword', appliedFilters.keyword);
+      if (appliedFilters.status) fromParams.set('status', appliedFilters.status);
+      if (appliedFilters.date_from) fromParams.set('date_from', appliedFilters.date_from);
+      if (appliedFilters.date_to) fromParams.set('date_to', appliedFilters.date_to);
+      const from = `${location.pathname}${fromParams.toString() ? `?${fromParams.toString()}` : ''}`;
+      navigate(`/books/${record.book_id}?returnTo=${encodeURIComponent(from)}`, {
+        state: { from }
+      });
+    } catch (err) {
+      showToast(err.message || 'Book not found or has been removed', 'error');
+      console.error(err);
+    }
+  };
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#user-borrow-records-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
 
-  const sortedRecords = sortBorrowRecords(records, sortOrder);
+  const filteredRecords = records.filter(record => recordMatchesFilters(record, appliedFilters));
+  const sortedRecords = sortBorrowRecords(filteredRecords, sortOrder);
   const {
     pageItems: visibleRecords,
     totalPages,
@@ -135,6 +300,10 @@ const UserBorrowRecords = () => {
         <div className="borrow-records-header">
           <h3>User Borrow Records</h3>
           <div className="borrow-records-header-actions">
+            <div className={`fine-feature-status ${fineFeatureEnabled ? 'enabled' : 'disabled'}`}>
+              <span className="fine-feature-dot" />
+              <span>{fineFeatureEnabled ? 'Fines On' : 'Fines Off'}</span>
+            </div>
             {overdueCount > 0 && (
               <div className="overdue-count">
                 <span className="overdue-badge">{overdueCount}</span>
@@ -164,7 +333,7 @@ const UserBorrowRecords = () => {
         ) : (
           <>
             <div className="history-toolbar">
-              <span>{records.length} records</span>
+              <span>{filteredRecords.length} of {records.length} records</span>
               <button
                 type="button"
                 className="btn-secondary history-sort-button"
@@ -176,6 +345,47 @@ const UserBorrowRecords = () => {
                 {sortOrder === 'desc' ? 'Ascending' : 'Descending'}
               </button>
             </div>
+            <form className="history-filters" onSubmit={handleFilterSubmit}>
+              <label>
+                Keyword
+                <input
+                  type="search"
+                  name="keyword"
+                  value={filters.keyword}
+                  onChange={handleFilterChange}
+                  placeholder="Title, barcode, status"
+                />
+              </label>
+              <label>
+                Status
+                <select name="status" value={filters.status} onChange={handleFilterChange}>
+                  <option value="">All statuses</option>
+                  <option value="borrowing">Borrowing</option>
+                  <option value="borrowed">Borrowed</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="returning">Returning</option>
+                  <option value="returned">Returned</option>
+                  <option value="timeout">Timeout</option>
+                </select>
+              </label>
+              <label>
+                Borrow From
+                <input type="date" name="date_from" value={filters.date_from} onChange={handleFilterChange} />
+              </label>
+              <label>
+                Borrow To
+                <input type="date" name="date_to" value={filters.date_to} onChange={handleFilterChange} />
+              </label>
+              <button type="submit" className="btn-secondary">Filter</button>
+              <button type="button" className="btn-secondary" onClick={handleFilterReset}>Reset</button>
+            </form>
+            {filteredRecords.length === 0 ? (
+              <div className="empty-state">
+                <p>No borrow records match the current filters.</p>
+              </div>
+            ) : (
+            <>
+            <div id="user-borrow-records-list-top" />
             <div className="borrow-records-table-wrap">
               <table className="borrow-records-table">
                 <colgroup>
@@ -204,7 +414,19 @@ const UserBorrowRecords = () => {
                 </thead>
                 <tbody>
                   {visibleRecords.map(record => (
-                    <tr key={record.id} className="fade-in">
+                    <tr
+                      key={record.id}
+                      className="fade-in borrow-record-clickable"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleOpenBookDetail(record)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleOpenBookDetail(record);
+                        }
+                      }}
+                    >
                       <td>{record.id}</td>
                       <td className="title-cell">{record.title}</td>
                       <td className="barcode-cell">
@@ -230,15 +452,18 @@ const UserBorrowRecords = () => {
                            record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                         </span>
                       </td>
-                      <td className={getFineAmount(record.fine) > 0 ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
-                        {getFineAmount(record.fine) > 0 ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
+                      <td className={shouldShowRecordFine(record, fineFeatureEnabled) ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
+                        {shouldShowRecordFine(record, fineFeatureEnabled) ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
                       </td>
                       <td className="borrow-action-cell">
                         {(record.status === 'borrowed' || record.status === 'overdue') && (
                           <div className="action-buttons">
                             <button
                               className="btn-info"
-                              onClick={() => handleReturnBook(record)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReturnBook(record);
+                              }}
                             >
                               Return
                             </button>
@@ -248,7 +473,10 @@ const UserBorrowRecords = () => {
                           <div className="action-buttons">
                             <button
                               className="btn-info"
-                              onClick={() => openConfirmModal(record)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openConfirmModal(record);
+                              }}
                             >
                               Confirm
                             </button>
@@ -263,11 +491,13 @@ const UserBorrowRecords = () => {
                 </tbody>
               </table>
             </div>
-            {records.length > DEFAULT_HISTORY_PAGE_SIZE && (
+            </>
+            )}
+            {filteredRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
               <div className="history-pagination">
                 <button
                   type="button"
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
                   Previous
@@ -275,7 +505,7 @@ const UserBorrowRecords = () => {
                 <span>Page {currentPage} of {totalPages}</span>
                 <button
                   type="button"
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                 >
                   Next
@@ -286,21 +516,26 @@ const UserBorrowRecords = () => {
         )}
       </div>
 
-      {showConfirmModal && confirmRecord && (
+      {showConfirmModal && confirmRecord && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
               <h3>Confirm Borrowing</h3>
               <button
                 className="modal-close"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
               >
-                ×
+                <img src="/打叉.svg" alt="" />
               </button>
             </div>
             <div className="modal-body">
               <p><strong>User:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {confirmRecord.title}</p>
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatCountdown(confirmCountdown)}</strong>
+              </div>
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select
@@ -330,9 +565,15 @@ const UserBorrowRecords = () => {
             <div className="modal-actions">
               <button
                 className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
               >
-                Cancel
+                Not Now
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
               <button
                 className="btn-primary"
@@ -344,7 +585,7 @@ const UserBorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

@@ -30,11 +30,11 @@
 ### 1.3 最新设计状态（2026-05-12）
 
 - 数据模型仍保留 `user/librarian/admin` 三种角色值；前端展示层将 `user` 显示为 `Reader`，权限判断和接口协议不变。
-- 副本从书籍基础信息中拆分为独立管理弹窗：书籍卡片负责编辑书籍信息，`Manage Copies` 负责新增副本、状态调整、单个位置确认和批量位置更新。
+- 副本从书籍基础信息中拆分为独立管理弹窗：书籍卡片负责编辑书籍信息，`Manage Copies` 负责新增副本、状态调整、单个位置确认、批量位置更新和删除单个可用副本。
 - 每个副本拥有数据库 `id`、唯一 `copy_code`、`status`、`location`；前端通过 `Barcode.jsx` 统一渲染条形码。
 - 借阅流程采用“先创建待确认记录，确认时选择副本”的设计，避免待确认阶段提前占用或展示错误副本。
-- Reader 与 librarian 的借阅记录页面复用同一套宽表格布局，包含条形码列、状态 badge、罚款列、分页和排序；罚款单元格使用 `borrow-fine-*` 专用类名，避免与罚款详情页、个人页的 `.fine-amount` 全局样式冲突。
-- 历史记录默认最新优先，排序切换按钮显示为 `Ascending` / `Descending`；借阅与罚款记录优先展示待确认、待还、未支付等待处理项；记录过多时分页。
+- Reader 与 librarian 的借阅记录页面复用同一套宽表格布局，包含条形码列、状态 badge、罚款列、分页、排序、关键词搜索、状态筛选和借阅日期范围筛选；罚款单元格使用 `borrow-fine-*` 专用类名，避免与罚款详情页、个人页的 `.fine-amount` 全局样式冲突。
+- 历史记录默认最新优先，排序切换按钮显示为 `Ascending` / `Descending`；借阅与罚款记录优先展示待确认、待还、未支付等待处理项；借阅记录、预约记录、归还审批、罚款记录、支付订单、系统日志和用户管理列表在记录过多时分页，并提供对应的关键词/状态/日期过滤入口。
 - 罚款接口返回历史罚款记录，已支付记录不再从历史中消失，前端总额仅统计未支付罚款。
 - Reader 书籍页采用企业 SaaS dashboard 布局：固定顶部导航、统计卡、紧凑书籍网格、搜索/分类/快捷筛选工具栏和右侧综合信息侧栏。
 - 书籍卡片增加封面缩略图、状态 badge、紧凑元数据、可用率进度条和 hover elevation，提升库存浏览密度。
@@ -52,7 +52,8 @@
 - Release 3 支付宝模拟支付接口新增 `payments` 表，Fine Records 页面区分 Estimated Fine 与 Payable Fine：未归还逾期记录只展示预计罚款，只有 `returning/returned` 且未支付的实际罚款能创建支付单；支付面板展示二维码和本地可打开的模拟收款链接，并每 2.5 秒轮询订单状态，`paid` 自动刷新罚款记录并在二维码上叠加 `public/打勾.png` 完成标记、`expired` 提示重新创建订单；模拟支付成功按钮受 `ALIPAY_MODE=sandbox` / `ALIPAY_SIMULATION_ENABLED` 控制，模拟成功后再标记支付单和关联罚款为 `paid`；同一批罚款复用 pending 订单，expired 订单不能模拟成功，paid 订单不能过期，管理员/图书管理员可通过 Income Dashboard 查看收入汇总、订单列表并过期待支付订单。
 - My Borrow Records 的罚款弹窗使用 React portal 渲染到 `document.body`，避免被借阅记录容器宽度或滚动上下文影响；罚款列表使用覆盖基础 `modal-content` 宽度限制的宽屏专用 modal 和可横向滚动的固定列宽表格，保证大量记录、长书名、Estimated/Unpaid 状态不会挤压成窄列。
 - Books 列表卡片在副本明细异步加载前回退使用书籍 `available_copies` 缓存值展示可用状态，避免加载中把全部书籍误显示为 Borrowed。
-- Books 页面在搜索、分类和可用性筛选后按每页 12 本进行前端分页，只向 `BookList` 传入当前页数据，减少列表副本详情加载压力。
+- Books 页面在搜索、分类和可用性筛选后按每页 12 本进行前端分页，只向 `BookList` 传入当前页数据，减少列表副本详情加载压力；`Reserved` 快捷筛选按当前用户 `active` / `pending` 预约记录匹配图书，预约取消后无需整页刷新即可更新筛选结果。
+- Books 页面搜索栏使用统一图标搜索按钮，按钮与输入框同排对齐，点击后按当前标题、作者或 ISBN 关键词重新查询。
 - Category Management 页面采用更窄的左侧创建/搜索卡片和更宽的右侧双栏分类列表布局；分类列表每页展示 8 个条目并提供分页控制，分类名支持悬停查看完整名称，搜索框通过放大镜按钮执行过滤并重置分页，编辑态使用固定按钮列避免 Save/Cancel 被裁切。
 - 批量 ISBN 导入错误处理前后端合并展示，覆盖格式错误、重复记录、OpenLibrary 查询失败和数据库写入失败。
 - Release 3 ISBN 导入支持可选查询节点：后端统一管理 OpenLibrary、Google Books 和 ShowAPI ISBN provider，前端 Add New Book 提供节点选择、可用性测试、延迟/错误展示，并将单本查询和批量预览都路由到选定节点。
@@ -192,19 +193,19 @@ src/
 |----------|------|------|----------|
 | 登录页 | /login | 无 | 用户登录 |
 | 书籍列表 | /books | user | 浏览书籍、搜索、借阅 |
-| 书籍详情 | /books/:id | user | 查看书籍详情、副本信息 |
-| 个人借阅记录 | /borrow-records | user | 查看个人借阅记录、归还书籍、查看罚款 |
+| 书籍详情 | /books/:id | user | 查看书籍详情、副本信息；从记录页进入时 Back 返回来源页 |
+| 个人借阅记录 | /borrow-records | user | 查看个人借阅记录、点击记录跳转图书详情、归还书籍、查看罚款 |
 | 个人资料 | /profile | user | 查看和更新个人信息、查看罚款、支付罚款 |
-| 公告列表 | /announcements | user | 查看系统公告 |
+| 公告列表 | /announcements | user | 查看系统公告，点击公告弹窗展示完整公告信息 |
 | 书籍管理 | /book-management | admin/librarian | 管理书籍（增删改查）、ISBN导入、批量导入、副本位置管理 |
-| 用户管理 | /users | admin/librarian | 管理用户（增删改查） |
-| 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录 |
-| 归还审批 | /return-approval | admin/librarian | 审批书籍归还、一键批量审批 |
+| 用户管理 | /users | admin/librarian | 管理用户（增删改查）、搜索和分页 |
+| 用户借阅记录 | /user-borrow-records/:userId | admin/librarian | 查看用户借阅记录、搜索过滤分页，点击记录跳转图书详情 |
+| 归还审批 | /return-approval | admin/librarian | 审批书籍归还、一键批量审批、搜索过滤分页 |
 | 分类管理 | /category-management | admin/librarian | 管理图书分类 |
-| 预约管理 | /reservations | user | 管理书籍预约 |
+| 预约管理 | /reservations | user | 管理书籍预约、搜索过滤分页，点击预约记录跳转图书详情 |
 | 公告管理 | /announcement-management | admin | 管理系统公告 |
 | 系统设置 | /system-settings | admin | 管理已实现的借阅开关、借阅、续借和罚款参数（分组卡片、批量保存、显示默认值） |
-| 系统日志 | /logs | admin | 查看系统操作日志 |
+| 系统日志 | /logs | admin | 查看系统操作日志、搜索过滤分页 |
 | 统计分析 | /stats | user | 查看借阅统计数据 |
 
 ### 2.4 状态管理
@@ -293,7 +294,7 @@ backend/
   - getAllUsers：获取所有用户
   - addUser：添加用户
   - updateUser：更新用户信息
-  - deleteUser：删除用户
+  - deleteUser：软删除用户
   - getUserBorrowRecords：获取用户借阅记录
   - blockUser：拉黑用户
   - unblockUser：解除拉黑
@@ -317,6 +318,7 @@ backend/
   - addBookCopy：新增副本并自动生成 copy_code
   - getCopyById：获取单个副本信息
   - updateCopyStatus：更新副本状态
+  - deleteBookCopy：删除单个可用副本
   - getIsbnProviders：获取 ISBN 查询节点列表
   - testIsbnProvider：测试指定 ISBN 查询节点可用性
   - searchByISBN：通过选定 ISBN provider 查询书籍信息
@@ -421,10 +423,18 @@ backend/
 
 - **密码加密**：使用bcrypt对密码进行哈希处理
 - **JWT认证**：使用jsonwebtoken进行身份验证
+- **JWT密钥保护**：生产环境缺少 `JWT_SECRET` 时拒绝启动；开发环境仅生成临时随机密钥
 - **输入验证**：对所有用户输入进行验证
 - **SQL注入防护**：使用参数化查询
 - **CORS配置**：正确配置CORS策略
 - **权限控制**：基于角色的权限控制
+- **默认账号控制**：生产环境默认不插入示例账号，演示环境需显式启用 `SEED_DEFAULT_USERS`
+- **危险操作护栏**：删除用户、删除书籍、删除副本和减少副本数量都由后端做完整性校验，不只依赖前端确认
+- **活跃借阅状态**：`borrowing`、`borrowed`、`overdue`、`returning` 均视为活跃状态，用于阻止用户删除、书籍删除和重复借阅
+- **删除用户限制**：禁止删除当前账号、管理员账号、存在活跃借阅记录、`active` / `pending` 预约记录、实际未付罚款或 pending 支付订单的用户；通过 `user_status.status = deleted` 软删除保留借阅、罚款和支付审计历史
+- **删除书籍限制**：存在活跃借阅记录、活跃预约，或存在 `borrowing`、`borrowed`、`reserved` 状态副本时禁止删除
+- **副本库存一致性**：单副本删除只能删除 `available` 副本且必须保留至少一个副本；新增、删除或状态变化后会在事务中重新计算 `books.total_copies` 与 `books.available_copies`
+- **日志清理校验**：系统日志清理会校验 `days` 范围后再执行删除，避免非法参数触发非预期清理
 
 ### 3.6 错误处理
 
@@ -458,17 +468,21 @@ backend/
 5. 后端读取 `borrow_enabled`，如果借阅功能已关闭则返回 403，停止借阅流程
 6. 后端检查用户状态（是否拉黑）、罚款状态、借阅数量限制
 7. 从系统设置读取 borrow_period_days、borrow_confirm_minutes、max_borrows 等参数
-8. 检查书籍是否存在可用副本，但不预先绑定副本
+8. 清理已过期的待确认借阅记录，检查该书 `available` 副本数是否大于当前 `borrowing` 待确认记录数；如果没有剩余可确认名额则拒绝借阅
 9. 创建借阅记录，`copy_id` 和 `copy_code` 暂为空，状态为 "borrowing"，设置确认截止时间
 10. 返回借阅请求启动成功响应
-11. 前端显示倒计时和确认借阅按钮，不在记录表提前显示条形码
+11. 前端显示倒计时和确认借阅按钮，不在记录表提前显示条形码；确认弹窗中的倒计时来自 `confirm_deadline`，关闭弹窗不会清空待确认记录或倒计时状态
 12. 用户点击确认借阅按钮并在弹窗中选择可用副本；确认接口也会再次检查 `borrow_enabled`
 13. 前端发送 `record_id` 和 `copy_id` 到 `/api/borrow/confirm-borrow`
-14. 后端检查是否超时，并校验所选副本是否属于该书且可用
+14. 后端校验当前用户是否为记录本人、管理员或图书管理员，再检查是否超时，并校验所选副本是否属于该书且可用
 15. 更新借阅记录状态为 "borrowed"，写入 `copy_id`
 16. 更新副本状态为 "borrowed"
 17. 返回确认成功响应
 18. 前端刷新记录并显示条形码
+
+**确认弹窗取消语义**：
+- `Cancel Lock` 会调用 `/api/borrow/cancel-borrow-lock`，将待确认记录置为 "timeout"，并释放兼容旧数据时可能已锁定的副本。
+- `Not Now` 和右上角关闭按钮只隐藏弹窗，保留待确认记录；用户从书籍列表、书籍详情或借阅记录再次打开时继续展示剩余倒计时。
 
 **超时处理**：
 - 如果用户在确认截止时间内未确认，系统会自动处理超时
@@ -482,7 +496,7 @@ backend/
 3. 点击归还按钮
 4. 前端发送归还请求到 `/api/borrow/return`
 5. 后端检查借阅记录（支持 borrowed 和 overdue 状态）
-6. 从系统设置读取 fine_per_day 计算逾期罚款
+6. 从系统设置读取 fine_per_day 计算逾期罚款，并按 max_fine 限制单条记录最高金额（0 表示不封顶）
 7. 更新借阅记录状态为 "returning"，设置罚款金额和 fine_status='unpaid'
 8. 如果产生罚款，立即累计到用户 total_fine，用户可马上支付
 9. 返回归还成功响应，包含罚款信息
@@ -537,13 +551,14 @@ backend/
 ### 6.1 前端部署
 
 1. **构建**：`npm run build`
-2. **部署**：将dist目录部署到静态文件服务器
-3. **环境变量**：配置生产环境的API地址
+2. **构建清理**：`prebuild` 会先执行 `scripts/clean-dist.mjs` 清理旧 `dist`
+3. **部署**：将dist目录部署到静态文件服务器
+4. **环境变量**：配置生产环境的API地址
 
 ### 6.2 后端部署
 
 1. **依赖安装**：`npm install`
-2. **环境配置**：设置生产环境的环境变量
+2. **环境配置**：设置生产环境的环境变量，尤其是 `JWT_SECRET`、`FRONTEND_URL` 和 `SEED_DEFAULT_USERS`
 3. **启动**：使用PM2或其他进程管理工具启动
 4. **监控**：设置日志监控和错误告警
 
@@ -561,7 +576,7 @@ backend/
 - **多语言支持**：添加国际化支持
 - **移动端应用**：开发React Native或Flutter应用
 - **扫码功能**：添加扫码借书还书功能
-- **支付系统**：集成在线支付罚款功能
+- **支付系统生产化**：完善真实生产支付、对账、退款和异常订单处理
 
 ### 7.2 技术扩展
 
@@ -577,31 +592,3 @@ backend/
 系统设计考虑了可扩展性和可维护性，采用了模块化的代码结构和清晰的数据流管理。通过合理的数据库设计和API设计，确保了系统的性能和可靠性。
 
 未来可以通过添加更多功能和优化现有功能，进一步提升系统的用户体验和管理效率。
-## Design Update - 2026-05-13
-
-### Dangerous operation guardrails
-
-Deletion and destructive inventory changes are treated as server-side integrity operations, not only as UI confirmations.
-
-- Active borrow status is centralized as `borrowing`, `borrowed`, `overdue`, and `returning`.
-- User deletion is admin-only and is blocked for the current account, admin accounts, active borrow records, and active reservations.
-- Book deletion is blocked by active borrow records, occupied copies, and active reservations.
-- Copy deletion is a dedicated operation for physical inventory. It deletes only one `available` copy at a time and keeps at least one copy per book.
-- Copy-count reduction uses the same inventory principle: only available copies may be removed, and the operation fails if there are not enough available copies.
-- System log clearing validates the age filter before deleting records.
-
-### Copy Management modal
-
-The Copy Management modal now supports:
-
-- adding copies
-- changing copy status
-- updating one copy location
-- bulk-applying copy location
-- deleting one available copy
-
-The modal table is designed to keep the `Confirm` and `Delete` actions visible on desktop without horizontal scrolling. Small screens may still use horizontal scrolling to preserve readable controls.
-
-### Backend consistency pattern
-
-All destructive copy operations run in a transaction and then recalculate `books.total_copies` and `books.available_copies` from `book_copies`. This avoids stale book counters after a copy is added, removed, or has its status changed.

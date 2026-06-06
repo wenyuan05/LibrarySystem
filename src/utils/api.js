@@ -3,15 +3,15 @@
 // the same reverse proxy as the backend without browser-side CORS issues.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// 从本地存储读取 token
+// 从当前标签页会话读取 token，避免多个标签页登录不同账号时互相覆盖。
 const getAuthToken = () => {
   try {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = sessionStorage.getItem('user');
     if (!storedUser) return null;
     const parsed = JSON.parse(storedUser);
     return parsed.token || null;
   } catch (e) {
-    console.error('Failed to read auth token from localStorage', e);
+    console.error('Failed to read auth token from sessionStorage', e);
     return null;
   }
 };
@@ -44,7 +44,11 @@ const request = async (endpoint, options = {}) => {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Request failed with status ${response.status}`);
     }
-    
+
+    if (options.responseType === 'blob') {
+      return await response.blob();
+    }
+
     return await response.json();
   } catch (error) {
     console.error('API request error:', error);
@@ -345,7 +349,15 @@ export const borrowAPI = {
       body: JSON.stringify({ record_id: recordId, copy_id: copyId }),
     });
   },
-  
+
+  // 取消待确认的借阅锁定
+  cancelBorrowLock: async (recordId) => {
+    return request('/borrow/cancel-borrow-lock', {
+      method: 'POST',
+      body: JSON.stringify({ record_id: recordId }),
+    });
+  },
+
   // 处理超时借阅
   handleTimeout: async () => {
     return request('/borrow/handle-timeout', {
@@ -406,6 +418,17 @@ export const paymentAPI = {
 
   getIncomeSummary: async () => {
     return request('/payments/income/summary');
+  },
+
+  getIncomeAnalytics: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    const query = params.toString();
+    return request(`/payments/income/analytics${query ? `?${query}` : ''}`);
   },
 };
 
@@ -603,6 +626,11 @@ export const logAPI = {
     if (params.order) searchParams.append('order', params.order);
     if (params.level) searchParams.append('level', params.level);
     if (params.module) searchParams.append('module', params.module);
+    if (params.keyword) searchParams.append('keyword', params.keyword);
+    if (params.action) searchParams.append('action', params.action);
+    if (params.user_id) searchParams.append('user_id', params.user_id);
+    if (params.date_from) searchParams.append('date_from', params.date_from);
+    if (params.date_to) searchParams.append('date_to', params.date_to);
     return request(`/logs?${searchParams.toString()}`);
   },
   

@@ -49,6 +49,18 @@
   - 前端验证失败
   - 显示错误信息："Username must be between 3 and 20 characters" 和 "Password must be at least 6 characters"
 
+### 测试用例 1.6：多标签页登录隔离
+- **测试场景**：同一浏览器打开多个标签页并分别登录不同角色账号
+- **操作步骤**：
+  1. 在标签页 A 登录普通用户账号
+  2. 在标签页 B 登录管理员账号
+  3. 回到标签页 A，访问个人资料或借阅记录
+  4. 回到标签页 B，访问用户管理或系统设置
+- **预期结果**：
+  - 标签页 A 仍以普通用户身份发起 API 请求
+  - 标签页 B 仍以管理员身份发起 API 请求
+  - 任一标签页登录、登出或刷新不会覆盖另一个标签页的登录账号
+
 ## 2. 注册功能测试
 
 ### 测试用例 2.1：正常注册
@@ -96,6 +108,19 @@
   - 页面显示字段级错误提示
   - 无效输入不会提交到后端
   - 修正输入后错误提示清除
+
+### 测试用例 2.4.1：管理员编辑用户邮箱格式校验
+- **测试场景**：管理员编辑用户资料时输入无效邮箱
+- **操作步骤**：
+  1. 以 admin 登录并打开用户管理页
+  2. 编辑一个非 admin 用户
+  3. 将邮箱改为 `invalid-email` 并提交
+  4. 直接调用 `PUT /api/users/:id`，请求体包含 `{ "email": "invalid-email" }`
+- **预期结果**：
+  - 前端显示 `Invalid email format`
+  - 直接接口请求返回 HTTP 400
+  - 后端响应 `Invalid email format`
+  - 用户原邮箱不会被修改
 
 ### 测试用例 2.5：重置密码输入校验
 - **测试场景**：重置密码时输入无效新密码
@@ -179,16 +204,31 @@
   - 用户列表中显示新添加的用户
 
 ### 测试用例 4.3：删除用户
-- **测试场景**：删除一个存在的用户
+- **测试场景**：软删除一个不存在业务阻塞的用户
 - **操作步骤**：
   1. 登录管理员账号
   2. 进入用户管理页面
-  3. 选择一个用户
+  3. 选择一个没有活跃借阅、活跃预约、未付罚款和 pending 支付订单的非管理员用户
   4. 点击删除按钮
 - **预期结果**：
   - 用户删除成功
   - 显示成功提示
   - 用户列表中不再显示该用户
+  - 数据库保留 `users` 主记录并将 `user_status.status` 标记为 `deleted`
+  - 被删除账号不能再次登录
+  - 若用户存在实际未付罚款或 pending 支付订单，删除请求被拒绝并显示错误提示
+
+### 测试用例 4.4：普通用户更新个人资料
+- **测试场景**：普通用户编辑自己的姓名、邮箱、电话或地址
+- **操作步骤**：
+  1. 登录普通用户账号
+  2. 进入个人资料页面
+  3. 修改姓名、邮箱、电话或地址并提交
+- **预期结果**：
+  - 个人资料更新成功
+  - 请求不会提交角色变更
+  - 如果旧前端或缓存请求携带未变化的 `role` 字段，后端不会误判为越权修改角色
+  - 非 admin 尝试把 `role` 改成其他值时仍返回 403
 
 ## 5. 借阅功能测试
 
@@ -205,6 +245,33 @@
   - 书籍状态变为"borrowed"
   - 借阅记录中显示该记录
 
+### 测试用例 5.1.1：待确认借阅弹窗关闭与取消锁定
+- **测试场景**：用户发起借阅后，在确认弹窗中分别关闭弹窗和取消锁定
+- **操作步骤**：
+  1. 登录普通用户账号
+  2. 在书籍列表或书籍详情中借阅一本可用书籍，进入 Confirm Borrowing 弹窗
+  3. 观察弹窗中的 `Time left to confirm` 倒计时
+  4. 点击 `Not Now` 或右上角关闭按钮
+  5. 从书籍列表或借阅记录重新打开同一条待确认借阅的 Confirm Borrowing 弹窗
+  6. 点击 `Cancel Lock`
+- **预期结果**：
+  - `Not Now` 和右上角关闭按钮只关闭弹窗，不取消待确认借阅
+  - 重新打开弹窗时倒计时继续基于 `confirm_deadline` 展示剩余时间，不显示为 `00:00`
+  - `Cancel Lock` 后待确认记录状态变为 `timeout`
+  - 取消锁定后该书不再显示 Confirm Borrow 入口，兼容旧数据中已锁定的副本会恢复可用
+
+### 测试用例 5.1.2：待确认借阅名额防超发
+- **测试场景**：多个用户同时对可用副本数量有限的同一本书发起借阅
+- **操作步骤**：
+  1. 准备一本只有 1 个 `available` 副本的图书
+  2. Reader A 点击 Borrow，生成 `borrowing` 待确认记录但暂不确认
+  3. Reader B 对同一本书点击 Borrow
+  4. Reader A 点击 Confirm 并选择可用副本
+- **预期结果**：
+  - Reader A 的借阅申请创建成功，并可正常确认
+  - Reader B 的借阅申请被拒绝，提示 `No available copies. All available copies are already awaiting confirmation.`
+  - 不会出现创建成功但确认时没有可用副本的借阅记录
+
 ### 测试用例 5.2：归还书籍
 - **测试场景**：用户归还一本已借阅的书籍
 - **操作步骤**：
@@ -218,6 +285,20 @@
   - 书籍状态变为"available"
   - 借阅记录中显示归还日期
 
+### 测试用例 5.2.1：借阅记录跳转图书详情
+- **测试场景**：用户或图书管理员从借阅记录打开对应图书详情
+- **操作步骤**：
+  1. 登录普通用户账号，进入个人借阅记录页面
+  2. 点击任意一条借阅记录所在行
+  3. 使用管理员或图书管理员账号进入某用户借阅记录页面
+  4. 点击任意一条借阅记录所在行
+  5. 准备一条关联图书已不存在的借阅记录并点击该记录
+- **预期结果**：
+  - 有效记录跳转到 `/books/:bookId` 对应图书详情页
+  - 从借阅记录跳转到图书详情后，点击 Back 返回原借阅记录页面，而不是固定返回书籍列表
+  - 行内 `Return`、`Renew`、`Confirm` 等操作按钮不会触发行跳转
+  - 关联图书不存在时显示错误提示，不跳转到空详情页
+
 ### 测试用例 5.3：借阅失败（书籍不可用）
 - **测试场景**：尝试借阅一本已被借阅的书籍
 - **操作步骤**：
@@ -228,6 +309,20 @@
 - **预期结果**：
   - 借阅失败
   - 显示错误信息："Book is not available"
+
+### 测试用例 5.4：预约记录跳转图书详情
+- **测试场景**：用户从预约记录打开对应图书详情
+- **操作步骤**：
+  1. 登录普通用户账号
+  2. 进入 My Reservations 页面
+  3. 点击任意一条预约记录所在行
+  4. 点击 active 预约记录的 `Cancel` 按钮
+  5. 准备一条关联图书已不存在的预约记录并点击该记录
+- **预期结果**：
+  - 有效预约记录跳转到 `/books/:bookId` 对应图书详情页
+  - 从预约记录跳转到图书详情后，点击 Back 返回 My Reservations 页面，而不是固定返回书籍列表
+  - `Cancel` 按钮只取消预约，不触发行跳转
+  - 关联图书不存在时显示错误提示，不跳转到空详情页
 
 ## 6. 权限控制测试
 
@@ -355,6 +450,19 @@
   - 已确认公告不会再次触发弹窗
   - `/api/announcements/unread/mine` 不返回已读公告
 
+### 测试用例 8.4.1：公告列表完整信息弹窗
+- **测试场景**：用户从公告列表查看完整公告内容
+- **操作步骤**：
+  1. 登录普通用户账号
+  2. 进入 Announcements 页面
+  3. 点击一条公告卡片
+  4. 准备包含长文本或连续长字符串的公告并再次打开
+- **预期结果**：
+  - 点击公告后弹出公告详情弹窗
+  - 弹窗不被公告列表容器裁剪
+  - 公告正文完整展示，长文本自动换行，弹窗随内容动态撑开
+  - 点击 Close 或遮罩可关闭弹窗
+
 ### 测试用例 8.5：公告管理弹窗表单
 - **测试场景**：管理员通过弹窗新增和编辑公告
 - **操作步骤**：
@@ -430,7 +538,7 @@
   4. 开启 Editable mode，修改一个已实现设置并保存
 - **预期结果**：
   - 页面以 Borrow Rules 和 Fine Rules 分组卡片展示
-  - 仅显示 `borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_per_day` 对应设置
+  - 仅显示 `borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`、`max_fine` 对应设置
   - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
   - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
 
@@ -526,292 +634,361 @@
   - 每张表只保留一个 `CREATE TABLE IF NOT EXISTS` 定义
   - 支付、邮件日志和邮箱验证码相关索引仍会创建
   - 数据库模块可正常加载
-## Test Cases Update - 2026-05-13
 
-### Test Case: Prevent deleting users with active lending state
+### 测试用例 8.16：阻止删除存在活跃借阅状态的用户
+- **测试场景**：管理员删除仍有关联业务状态的用户
+- **操作步骤**：
+  1. 准备一个存在 `borrowing`、`borrowed`、`overdue` 或 `returning` 借阅记录的用户
+  2. 在 User Management 中尝试删除该用户
+  3. 准备一个存在 `active` 或 `pending` 预约记录的用户并尝试删除
+  4. 尝试删除当前登录管理员账号
+  5. 尝试删除其他管理员账号
+- **预期结果**：
+  - 存在活跃借阅记录时删除被拒绝
+  - 存在活跃预约记录时删除被拒绝
+  - 当前账号和管理员账号不能被删除
+  - 前端展示后端返回的错误信息
 
-- **Scenario**: Admin attempts to delete users with active records.
-- **Steps**:
-  1. Create or select a user with a `borrowing`, `borrowed`, `overdue`, or `returning` borrow record.
-  2. Attempt to delete the user from User Management.
-  3. Create or select a user with an active reservation and attempt deletion.
-  4. Attempt to delete the currently logged-in admin account.
-  5. Attempt to delete another admin account.
-- **Expected result**:
-  - Delete is rejected for active borrow records.
-  - Delete is rejected for active reservations.
-  - Delete is rejected for the current account.
-  - Delete is rejected for admin accounts.
-  - The frontend displays the backend error message.
+### 测试用例 8.17：阻止删除存在活跃借阅或预约状态的图书
+- **测试场景**：管理员或图书管理员删除仍处于业务使用中的图书
+- **操作步骤**：
+  1. 选择存在 `borrowing`、`borrowed`、`overdue` 或 `returning` 记录的图书并尝试删除
+  2. 选择存在 `borrowing`、`borrowed` 或 `reserved` 状态副本的图书并尝试删除
+  3. 选择存在 `active` 或 `pending` 预约记录的图书并尝试删除
+- **预期结果**：
+  - 上述活跃或占用状态下删除均被拒绝
+  - 不会产生孤立图书、副本、分类关联、借阅记录或预约记录
+  - 前端展示后端返回的错误信息
 
-### Test Case: Prevent deleting books with active lending or reservation state
+### 测试用例 8.18：导出图书与副本组合数据
+- **测试场景**：图书管理员导出馆藏数据
+- **操作步骤**：
+  1. 使用图书管理员账号登录
+  2. 准备包含多个副本和分类的图书
+  3. 打开 Book Management
+  4. 点击 `Export Books & Copies`
+  5. 打开下载的 CSV 文件
+- **预期结果**：
+  - 请求调用 `GET /api/books/export` 并携带当前图书管理员 token
+  - 下载文件名以 `books_with_copies_` 开头
+  - 每个副本导出为一行，图书字段在每行重复展示
+  - 行数据包含图书 ID、标题、作者、ISBN、馆藏数量、可用数量、分类、副本 ID、副本编号、副本状态和副本位置
+  - 包含逗号或引号的 CSV 值被正确转义
+  - 管理员和图书管理员可导出，普通用户不能访问接口
 
-- **Scenario**: Admin or librarian attempts to delete books that are still operationally active.
-- **Steps**:
-  1. Select a book with a `borrowing`, `borrowed`, `overdue`, or `returning` record.
-  2. Attempt to delete the book.
-  3. Select a book with an occupied copy status (`borrowing`, `borrowed`, or `reserved`) and attempt deletion.
-  4. Select a book with an active reservation and attempt deletion.
-- **Expected result**:
-  - Delete is rejected in all active or occupied states.
-  - No book, copy, category link, borrow record, or reservation record is orphaned.
-  - The frontend displays the backend error message.
+### 测试用例 8.19：删除单个可用副本
+- **测试场景**：管理员或图书管理员删除多余可用副本
+- **操作步骤**：
+  1. 打开 Book Management
+  2. 对至少有两个副本的图书点击 `Manage Copies`
+  3. 选择一个 `available` 状态副本
+  4. 点击 `Delete` 并确认
+- **预期结果**：
+  - 副本行从弹窗中移除
+  - `books.total_copies` 减少 1
+  - `books.available_copies` 重新计算正确
+  - 图书至少保留一个副本
 
-### Test Case: Delete one available copy
+### 测试用例 8.20：阻止不安全副本删除
+- **测试场景**：管理员或图书管理员尝试删除不可删除副本
+- **操作步骤**：
+  1. 尝试删除 `borrowed`、`borrowing`、`reserved` 或 `unavailable` 状态副本
+  2. 尝试删除某本书唯一剩余副本
+  3. 直接调用接口删除仍有关联活跃借阅记录的可用副本
+- **预期结果**：
+  - UI 禁用明显不安全的删除操作
+  - 后端拒绝所有直接调用的不安全删除请求
+  - 被拒绝后图书副本统计不变化
 
-- **Scenario**: Admin or librarian deletes a surplus available copy.
-- **Steps**:
-  1. Open Book Management.
-  2. Click `Manage Copies` for a book with at least two copies.
-  3. Choose a copy whose status is `available`.
-  4. Click `Delete`.
-  5. Confirm the browser confirmation prompt.
-- **Expected result**:
-  - The copy row is removed from the modal.
-  - `books.total_copies` decreases by one.
-  - `books.available_copies` is recalculated correctly.
-  - The book still has at least one copy.
+### 测试用例 8.21：副本管理弹窗桌面布局
+- **测试场景**：检查 Copy Management 操作列可见性
+- **操作步骤**：
+  1. 在桌面视口打开 Copy Management
+  2. 确认表格展示 Barcode、Status、Location 和 Action 列
+  3. 检查 `Confirm` 和 `Delete` 按钮无需拖动底部横向滚动条即可看到
+  4. 缩小到移动端宽度重新检查
+- **预期结果**：
+  - 桌面布局直接展示操作按钮
+  - 小屏可横向滚动，但控件保持可读可操作
 
-### Test Case: Block unsafe copy deletion
+### 测试用例 8.22：日志清理参数校验
+- **测试场景**：管理员使用不同天数参数清理日志
+- **操作步骤**：
+  1. 使用 `days = 7` 调用 `DELETE /api/logs/clear`
+  2. 使用 `days = 0` 调用接口
+  3. 使用 `days = "0"` 调用接口
+  4. 使用 `-1`、`1.5` 或非数字字符串等非法值调用接口
+- **预期结果**：
+  - 合法天数清理对应日志
+  - 数字 `0` 和字符串 `"0"` 清理全部日志
+  - 非法值返回 HTTP 400，且不会删除日志
 
-- **Scenario**: Admin or librarian attempts to delete a copy that should not be removable.
-- **Steps**:
-  1. Try deleting a copy with status `borrowed`, `borrowing`, `reserved`, or `unavailable`.
-  2. Try deleting the only remaining copy of a book.
-  3. Try deleting an available copy that still has an active borrow record in the database.
-- **Expected result**:
-  - The UI disables obvious unsafe copy deletes.
-  - The backend rejects all unsafe delete attempts even if called directly.
-  - Book counters remain unchanged after rejected attempts.
+### 测试用例 8.23：Books 页面 Reserved 快捷筛选
+- **测试场景**：Reader 筛选自己已预约的图书
+- **操作步骤**：
+  1. 使用 Reader 账号登录
+  2. 从 Books 页面预约一本书，或使用已有 active 预约
+  3. 返回 Books 页面
+  4. 点击 `Reserved` 快捷筛选
+  5. 从书籍卡片取消预约后再次检查筛选结果
+- **预期结果**：
+  - 展示当前用户存在 `active` 或 `pending` 预约记录的图书
+  - 通过预约记录的 `book_id` 匹配图书，而不是依赖图书级 `status` 字段
+  - 取消预约后该书无需整页刷新即可从 `Reserved` 筛选结果中消失
 
-### Test Case: Copy Management desktop layout
+### 测试用例 8.24：Books 页面搜索按钮
+- **测试场景**：Reader 通过 Books 页面工具栏搜索图书
+- **操作步骤**：
+  1. 使用 Reader 账号登录
+  2. 打开 Books 页面
+  3. 在搜索框输入标题、作者或 ISBN
+  4. 点击输入框旁边的搜索图标按钮
+  5. 清空输入框并再次点击搜索按钮
+- **预期结果**：
+  - 搜索图标按钮显示在 Books 页面搜索输入框旁边
+  - 点击按钮会按当前输入值重新搜索
+  - 清空输入框后点击按钮会恢复完整图书列表
 
-- **Scenario**: Confirm that action buttons are visible without horizontal dragging.
-- **Steps**:
-  1. Open Copy Management on a desktop viewport.
-  2. Confirm the table displays Barcode, Status, Location, and Action columns.
-  3. Verify `Confirm` and `Delete` buttons are visible without dragging the bottom horizontal scrollbar.
-  4. Resize to a small mobile-width viewport.
-- **Expected result**:
-  - Desktop layout shows action buttons immediately.
-  - Small screens may use horizontal scrolling while keeping controls readable.
+### 测试用例 8.25：Books 列表可用状态回退显示
+- **测试场景**：Reader 打开 Books 页面时副本详情仍在加载
+- **操作步骤**：
+  1. 使用 Reader 账号登录
+  2. 打开 Books 页面
+  3. 在主书籍列表加载后立即观察书籍卡片
+  4. 等待副本详情加载完成
+- **预期结果**：
+  - 副本详情未加载完成时，书籍卡片使用列表响应中的 `available_copies` 展示可用状态
+  - 可借图书不会在副本详情加载中临时显示为 `Borrowed`
+  - 副本详情加载完成后，卡片状态与实际可用副本数量一致
 
-### Test Case: Log clear validation
+### 测试用例 8.26：借阅功能开关
+- **测试场景**：管理员全局关闭并重新开启读者借阅
+- **操作步骤**：
+  1. 使用管理员账号打开 `/system-settings`
+  2. 进入 Editable mode，关闭 `Borrowing Enabled` 并保存
+  3. 使用 Reader 打开 Books 页面或可借图书详情页
+  4. 检查 Borrow 和 Confirm Borrow 控件
+  5. 在关闭状态下直接调用 `POST /api/borrow/borrow` 和 `POST /api/borrow/confirm-borrow`
+  6. 重新开启 `Borrowing Enabled` 并保存
+- **预期结果**：
+  - `Borrowing Enabled` 以滑动开关和 Enabled/Disabled 文案展示
+  - Reader 借阅和确认借阅按钮禁用并显示 `Borrowing Disabled`
+  - `GET /api/system/feature-flags` 返回 `borrow_enabled: false`
+  - 两个借阅接口均返回 HTTP 403 和对应关闭提示
+  - 重新开启后恢复正常借阅控件和 `borrow_enabled: true`
 
-- **Scenario**: Admin clears logs with valid and invalid age filters.
-- **Steps**:
-  1. Call `DELETE /api/logs/clear` with `days = 7`.
-  2. Call it with `days = 0`.
-  3. Call it with `days = "0"`.
-  4. Call it with invalid values such as `-1`, `1.5`, or a non-numeric string.
-- **Expected result**:
-  - Valid values clear matching logs.
-  - Numeric `0` and string `"0"` clear all logs.
-  - Invalid values return HTTP 400 and do not delete logs.
+### 测试用例 8.27：预约功能开关
+- **测试场景**：管理员全局关闭并重新开启读者预约
+- **操作步骤**：
+  1. 使用管理员账号打开 `/system-settings`
+  2. 进入 Editable mode，关闭 `Reservations Enabled` 并保存
+  3. 使用 Reader 打开无可用副本图书的 Books 页面或详情页
+  4. 检查 Reserve 控件
+  5. 在关闭状态下直接调用 `POST /api/borrow/reserve`
+  6. 在关闭状态下取消已有 active 预约
+  7. 重新开启 `Reservations Enabled` 并保存
+- **预期结果**：
+  - `Reservations Enabled` 以滑动开关和 Enabled/Disabled 文案展示
+  - Reader 预约按钮禁用并显示 `Reservations Disabled`
+  - `GET /api/system/feature-flags` 返回 `reservation_enabled: false`
+  - 新预约接口返回 HTTP 403 和对应关闭提示
+  - 已有预约仍可取消
+  - 重新开启后恢复正常预约控件和 `reservation_enabled: true`
 
-### Test Case: Books page Reserved filter
+### 测试用例 8.28：罚款累计功能开关
+- **测试场景**：管理员关闭逾期罚款累计但不影响已有罚款支付
+- **操作步骤**：
+  1. 使用管理员账号打开 `/system-settings`
+  2. 进入 Editable mode，关闭 `Fines Enabled` 并保存
+  3. 创建或选择关闭后变为逾期的借阅记录
+  4. 触发逾期检查或加载借阅记录
+  5. 归还该逾期图书
+  6. 选择关闭前已逾期且存在预计罚款的未归还记录，等待后续刷新
+  7. 通过支付宝罚款支付流程支付已有实际未付罚款
+  8. 重新开启 `Fines Enabled`
+- **预期结果**：
+  - `fine_enabled = 0` 时新增逾期记录罚款为 0
+  - 已逾期未归还记录保留当前预计罚款，但关闭期间不继续增长
+  - 关闭期间归还图书不会在冻结金额之外新增罚款
+  - 已有实际未付罚款仍可正常支付
+  - 重新开启后按 `fine_per_day` 恢复正常累计，并受 `max_fine` 单条上限限制
 
-- **Scenario**: Reader filters the Books page to show books they have reserved.
-- **Steps**:
-  1. Log in as a reader.
-  2. Reserve a book from the Books page, or use an existing active reservation.
-  3. Return to the Books page.
-  4. Click the `Reserved` quick filter.
-  5. Cancel the reservation from the book card and check the filter again.
-- **Expected result**:
-  - Books with the current reader's `active` or `pending` reservation records are displayed.
-  - Books are matched by reservation `book_id`, not by a book-level `status` field.
-  - After canceling a reservation, the book disappears from the `Reserved` filter without a full page reload.
+### 测试用例 8.29：支付宝后端配置安全摘要
+- **测试场景**：后端加载支付宝沙箱配置且不泄露密钥
+- **操作步骤**：
+  1. 复制 `backend/.env.example` 为 `backend/.env`
+  2. 设置 `ALIPAY_ENABLED=true`，并留空一个必需支付宝配置项
+  3. 启动后端服务
+  4. 补齐所有必需支付宝配置项并重启后端
+- **预期结果**：
+  - 后端启动日志包含安全的支付宝配置摘要
+  - 本地测试配置使用 `http://localhost:3001/api/payments/alipay/notify` 和 `http://localhost:5173/payment-result`
+  - 仅在 `ALIPAY_ENABLED=true` 且缺少必需值时提示缺失配置
+  - 启动日志不会打印应用私钥或支付宝公钥内容
+  - 配置完整后不再显示缺失配置警告
 
-### Test Case: Books page search button
+### 测试用例 8.30：支付宝罚款支付模拟接口
+- **测试场景**：用户创建本地模拟支付宝罚款订单并完成支付
+- **操作步骤**：
+  1. 准备一个存在 `fine > 0` 且 `fine_status = unpaid` 记录的用户
+  2. 使用该用户调用 `POST /api/payments/fines/alipay`
+  3. 确认响应包含 `out_trade_no`、`qr_code`、`payment_url`、`status = pending` 和关联 `borrow_record_ids`
+  4. 调用 `GET /api/payments/:id` 确认订单仍为 pending
+  5. 调用 `POST /api/payments/alipay/simulate-notify/:out_trade_no`
+  6. 刷新用户罚款记录和收入汇总
+  7. 创建另一个订单，使用 `POST /api/payments/:id/expire` 过期后再尝试模拟成功
+  8. 尝试过期已支付订单
+- **预期结果**：
+  - 支付单只包含 `returning` / `returned` 的实际未付罚款，不包含未归还逾期预计罚款
+  - 创建支付单不会立即标记罚款已支付
+  - 模拟 notify 将订单标记为 `paid`
+  - 关联罚款记录变为 `fine_status = paid`
+  - `users.total_fine` 按剩余未付罚款重新计算
+  - 收入汇总包含已支付金额
+  - 重复模拟 notify 幂等，不重复增加收入
+  - 已过期订单不能模拟成功，已支付订单不能再过期
 
-- **Scenario**: Reader searches books from the Books page toolbar.
-- **Steps**:
-  1. Log in as a reader.
-  2. Open the Books page.
-  3. Enter a title, author, or ISBN in the search field.
-  4. Click the search icon button beside the input.
-  5. Clear the input and click the search icon button again.
-- **Expected result**:
-  - The search icon button is visible beside the Books page search input.
-  - Clicking the button reruns the search using the current input value.
-  - Clearing the input and clicking the button reloads the full book list.
+### 测试用例 8.31：支付宝沙箱收银台链接生成
+- **测试场景**：支付宝启用且配置完整时后端生成沙箱收银台链接
+- **操作步骤**：
+  1. 在 `backend/.env` 配置 `ALIPAY_ENABLED=true`、`ALIPAY_MODE=sandbox`、沙箱 APP_ID、应用私钥、支付宝公钥、notify URL 和 return URL
+  2. 重启后端
+  3. 创建可支付罚款订单
+  4. 打开返回的 `payment_url`
+- **预期结果**：
+  - `payment_url` 和 `qr_code` 指向支付宝沙箱网关而不是本地 `/payment-result`
+  - `payment_url` 包含已签名的 `alipay.trade.page.pay` 请求、系统订单号和金额
+  - `qr_code` 优先使用 `alipay.trade.precreate` 返回内容
+  - 旧 pending 订单如果仍保存 page-pay 二维码内容，复用前会刷新为 precreate 二维码
+  - 支付宝未启用或配置不完整时回退到本地模拟支付链接
+  - 单行 key body、PKCS#1 和 PKCS#8 私钥格式都能正常签名
 
-### Test Case: Books list availability fallback
+### 测试用例 8.32：支付宝沙箱异步通知验签
+- **测试场景**：后端接收支付宝沙箱通知并完成罚款支付
+- **操作步骤**：
+  1. 完成或模拟一次沙箱支付，使支付宝请求 `POST /api/payments/alipay/notify`
+  2. 确认后端收到 `out_trade_no`、`trade_status`、`sign` 等表单字段
+  3. 重新查询订单和用户罚款记录
+- **预期结果**：
+  - 验签通过且状态为 `TRADE_SUCCESS` 或 `TRADE_FINISHED` 时订单变为 `paid`
+  - 关联实际未付罚款变为 `fine_status = paid`
+  - 签名无效或订单号未知时返回 `fail`，且不修改罚款状态
 
-- **Scenario**: Reader opens Books while per-book copy details are still loading.
-- **Steps**:
-  1. Log in as a reader.
-  2. Open the Books page.
-  3. Observe book cards immediately after the main book list loads.
-  4. Wait for copy details to finish loading.
-- **Expected result**:
-  - Book cards use `available_copies` from the book list response until copy details are available.
-  - Available books are not temporarily marked as `Borrowed` while copy details are loading.
-  - Once copy details load, card status matches the actual available copy count.
+### 测试用例 8.33：支付宝沙箱主动查询同步状态
+- **测试场景**：本地部署没有公网 notify 时通过轮询查询支付宝状态
+- **操作步骤**：
+  1. 启用并配置支付宝沙箱
+  2. 创建可支付罚款订单并打开沙箱收银台链接
+  3. 在沙箱收银台完成支付
+  4. 刷新 Fine Records 或 `/payment-result`，或等待轮询
+- **预期结果**：
+  - pending 订单查询时调用 `alipay.trade.query`
+  - 支付宝返回成功状态后本地订单变为 `paid`，关联罚款变为已支付
+  - 支付宝返回 `TRADE_CLOSED` 时本地订单变为 `expired`
+  - 查询超时、失败或金额不匹配时本地订单保持 pending，前端轮询不中断且不返回 500
 
-### Test Case: Borrowing feature toggle
+### 测试用例 8.34：Income Dashboard 收入折线图与日期查询
+- **测试场景**：图书管理员查看月度收入趋势并查询日期范围收入
+- **操作步骤**：
+  1. 使用图书管理员或管理员账号登录
+  2. 准备跨月份的已支付支付宝罚款订单
+  3. 打开 `/income-dashboard`
+  4. 确认默认折线图展示过去一年每月收入
+  5. 查询同一天日期范围
+  6. 查询 31 天内日期范围
+  7. 查询 180 天内日期范围
+  8. 查询超过 180 天日期范围
+  9. 点击 `Past Year`
+  10. 尝试开始日期晚于结束日期
+- **预期结果**：
+  - 图表只统计已支付支付宝罚款收入
+  - 默认图表按月展示过去一年并包含 0 值月份
+  - 同日查询返回单日趋势和范围总额
+  - 31 天内按日分桶，180 天内按 7 天分桶，更长范围按月分桶
+  - `Past Year` 清空范围输入并恢复默认月度趋势
+  - 日期顺序无效时前端拦截提交
 
-- **Scenario**: Admin globally disables and re-enables reader borrowing.
-- **Steps**:
-  1. Log in as admin and open `/system-settings`.
-  2. Enable Editable mode, switch `Borrowing Enabled` off, and save changes.
-  3. Log in as a reader and open the Books page or a book detail page with available copies.
-  4. Check the Borrow and Confirm Borrow controls.
-  5. Call `POST /api/borrow/borrow` and `POST /api/borrow/confirm-borrow` directly while the setting is off.
-  6. Re-enable `Borrowing Enabled` and save changes.
-- **Expected result**:
-  - `Borrowing Enabled` is displayed as a sliding toggle with Enabled/Disabled text instead of a native checkmark checkbox.
-  - Reader-facing borrow and confirm-borrow buttons are disabled and show `Borrowing Disabled` while the setting is off.
-  - `GET /api/system/feature-flags` returns `borrow_enabled: false`.
-  - Both borrow endpoints return HTTP 403 with `Borrowing is currently disabled by the system administrator`.
-  - Re-enabling the setting restores normal borrow controls and `borrow_enabled: true`.
+### 测试用例 8.35：Income Dashboard 支付记录过滤与分页
+- **测试场景**：图书管理员分页查看并过滤支付订单
+- **操作步骤**：
+  1. 使用图书管理员或管理员账号登录
+  2. 准备超过 10 条不同用户、状态和创建日期的支付订单
+  3. 打开 `/income-dashboard`
+  4. 确认支付列表显示第一页和总数
+  5. 点击 `Next` 和 `Previous`
+  6. 按订单号、用户名、姓名、状态或用户 ID 关键词搜索
+  7. 按创建时间起止日期过滤
+  8. 组合关键词、状态和日期过滤
+  9. 尝试开始日期晚于结束日期
+  10. 点击 `Reset`
+- **预期结果**：
+  - 列表请求携带 `page`、`page_size`、`keyword`、`status`、`date_from`、`date_to`
+  - 分页显示当前页、总页数和总记录数
+  - 关键词可匹配订单号、用户名、姓名、状态或用户 ID
+  - 创建日期过滤包含边界日期
+  - 应用过滤后回到第 1 页
+  - 日期顺序无效时前端拦截提交
+  - Reset 清空过滤条件并回到第 1 页
 
-### Test Case: Alipay backend configuration
+### 测试用例 8.36：Fine Records 支付宝模拟支付流程
+- **测试场景**：用户从 Fine Records 支付罚款
+- **操作步骤**：
+  1. 使用存在未付罚款的用户登录
+  2. 打开 Fine Records 页面
+  3. 点击 `Pay with Alipay`
+  4. 确认支付面板显示订单号、金额、二维码和支付链接
+  5. 确认 `Simulate Payment Success` 只在沙箱或模拟开关开启时显示
+  6. 模拟成功前刷新罚款记录
+  7. 点击 `Simulate Payment Success`
+- **预期结果**：
+  - Fine Records 区分 Payable Fine 和 Estimated Fine
+  - 创建 pending 支付单不会立即结清罚款
+  - 页面展示支付宝支付 UI，不再调用旧的直接结清接口
+  - 直接请求旧 `/api/borrow/pay-fine` 返回 404
+  - 支付面板展示真实二维码图片和可打开的 `/payment-result` 链接
+  - pending 期间每 2-3 秒轮询订单状态
+  - 模拟成功后订单和关联罚款变为已支付，未付罚款总额刷新
+  - 支付成功后二维码显示 `public/打勾.png` 完成标记
+  - 订单过期时页面提示重新创建订单
 
-- **Scenario**: Backend loads Alipay sandbox configuration without exposing secrets.
-- **Steps**:
-  1. Copy `backend/.env.example` to `backend/.env`.
-  2. Set `ALIPAY_ENABLED=true` and leave one required Alipay value empty.
-  3. Start the backend server.
-  4. Fill all required Alipay values and restart the backend server.
-- **Expected result**:
-  - Backend startup logs include a safe Alipay configuration summary.
-  - Local test configuration uses `http://localhost:3001/api/payments/alipay/notify` and `http://localhost:5173/payment-result`.
-  - Startup warns about missing required values only when `ALIPAY_ENABLED=true`.
-  - Startup logs do not print the application private key or Alipay public key contents.
-  - When all required values are present, no missing-configuration warning is shown.
+### 测试用例 8.37：借阅记录罚款弹窗布局
+- **测试场景**：用户从 My Borrow Records 打开包含大量记录的罚款弹窗
+- **操作步骤**：
+  1. 使用存在大量罚款记录的用户登录并打开 My Borrow Records
+  2. 点击 `View Fines`
+  3. 弹窗打开时调整或滚动页面
+- **预期结果**：
+  - 弹窗相对浏览器视口居中，不受借阅记录卡片或容器限制
+  - 桌面端弹窗突破基础 600px 限制，给罚款表格足够宽度
+  - 长书名自然换行，状态和金额列保持单行可读
+  - 窄屏时表格在弹窗内部横向滚动，不压缩为难读竖排
 
-### Test Case: Alipay fine payment simulation API
+### 测试用例 8.38：支付订单管理与收入看板
+- **测试场景**：图书管理员管理本地模拟支付宝罚款订单
+- **操作步骤**：
+  1. 为用户创建一个可支付罚款订单
+  2. 在完成或过期前再次创建同一批罚款订单
+  3. 使用图书管理员或管理员打开 `/income-dashboard`
+  4. 过滤 `Pending` 支付订单
+  5. 过期一个 pending 订单
+  6. 对另一个订单执行 `Simulate Payment Success` 并刷新 dashboard
+  7. 第一个 pending 订单过期后再次创建同一批罚款订单
+- **预期结果**：
+  - 同一批罚款存在 pending 订单时复用原订单，不重复创建
+  - Income Dashboard 展示总收入、今日收入、本月收入、已支付数量、待支付数量和支付行
+  - pending 订单可以标记为 expired
+  - expired 订单不会标记罚款已支付
+  - pending 过期后再次支付会创建新的 pending 订单
+  - 支付成功订单计入收入总额
 
-- **Scenario**: User creates a simulated Alipay fine payment and completes it through the local notify simulation endpoint.
-- **Steps**:
-  1. Prepare a user with one or more `borrow_records` where `fine > 0` and `fine_status = unpaid`.
-  2. Call `POST /api/payments/fines/alipay` as the same user with `{ "user_id": <userId> }`.
-  3. Confirm the response contains `out_trade_no`, `qr_code`, `payment_url`, `status = pending`, and linked `borrow_record_ids`.
-  4. Call `GET /api/payments/:id` and confirm the payment is still `pending`.
-  5. Call `POST /api/payments/alipay/simulate-notify/:out_trade_no`.
-  6. Reload the user's fine records and income summary.
-  7. Create another payment, expire it with `POST /api/payments/:id/expire`, then try to simulate success for the expired order.
-  8. Try to expire an already paid order.
-- **Expected result**:
-  - Creating a payment includes only `returning` / `returned` actual unpaid fines and excludes unreturned overdue estimated fines.
-  - Creating a payment does not immediately mark fines as paid.
-  - Simulated notify marks the payment as `paid`.
-  - Linked fine records become `fine_status = paid`.
-  - `users.total_fine` is recalculated from remaining unpaid fines.
-  - `GET /api/payments/income/summary` includes the paid amount for admin/librarian users.
-  - Repeating the simulated notify call is idempotent and does not duplicate income.
-  - If linked fines were already paid by another flow while the payment was pending, simulated notify is rejected and does not add income.
-  - Expired orders cannot be simulated as paid.
-  - Paid orders cannot be expired.
-
-### Test Case: Alipay sandbox page-pay link generation
-
-- **Scenario**: Backend creates a sandbox Alipay cashier link when Alipay is enabled and configured.
-- **Steps**:
-  1. Configure backend `.env` with `ALIPAY_ENABLED=true`, `ALIPAY_MODE=sandbox`, sandbox `ALIPAY_APP_ID`, app private key, Alipay public key, notify URL, and return URL. Use either full PEM keys or the single-line base64 key body copied from Alipay sandbox.
-  2. Restart the backend.
-  3. Create a payable fine payment with `POST /api/payments/fines/alipay`.
-  4. Open the returned `payment_url`.
-- **Expected result**:
-  - `payment_url` and `qr_code` point to the configured Alipay sandbox gateway instead of local `/payment-result`.
-  - `payment_url` contains a signed `alipay.trade.page.pay` request with the local `out_trade_no` and amount.
-  - `qr_code` uses the `alipay.trade.precreate` response when available, so the generated frontend QR is less dense and scannable by the Alipay sandbox app.
-  - Existing pending payments with old page-pay QR content are refreshed to precreate QR content before being returned for reuse.
-  - If Alipay configuration is disabled or incomplete, payment creation falls back to the local `/payment-result` simulation link.
-  - Single-line Alipay key bodies and PKCS#1 / PKCS#8 private key containers are accepted without `DECODER routines::unsupported` signing errors.
-
-### Test Case: Alipay sandbox notify verification
-
-- **Scenario**: Backend receives a verified sandbox notify and completes the linked fine payment.
-- **Steps**:
-  1. Complete or simulate a sandbox payment so Alipay sends `POST /api/payments/alipay/notify`.
-  2. Confirm the backend receives form fields including `out_trade_no`, `trade_status`, and `sign`.
-  3. Reload `GET /api/payments/trade/:out_trade_no` and the user's fine records.
-- **Expected result**:
-  - Valid signed notifications with `TRADE_SUCCESS` or `TRADE_FINISHED` mark the payment as `paid`.
-  - Linked actual unpaid fines become `fine_status = paid`.
-  - Invalid signatures or unknown order numbers return `fail` and do not change fine state.
-
-### Test Case: Alipay sandbox active status query
-
-- **Scenario**: Local deployment has no public notify URL, so the frontend polling path synchronizes payment status by querying Alipay.
-- **Steps**:
-  1. Enable and configure Alipay sandbox settings in backend `.env`.
-  2. Create a payable fine payment and open the returned sandbox cashier URL.
-  3. Complete payment in the sandbox cashier.
-  4. Refresh Fine Records or `/payment-result`, or wait for their polling interval.
-- **Expected result**:
-  - `GET /api/payments/:id` and `GET /api/payments/trade/:out_trade_no` query `alipay.trade.query` for pending orders.
-  - If Alipay reports `TRADE_SUCCESS` or `TRADE_FINISHED`, the local payment becomes `paid` and linked fines become paid.
-  - If Alipay reports `TRADE_CLOSED`, the local payment becomes `expired`.
-  - If the Alipay query times out, fails, or returns an amount mismatch, the local payment remains pending and the frontend polling keeps working without a 500 response.
-
-### Test Case: Fine page Alipay simulation flow
-
-- **Scenario**: User pays fines from Fine Records through the simulated Alipay payment panel.
-- **Steps**:
-  1. Log in as a user with unpaid fines.
-  2. Open the Fine Records page.
-  3. Click `Pay with Alipay`.
-  4. Confirm the Alipay payment panel appears with an order number, amount, QR image, and payment link.
-  5. Confirm `Simulate Payment Success` is visible only when `ALIPAY_MODE=sandbox` or `ALIPAY_SIMULATION_ENABLED=true`.
-  6. Reload fine records before clicking simulate success.
-  7. Click `Simulate Payment Success`.
-- **Expected result**:
-  - Fine Records shows Payable Fine separately from Estimated Fine.
-  - Clicking `Pay with Alipay` creates a pending payment order only for actual unpaid fines and does not immediately mark fines as paid.
-  - The page shows the simulated Alipay payment UI instead of directly calling the legacy fine settlement API.
-  - The simulated Alipay payment UI displays a real QR image and a browser-openable `/payment-result` link.
-  - Fine Records polls `GET /api/payments/:id` every 2-3 seconds while a payment order is open.
-  - Clicking `Simulate Payment Success` marks the payment and linked fines as paid, then refreshes the unpaid fine total.
-  - When the payment status becomes `paid`, the QR image remains visible with the `public/打勾.png` completion mark overlaid.
-  - If another page or dashboard expires the order, Fine Records updates the order status to `expired` and prompts the user to create a new order.
-  - Opening the `/payment-result` link after simulated success shows the latest backend payment status as `paid`.
-  - `/payment-result` can refresh manually and also polls automatically every 2-3 seconds.
-
-### Test Case: Borrow records fine modal layout
-
-- **Scenario**: User opens the fine modal from My Borrow Records with many overdue records.
-- **Steps**:
-  1. Log in as a user with many fine records and open My Borrow Records.
-  2. Click `View Fines`.
-  3. Resize or scroll the borrow records page while the modal is open.
-- **Expected result**:
-  - The modal is centered against the browser viewport, not the borrow-records card/container.
-  - The fine modal overrides the base 600px modal limit and stretches horizontally on desktop, up to the wide modal limit, so the fine table has room to breathe.
-  - Fine table columns keep readable widths; long book titles wrap naturally while status and amount columns stay on one line.
-  - On narrow screens, the table scrolls horizontally inside the modal instead of squeezing columns into unreadable vertical text.
-
-### Test Case: Payment order management and income dashboard
-
-- **Scenario**: Librarian manages simulated Alipay fine payment orders locally.
-- **Steps**:
-  1. Create a payable fine payment for a user.
-  2. Create the same payment again before completing or expiring the first order.
-  3. Log in as librarian or admin and open `/income-dashboard`.
-  4. Filter payments by `Pending`.
-  5. Expire a pending payment order.
-  6. Complete another payment with `Simulate Payment Success` and refresh the dashboard.
-  7. Create the same payment again after the first pending order was expired.
-- **Expected result**:
-  - The second create call reuses the existing pending order for the same fine records instead of creating a duplicate.
-  - `/income-dashboard` shows total income, today income, month income, paid count, pending count, and payment rows.
-  - Pending rows can be marked expired.
-  - Expired payments do not mark fines as paid.
-  - After a pending order is expired, creating the payment again creates a new pending order rather than reusing the expired one.
-  - Paid payments appear in the income totals after simulated success.
-
-### Test Case: Borrow records fine modal payment route
-
-- **Scenario**: User starts fine payment from the My Borrow Records fine modal.
-- **Steps**:
-  1. Log in as a user with unpaid fines.
-  2. Open My Borrow Records.
-  3. Click `View Fines`.
-  4. Click `Pay with Alipay` in the fine modal.
-- **Expected result**:
-  - The modal closes and the app navigates to `/fines/:userId`.
-  - No direct `/api/borrow/pay-fine` request is made from the frontend.
-  - The user completes payment through the Fine Records Alipay simulation panel.
+### 测试用例 8.39：借阅记录罚款弹窗跳转支付页
+- **测试场景**：用户从 My Borrow Records 罚款弹窗发起支付
+- **操作步骤**：
+  1. 使用存在未付罚款的用户登录
+  2. 打开 My Borrow Records
+  3. 点击 `View Fines`
+  4. 在罚款弹窗中点击 `Pay with Alipay`
+- **预期结果**：
+  - 弹窗关闭并跳转到 `/fines/:userId`
+  - 前端不再从弹窗直接请求 `/api/borrow/pay-fine`
+  - 用户在 Fine Records 支付宝模拟支付面板完成支付

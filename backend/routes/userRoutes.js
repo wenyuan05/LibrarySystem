@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken, requireRole, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const { validateLoginBody, validateRegisterBody, validateAdminAddUserBody, validatePasswordResetRequest, validatePasswordReset } = require('../middleware/validation');
 
 // 用户登录
@@ -39,7 +39,7 @@ router.put('/:id', authenticateToken, (req, res, next) => {
   }
 }, userController.updateUser);
 
-// 删除用户（管理员或图书管理员）
+// 删除用户（管理员）
 router.delete('/:id', authenticateToken, requireRole('admin'), userController.deleteUser);
 
 // 获取用户借阅记录（需要登录，允许本人、管理员或图书管理员）

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { booksAPI, borrowAPI, systemAPI, usersAPI } from '../utils/api';
 import './BookDetailsPage.css';
@@ -8,6 +9,8 @@ import './BookDetailsPage.css';
 const BookDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [book, setBook] = useState(null);
@@ -18,6 +21,25 @@ const BookDetailsPage = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedCopyId, setSelectedCopyId] = useState(null);
   const [borrowFeatureEnabled, setBorrowFeatureEnabled] = useState(true);
+  const [reservationFeatureEnabled, setReservationFeatureEnabled] = useState(true);
+
+  const fetchBookDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [bookData, copiesData] = await Promise.all([
+        booksAPI.getById(id),
+        booksAPI.getCopies(id)
+      ]);
+      setBook(bookData);
+      setCopies(copiesData);
+      // 不要重置borrowRecord和countdown，保持当前状态
+    } catch (err) {
+      showToast('Failed to load book details', 'error');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, showToast]);
 
   // 加载书籍详情和副本信息
   useEffect(() => {
@@ -45,7 +67,7 @@ const BookDetailsPage = () => {
       }
     };
     loadData();
-  }, [id, user]);
+  }, [fetchBookDetails, id, user?.id]);
 
   useEffect(() => {
     const fetchFeatureFlags = async () => {
@@ -54,13 +76,14 @@ const BookDetailsPage = () => {
       try {
         const flags = await systemAPI.getFeatureFlags();
         setBorrowFeatureEnabled(flags.borrow_enabled !== false);
+        setReservationFeatureEnabled(flags.reservation_enabled !== false);
       } catch (err) {
         console.error('Failed to fetch feature flags:', err);
       }
     };
 
     fetchFeatureFlags();
-  }, [user]);
+  }, [user?.id]);
 
   // 倒计时效果
   useEffect(() => {
@@ -79,25 +102,7 @@ const BookDetailsPage = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [countdown]);
-
-  const fetchBookDetails = async () => {
-    try {
-      setLoading(true);
-      const [bookData, copiesData] = await Promise.all([
-        booksAPI.getById(id),
-        booksAPI.getCopies(id)
-      ]);
-      setBook(bookData);
-      setCopies(copiesData);
-      // 不要重置borrowRecord和countdown，保持当前状态
-    } catch (err) {
-      showToast('Failed to load book details', 'error');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [countdown, fetchBookDetails]);
 
   // 处理借阅书籍
   const [isBorrowing, setIsBorrowing] = useState(false);
@@ -165,6 +170,29 @@ const BookDetailsPage = () => {
     }
   };
 
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!borrowRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(borrowRecord.id);
+      setShowConfirmModal(false);
+      setBorrowRecord(null);
+      setSelectedCopyId(null);
+      setCountdown(0);
+      await fetchBookDetails();
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
   // 处理预约书籍
   const handleReserve = async () => {
     try {
@@ -181,7 +209,15 @@ const BookDetailsPage = () => {
 
   // 处理返回列表
   const handleBack = () => {
-    navigate('/books');
+    const from = location.state?.from || searchParams.get('returnTo');
+    const fallback = user?.role === 'librarian' ? '/book-management' : '/books';
+
+    if (from && from.startsWith('/')) {
+      navigate(from);
+      return;
+    }
+
+    navigate(fallback);
   };
 
   // 格式化倒计时
@@ -327,11 +363,12 @@ const BookDetailsPage = () => {
                 </div>
               )}
               {!borrowRecord && copies.filter(c => c.status === 'available').length <= 0 && (
-                <button 
+                <button
                   className="btn-secondary reserve-button"
                   onClick={handleReserve}
+                  disabled={!reservationFeatureEnabled}
                 >
-                  Reserve
+                  {reservationFeatureEnabled ? 'Reserve' : 'Reservations Disabled'}
                 </button>
               )}
             </div>
@@ -340,13 +377,27 @@ const BookDetailsPage = () => {
       </div>
 
       {/* 确认借阅模态框 */}
-      {showConfirmModal && (
+      {showConfirmModal && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>Confirm Borrowing</h3>
+            <div className="modal-header">
+              <h3>Confirm Borrowing</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
+              >
+                <img src="/打叉.svg" alt="" />
+              </button>
+            </div>
             <div className="modal-body">
               <p><strong>User:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {book.title}</p>
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatCountdown()}</strong>
+              </div>
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select 
@@ -362,11 +413,17 @@ const BookDetailsPage = () => {
               </div>
             </div>
             <div className="modal-actions">
-              <button 
+              <button
                 className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
               >
-                Cancel
+                Not Now
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
               <button 
                 className="btn-primary"
@@ -378,7 +435,7 @@ const BookDetailsPage = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

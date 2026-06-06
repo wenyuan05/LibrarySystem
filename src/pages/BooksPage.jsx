@@ -1,26 +1,38 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import BookList from '../components/Books/BookList';
 import { booksAPI, borrowAPI, categoryAPI, statsAPI, usersAPI } from '../utils/api';
+import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BooksPage = () => {
   const BOOKS_PER_PAGE = 12;
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const initialSearch = searchParams.get('search') || '';
+  const initialCategory = categoryParam && categoryParam !== 'all' ? Number(categoryParam) : 'all';
+  const normalizedInitialCategory = Number.isNaN(initialCategory) ? 'all' : initialCategory;
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [quickFilter, setQuickFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [selectedCategory, setSelectedCategory] = useState(normalizedInitialCategory);
+  const [quickFilter, setQuickFilter] = useState(searchParams.get('filter') || 'all');
   const [categories, setCategories] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [popularBooks, setPopularBooks] = useState([]);
   const [recentBorrowed, setRecentBorrowed] = useState([]);
   const [activeReservations, setActiveReservations] = useState([]);
+  const [isPopularExpanded, setIsPopularExpanded] = useState(false);
   const { user } = useAuth();
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
+  const initialBooksQueryRef = useRef({
+    category: normalizedInitialCategory,
+    search: initialSearch
+  });
 
   const fetchBooks = useCallback(async (category = 'all', search = '') => {
     try {
@@ -104,7 +116,7 @@ const BooksPage = () => {
   };
 
   useEffect(() => {
-    fetchBooks();
+    fetchBooks(initialBooksQueryRef.current.category, initialBooksQueryRef.current.search);
     fetchCategories();
     fetchPopularBooks();
   }, [fetchBooks, fetchCategories, fetchPopularBooks]);
@@ -133,16 +145,14 @@ const BooksPage = () => {
     fetchBooks(selectedCategory, searchTerm);
   };
 
-  useEffect(() => {
+  const filteredBooks = useMemo(() => {
     const reservedBookIds = new Set(activeReservations.map(record => Number(record.book_id)));
-    const nextBooks = books.filter(book => {
+    return books.filter(book => {
       if (quickFilter === 'available') return Number(book.available_copies || 0) > 0;
       if (quickFilter === 'borrowed') return Number(book.available_copies || 0) === 0;
       if (quickFilter === 'reserved') return reservedBookIds.has(Number(book.id));
       return true;
     });
-
-    setFilteredBooks(nextBooks);
   }, [books, quickFilter, activeReservations]);
 
   useEffect(() => {
@@ -183,8 +193,33 @@ const BooksPage = () => {
   const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
 
   useEffect(() => {
+    if (booksLoading) return;
+
     setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
-  }, [totalPages]);
+  }, [booksLoading, totalPages]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (currentPage > 1) nextParams.set('page', String(currentPage));
+    if (searchTerm.trim()) nextParams.set('search', searchTerm);
+    if (selectedCategory !== 'all') nextParams.set('category', String(selectedCategory));
+    if (quickFilter !== 'all') nextParams.set('filter', quickFilter);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, quickFilter, searchTerm, selectedCategory, setSearchParams]);
+
+  const handlePageChange = (nextPage) => {
+    setCurrentPage(nextPage);
+    scrollToListTop('#books-list-top');
+  };
+
+  const detailFromParams = new URLSearchParams();
+  if (currentPage > 1) detailFromParams.set('page', String(currentPage));
+  if (searchTerm.trim()) detailFromParams.set('search', searchTerm);
+  if (selectedCategory !== 'all') detailFromParams.set('category', String(selectedCategory));
+  if (quickFilter !== 'all') detailFromParams.set('filter', quickFilter);
+  const bookDetailFrom = `${location.pathname}${detailFromParams.toString() ? `?${detailFromParams.toString()}` : ''}`;
 
   return (
     <div className="books-page-shell fade-in">
@@ -298,12 +333,14 @@ const BooksPage = () => {
           </div>
         </div>
 
+        <div id="books-list-top" />
         <BookList
           books={pagedBooks}
           loading={booksLoading}
           onBookUpdated={handleBookUpdated}
           onBookDeleted={handleBookDeleted}
           onReservationsChanged={fetchActiveReservations}
+          detailFrom={bookDetailFrom}
         />
         {!booksLoading && filteredBooks.length > 0 && (
           <div className="books-pagination" aria-label="Books pagination">
@@ -313,14 +350,14 @@ const BooksPage = () => {
             <div className="books-pagination-controls">
               <button
                 type="button"
-                onClick={() => setCurrentPage(1)}
+                onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
               >
                 First
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
               >
                 Previous
@@ -328,14 +365,14 @@ const BooksPage = () => {
               <span>Page {currentPage} of {totalPages}</span>
               <button
                 type="button"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
               >
                 Next
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage(totalPages)}
+                onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages}
               >
                 Last
@@ -346,14 +383,22 @@ const BooksPage = () => {
       </div>
 
       <aside className="books-sidebar">
-        <section className="sidebar-widget popular-books-section">
+        <section className={`sidebar-widget popular-books-section ${isPopularExpanded ? 'is-expanded' : 'is-collapsed'}`}>
           <div className="popular-books-header">
             <div>
               <h3>Popular Books</h3>
               <p>Top 10 most borrowed</p>
             </div>
+            <button
+              type="button"
+              className="popular-books-toggle"
+              onClick={() => setIsPopularExpanded(prev => !prev)}
+              aria-expanded={isPopularExpanded}
+            >
+              {isPopularExpanded ? 'Collapse' : 'Expand'}
+            </button>
           </div>
-          {popularBooks.length > 0 ? (
+          {isPopularExpanded && popularBooks.length > 0 ? (
             <div className="popular-books-list">
               {popularBooks.map((book, index) => (
                 <div className="popular-book-item" key={book.id}>
@@ -365,6 +410,11 @@ const BooksPage = () => {
                   <span className="popular-book-count">{book.borrow_count}</span>
                 </div>
               ))}
+            </div>
+          ) : !isPopularExpanded && popularBooks.length > 0 ? (
+            <div className="popular-books-preview">
+              <strong>{popularBooks[0].title}</strong>
+              <span>{popularBooks[0].borrow_count} borrow(s)</span>
             </div>
           ) : (
             <p className="sidebar-empty">No borrow data yet.</p>

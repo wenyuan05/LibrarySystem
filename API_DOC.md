@@ -6,7 +6,7 @@
 |------|----------|----------|
 | 用户管理 | 用户认证、信息管理、状态管理 | 12 |
 | 书籍管理 | 书籍CRUD、分类管理、ISBN导入、副本条形码与位置管理 | 22 |
-| 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 14 |
+| 借阅管理 | 借阅、归还、预约、续借、罚款管理、预约可借通知触发 | 15 |
 | 系统管理 | 系统设置、功能开关、公告、公告已读、日志 | 13 |
 | 站内通知 | 通知列表、未读数量、标记已读 | 4 |
 | 统计分析 | 借阅统计、用户统计 | 5 |
@@ -155,6 +155,8 @@
 }
 ```
 
+**说明**：普通用户和图书管理员更新个人资料时应省略 `role` 字段；如果请求中携带的 `role` 与目标用户当前角色一致，后端会忽略该字段。只有 admin 可以实际修改用户角色，且不能将用户设置为 admin。请求中包含 `email` 时，后端会校验邮箱格式并拒绝无效邮箱。
+
 **响应**：
 ```json
 {
@@ -167,8 +169,17 @@
 ```
 
 #### 3.1.7 DELETE /api/users/:id
-**功能**：删除用户
-**权限**：admin/librarian
+**功能**：删除用户（软删除）
+**权限**：admin
+
+**安全规则**：
+- 不能删除当前登录账号
+- 不能删除管理员账号
+- 存在 `borrowing`、`borrowed`、`overdue`、`returning` 借阅记录时禁止删除
+- 存在 `active` 或 `pending` 预约记录时禁止删除
+- 存在 `returning` 或 `returned` 实际未支付罚款时禁止删除
+- 存在 `pending` 支付订单时禁止删除
+- 删除不会物理移除 `users` 记录，而是将 `user_status.status` 更新为 `deleted`；用户列表和登录会排除 deleted 账号，借阅、罚款和支付历史保留用于审计
 
 **响应**：
 ```json
@@ -195,11 +206,14 @@
     "status": "returned",
     "fine": 0,
     "fine_status": "paid",
+    "confirm_deadline": "2024-01-01T10:00:00Z",
     "copy_id": 1,
     "copy_code": "CP-1-001"
   }
 ]
 ```
+
+**说明**：`status = "borrowing"` 的待确认记录会返回 `confirm_deadline`，前端用它在书籍列表、书籍详情和借阅记录确认弹窗中恢复剩余确认倒计时。
 
 #### 3.1.9 POST /api/users/:id/block
 **功能**：拉黑用户
@@ -415,6 +429,12 @@
 **功能**：删除书籍
 **权限**：admin/librarian
 
+**安全规则**：
+- 存在 `borrowing`、`borrowed`、`overdue`、`returning` 借阅记录时禁止删除
+- 存在 `active` 或 `pending` 预约记录时禁止删除
+- 存在 `borrowing`、`borrowed` 或 `reserved` 状态副本时禁止删除
+- 删除检查以借阅状态为准，不依赖 `return_date IS NULL`；`returning` 记录可能已有归还日期但仍未审批完成
+
 **响应**：
 ```json
 {
@@ -458,11 +478,13 @@
 ```
 
 #### 3.2.8 GET /api/books/export
-**功能**：导出书籍信息到CSV
+**功能**：导出图书与副本组合信息到CSV
 **权限**：admin/librarian
 
+**说明**：导出结果按副本展开，每个副本一行并重复展示所属图书字段；没有副本的图书也会保留一行且副本字段为空。CSV 包含图书 ID、标题、作者、ISBN、馆藏数量、分类、图书创建/更新时间，以及副本 ID、编号、状态、位置、创建/更新时间。
+
 **响应**：
-- CSV文件下载
+- `text/csv; charset=utf-8` 文件下载，默认文件名 `books_with_copies_YYYY-MM-DD.csv`
 
 #### 3.2.9 GET /api/books/:book_id/copies
 **功能**：获取书籍的所有副本
@@ -689,6 +711,38 @@
 }
 ```
 
+#### 3.2.18 DELETE /api/books/copies/:id
+**功能**：删除单个实体副本
+**权限**：admin/librarian
+
+**安全规则**：
+- 副本 id 必须为正整数
+- 副本必须存在
+- 只能删除 `available` 状态的副本
+- 所属图书至少保留一个副本
+- 副本不能存在活跃借阅记录
+- 删除成功后会在同一事务中重新计算 `books.total_copies` 和 `books.available_copies`
+
+**响应**：
+```json
+{
+  "message": "Copy deleted successfully"
+}
+```
+
+**可能错误**：
+```json
+{ "error": "Cannot delete copy: only available copies can be deleted" }
+```
+
+```json
+{ "error": "Cannot delete copy: a book must keep at least one copy" }
+```
+
+```json
+{ "error": "Cannot delete copy: it has active borrowing records" }
+```
+
 ### 3.3 借阅管理接口
 
 #### 3.3.1 POST /api/borrow/borrow
@@ -718,7 +772,8 @@
 ```
 
 **说明**：
-- 发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+- 发起借阅时只创建待确认记录，不预先绑定具体副本。后端会先清理过期待确认记录，再用 `available` 副本数减去当前 `borrowing` 待确认记录数计算可确认名额；没有剩余名额时返回 HTTP 400：`{"error":"No available copies. All available copies are already awaiting confirmation."}`。
+- 具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
 - 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.2 POST /api/borrow/return
@@ -742,7 +797,7 @@
 }
 ```
 
-**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`，用户无需等待图书管理员审批即可调用 `pay-fine` 支付。
+**说明**：归还申请提交时会立即计算逾期罚款，并按 `max_fine` 限制单条借阅记录最高罚款金额（`max_fine = "0"` 表示不封顶）。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`。用户无需等待图书管理员审批即可通过支付宝支付订单支付实际罚款。当系统设置 `fine_enabled = "0"` 时，新逾期记录不再产生罚款，已逾期未归还记录的预计罚款不会继续增长；归还时使用当前冻结的罚款金额。
 
 #### 3.3.3 POST /api/borrow/confirm-borrow
 **功能**：确认借阅
@@ -766,7 +821,30 @@
 - `copy_id` 必须是当前书籍的可用副本；兼容旧数据中已预选副本的记录，若确认时改选其他副本，会释放原副本。
 - 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
-#### 3.3.4 POST /api/borrow/handle-timeout
+#### 3.3.4 POST /api/borrow/cancel-borrow-lock
+**功能**：取消待确认的借阅锁定
+**权限**：借阅记录本人或admin/librarian
+
+**请求体**：
+```json
+{
+  "record_id": 10
+}
+```
+
+**响应**：
+```json
+{
+  "message": "Borrow lock cancelled successfully"
+}
+```
+
+**说明**：
+- 仅允许取消 `status = "borrowing"` 的待确认借阅记录。
+- 取消后记录状态变为 `timeout`；若兼容旧数据时该记录已经绑定 `copy_id` 且副本仍为 `borrowing`，会释放该副本并重新计算书籍可用副本数。
+- 读者端 Confirm 弹窗中 `Cancel Lock` 调用该接口；`Not Now` 和右上角关闭按钮只隐藏弹窗，不取消锁定。
+
+#### 3.3.5 POST /api/borrow/handle-timeout
 **功能**：处理超时借阅
 **权限**：admin/librarian
 
@@ -778,7 +856,7 @@
 }
 ```
 
-#### 3.3.5 POST /api/borrow/approve-return
+#### 3.3.6 POST /api/borrow/approve-return
 **功能**：审批归还请求
 **权限**：admin/librarian
 
@@ -798,7 +876,7 @@
 
 **说明**：审批只确认归还状态、释放副本并触发预约可借通知。罚款已在用户提交归还时入账，审批阶段不会重复累计罚款；如果用户已提前支付，`fine_status` 保持 `"paid"`。
 
-#### 3.3.6 GET /api/borrow/returning
+#### 3.3.7 GET /api/borrow/returning
 **功能**：获取待审批的归还请求列表
 **权限**：admin/librarian
 
@@ -820,7 +898,7 @@
 ]
 ```
 
-#### 3.3.7 GET /api/borrow/borrowing
+#### 3.3.8 GET /api/borrow/borrowing
 **功能**：获取借阅中列表
 **权限**：admin/librarian
 
@@ -840,8 +918,10 @@
 ]
 ```
 
-#### 3.3.8 POST /api/borrow/reserve
+#### 3.3.9 POST /api/borrow/reserve
 **功能**：预约书籍
+
+**说明**：当系统设置 `reservation_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Reservations are currently disabled by the system administrator"}`。关闭预约不会影响用户取消已有预约。
 
 **请求体**：
 ```json
@@ -861,7 +941,7 @@
 }
 ```
 
-#### 3.3.9 GET /api/borrow/reservations/:user_id
+#### 3.3.10 GET /api/borrow/reservations/:user_id
 **功能**：获取用户的预约记录
 
 **响应**：
@@ -878,7 +958,7 @@
 ]
 ```
 
-#### 3.3.10 POST /api/borrow/renew
+#### 3.3.11 POST /api/borrow/renew
 **功能**：续借图书
 
 **请求体**：
@@ -896,7 +976,7 @@
 }
 ```
 
-#### 3.3.11 GET /api/borrow/fines/:user_id
+#### 3.3.12 GET /api/borrow/fines/:user_id
 **功能**：获取用户罚款历史记录
 **权限**：本人或admin/librarian
 
@@ -922,26 +1002,10 @@
 ]
 ```
 
-#### 3.3.12 POST /api/borrow/pay-fine
-**功能**：支付所有未支付罚款
-**权限**：本人或admin/librarian
+#### 3.3.13 POST /api/borrow/pay-fine
+**状态**：已移除
 
-**说明**：接口直接汇总 `borrow_records` 中 `fine > 0` 且 `fine_status = "unpaid"` 的记录，支持支付 `returning` 状态下已经计算出的罚款。支付成功后相关罚款记录标记为 `"paid"`，并重新同步用户 `total_fine`。
-
-**请求体**：
-```json
-{
-  "user_id": 2
-}
-```
-
-**响应**：
-```json
-{
-  "message": "Fines paid successfully",
-  "amount": 2.5
-}
-```
+**说明**：旧的直接结清罚款接口已移除，避免绕过 Release 3 的支付宝支付订单、支付状态和收入流水。请使用 `POST /api/payments/fines/alipay` 创建罚款支付单，并通过支付宝通知、主动查询或本地模拟通知完成支付。
 
 ### 3.4 支付接口
 
@@ -977,8 +1041,38 @@
 - `provider`：可选，默认 `alipay`
 - `payment_type`：可选，例如 `fine`
 - `date_from` / `date_to`：可选，按创建日期筛选
+- `keyword`：可选，按订单号、用户名、姓名、状态或用户 ID 模糊筛选
+- `page`：可选，页码，默认 `1`
+- `page_size`：可选，每页数量，默认 `10`，最大 `100`
 
 **说明**：普通用户只能看到自己的支付订单；admin/librarian 可查看全部或按用户筛选。
+
+**响应**：
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "username": "reader",
+      "name": "Reader",
+      "out_trade_no": "ALI202606040101010000A1B2C3D4",
+      "amount": 5,
+      "status": "paid",
+      "provider": "alipay",
+      "payment_type": "fine",
+      "created_at": "2026-06-04 10:00:00",
+      "paid_at": "2026-06-04T02:01:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 10,
+    "total": 23,
+    "total_pages": 3
+  }
+}
+```
 
 #### 3.4.3 POST /api/payments/fines/alipay
 **功能**：创建支付宝罚款支付单（本地模拟）
@@ -1056,7 +1150,44 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 }
 ```
 
-#### 3.4.9 POST /api/payments/:id/expire
+#### 3.4.9 GET /api/payments/income/analytics
+**功能**：收入趋势和任意日期范围收入查询
+**权限**：admin/librarian
+
+**查询参数**：
+- `start_date`：可选，查询起始日期，格式 `YYYY-MM-DD`
+- `end_date`：可选，查询结束日期，格式 `YYYY-MM-DD`
+
+**说明**：不传日期参数时，`trend` 默认返回过去一年按月统计的已支付支付宝罚款收入。传入 `start_date` / `end_date` 后，折线图数据会限定在指定范围内，并自动选择标度：31 天内按日、180 天内按 7 天区间、超过 180 天按月。只传其中一个日期时按单日查询。
+
+**响应**：
+```json
+{
+  "trend": {
+    "granularity": "month",
+    "start_date": "2025-07-01",
+    "end_date": "2026-06-04",
+    "buckets": [
+      {
+        "key": "2025-07",
+        "label": "2025-07",
+        "start_date": "2025-07-01",
+        "end_date": "2025-07-31",
+        "income": 15,
+        "paid_count": 3
+      }
+    ]
+  },
+  "range": {
+    "start_date": "2025-07-01",
+    "end_date": "2026-06-04",
+    "total_income": 20,
+    "paid_count": 4
+  }
+}
+```
+
+#### 3.4.10 POST /api/payments/:id/expire
 **功能**：手动过期待支付订单
 **权限**：本人或admin/librarian
 
@@ -1198,8 +1329,11 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "system_name": "Library Management System",
   "system_version": "1.0.0",
   "borrow_enabled": "1",
+  "reservation_enabled": "1",
   "borrow_period_days": "14",
+  "fine_enabled": "1",
   "fine_per_day": "0.5",
+  "max_fine": "0",
   "max_borrows": "5",
   "borrow_confirm_minutes": "60",
   "max_renew_times": "3",
@@ -1221,12 +1355,15 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 ```json
 {
   "borrow_enabled": "1",
+  "reservation_enabled": "1",
   "borrow_period_days": "21",
-  "fine_per_day": "1.0"
+  "fine_enabled": "1",
+  "fine_per_day": "1.0",
+  "max_fine": "50"
 }
 ```
 
-`fine_per_day` 可以设置为 `"0"`，表示禁用逾期罚款。
+`fine_enabled` 设置为 `"0"` 时会暂停新罚款产生和未归还逾期记录的预计罚款增长，但不影响已生成实际罚款的支付。`fine_per_day` 可以设置为 `"0"`，表示启用罚款功能时费率为 0。`max_fine` 限制单条借阅记录最高逾期罚款，设置为 `"0"` 表示不封顶。
 
 **响应**：
 ```json
@@ -1242,11 +1379,13 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **说明**：
 - 该接口只暴露前端业务需要知道的功能开关，不返回完整系统设置。
 - `borrow_enabled` 为 `false` 时，读者端应禁用发起借阅和确认借阅入口；后端仍会在借阅接口强制校验。
+- `reservation_enabled` 为 `false` 时，读者端应禁用发起预约入口；后端仍会在预约接口强制校验，取消已有预约不受影响。
 
 **响应**：
 ```json
 {
-  "borrow_enabled": true
+  "borrow_enabled": true,
+  "reservation_enabled": true
 }
 ```
 
@@ -1443,30 +1582,54 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 - `limit`：返回数量，默认 50
 - `offset`：分页偏移，默认 0
 - `order`：时间排序，`desc` 为最新优先，`asc` 为最旧优先
+- `keyword`：可选，按操作类型、描述或用户 ID 模糊筛选
+- `action`：可选，按操作类型模糊筛选
+- `user_id`：可选，按用户 ID 精确筛选
+- `date_from`：可选，按创建日期起始值筛选，格式 `YYYY-MM-DD`
+- `date_to`：可选，按创建日期结束值筛选，格式 `YYYY-MM-DD`
 
 **响应**：
 ```json
-[
-  {
-    "id": 1,
-    "user_id": 1,
-    "username": "admin",
-    "action": "login",
-    "description": "User logged in",
-    "ip_address": "127.0.0.1",
-    "created_at": "2024-01-01 00:00:00"
-  }
-]
+{
+  "logs": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "action": "login",
+      "description": "User logged in",
+      "created_at": "2024-01-01 00:00:00"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
 ```
 
 #### 3.6.15 DELETE /api/logs/clear
 **功能**：清除系统日志
 **权限**：admin
 
+**请求体**：
+```json
+{
+  "days": 30
+}
+```
+
+**说明**：`days` 必须是 `1` 到 `3650` 的整数，或 `0` 表示清除全部日志。非法值返回 HTTP 400，且不会删除日志。
+
 **响应**：
 ```json
 {
   "message": "Logs cleared successfully"
+}
+```
+
+**可能错误**：
+```json
+{
+  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
 }
 ```
 
@@ -1617,14 +1780,14 @@ fetch('http://localhost:3001/api/users/login', {
 .then(response => response.json())
 .then(data => {
   const token = data.token;
-  // 存储token
-  localStorage.setItem('token', token);
+  // 当前前端按标签页隔离登录态，使用 sessionStorage 保存 token
+  sessionStorage.setItem('token', token);
 });
 
 // 获取书籍列表（带认证）
 fetch('http://localhost:3001/api/books', {
   headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
+    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
   }
 })
 .then(response => response.json())
@@ -1646,7 +1809,7 @@ const api = axios.create({
 
 // 请求拦截器添加认证
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -1658,7 +1821,7 @@ api.post('/users/login', {
   username: 'admin',
   password: 'admin123'
 }).then(response => {
-  localStorage.setItem('token', response.data.token);
+  sessionStorage.setItem('token', response.data.token);
 });
 
 // 获取书籍列表
@@ -1685,77 +1848,13 @@ api.get('/books').then(response => {
 6. **CSRF防护**：实现CSRF令牌验证
 7. **密码安全**：使用强密码哈希算法
 8. **Token管理**：实现token过期和刷新机制
-## 8. API Update - 2026-05-13
+9. **JWT密钥**：生产环境必须设置强随机 `JWT_SECRET`，未设置时后端拒绝启动
+10. **示例账号**：生产环境默认不插入 `admin/admin123` 等示例账号，演示环境需显式设置 `SEED_DEFAULT_USERS=true` 并覆盖默认密码
+11. **前端会话隔离**：当前前端使用 `sessionStorage` 保存登录 token，同一浏览器不同标签页可以使用不同账号
 
-### 8.1 Book-management endpoint count
+## 7.1 运行与审计说明
 
-The book-management module now includes 20 endpoints after adding single-copy deletion.
-
-### 8.2 DELETE /api/books/copies/:id
-
-**Purpose**: Delete one physical copy of a book.
-
-**Permission**: `admin` or `librarian`
-
-**Response**:
-
-```json
-{
-  "message": "Copy deleted successfully"
-}
-```
-
-**Safety rules**:
-
-- The copy id must be a positive integer.
-- The copy must exist.
-- The copy status must be `available`.
-- The parent book must keep at least one remaining copy.
-- The copy must not have an active borrow record.
-- After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
-
-**Possible errors**:
-
-```json
-{ "error": "Cannot delete copy: only available copies can be deleted" }
-```
-
-```json
-{ "error": "Cannot delete copy: a book must keep at least one copy" }
-```
-
-```json
-{ "error": "Cannot delete copy: it has active borrowing records" }
-```
-
-### 8.3 Delete-safety rules
-
-The following active borrow statuses block user deletion, book deletion, and duplicate borrow creation:
-
-- `borrowing`
-- `borrowed`
-- `overdue`
-- `returning`
-
-User deletion now also blocks:
-
-- deleting the current account
-- deleting an admin account
-- active reservations with status `active` or `pending`
-
-Book deletion now also blocks:
-
-- occupied copies with status `borrowing`, `borrowed`, or `reserved`
-- active reservations with status `active` or `pending`
-
-The delete checks no longer rely on `return_date IS NULL`, because `returning` records already have a return date while still waiting for librarian approval.
-
-### 8.4 DELETE /api/logs/clear validation
-
-`days` must be an integer from `1` to `3650`, or `0` to clear all logs. Invalid values return:
-
-```json
-{
-  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
-}
-```
+- 前端 `npm run build` 会先执行 `prebuild` 清理旧 `dist`，再运行 Vite 构建。
+- 后端依赖使用 `nodemailer@8` 与 `sqlite3@5.1.7`；`sqlite3` 固定在 5.1.7 是为了兼容宝塔面板中较旧 Linux/glibc 环境。
+- `/api/borrow/confirm-borrow` 只允许借阅记录本人、管理员或图书管理员确认。
+- `/api/borrow/handle-timeout` 与 `/api/borrow/check-overdue` 只允许管理员或图书管理员触发。

@@ -1,22 +1,61 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
-import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
+import { usersAPI, borrowAPI, booksAPI, systemAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords, sortFineRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
 import './Borrow.css';
 
 const getFineAmount = (fine) => Number(fine) || 0;
+const getCountdownSeconds = (deadline) => {
+  if (!deadline) return 0;
+  const diffInSeconds = Math.floor((new Date(deadline) - new Date()) / 1000);
+  return Math.max(0, diffInSeconds);
+};
+
+const formatCountdown = (secondsLeft) => {
+  const minutes = Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const isActualPayableFine = (fine) => (
   fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
 );
-const isEstimatedFine = (fine) => (
-  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+const isEstimatedFine = (fine, fineFeatureEnabled = true) => (
+  fineFeatureEnabled && fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
 );
+const shouldShowRecordFine = (record, fineFeatureEnabled = true) => (
+  getFineAmount(record.fine) > 0 && (fineFeatureEnabled || ['returning', 'returned'].includes(record.status))
+);
+const recordMatchesFilters = (record, filters) => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  const matchesKeyword = !keyword || [
+    record.id,
+    record.title,
+    record.author,
+    record.copy_code,
+    record.status
+  ].some(value => String(value || '').toLowerCase().includes(keyword));
+  const matchesStatus = !filters.status || record.status === filters.status;
+  const recordDate = record.borrow_date || '';
+  const matchesStart = !filters.date_from || recordDate >= filters.date_from;
+  const matchesEnd = !filters.date_to || recordDate <= filters.date_to;
+
+  return matchesKeyword && matchesStatus && matchesStart && matchesEnd;
+};
 
 const BorrowRecords = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialRecordFilters = {
+    keyword: searchParams.get('keyword') || '',
+    status: searchParams.get('status') || '',
+    date_from: searchParams.get('date_from') || '',
+    date_to: searchParams.get('date_to') || ''
+  };
   const [records, setRecords] = useState([]);
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -25,34 +64,36 @@ const BorrowRecords = () => {
   const [confirmRecord, setConfirmRecord] = useState(null);
   const [confirmCopies, setConfirmCopies] = useState([]);
   const [selectedCopyId, setSelectedCopyId] = useState('');
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
   const [fines, setFines] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
-  const [recordSortOrder, setRecordSortOrder] = useState('desc');
-  const [recordPage, setRecordPage] = useState(1);
+  const [fineFeatureEnabled, setFineFeatureEnabled] = useState(true);
+  const [recordSortOrder, setRecordSortOrder] = useState(searchParams.get('sort') || 'desc');
+  const [recordPage, setRecordPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
+  const [recordFilters, setRecordFilters] = useState(initialRecordFilters);
+  const [appliedRecordFilters, setAppliedRecordFilters] = useState(recordFilters);
   const [fineSortOrder, setFineSortOrder] = useState('desc');
   const [finePage, setFinePage] = useState(1);
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // 加载借阅记录
-  useEffect(() => {
-    fetchBorrowRecords();
-  }, []);
-
-  const fetchBorrowRecords = async () => {
+  const fetchBorrowRecords = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await usersAPI.getBorrowRecords(user.id);
       setRecords(data.records);
-      setRecordPage(1);
       setOverdueCount(data.overdue_count || 0);
       
       // 如果有逾期记录，计算预估罚款并显示提醒
       if (data.overdue_count > 0) {
-        const overdueFines = data.records
-          .filter(r => r.status === 'overdue' && r.fine > 0)
-          .reduce((sum, r) => sum + r.fine, 0);
+        const overdueFines = fineFeatureEnabled
+          ? data.records
+            .filter(r => r.status === 'overdue' && r.fine > 0)
+            .reduce((sum, r) => sum + r.fine, 0)
+          : 0;
         const overdueLabel = data.overdue_count === 1 ? 'book' : 'books';
         const returnTarget = data.overdue_count === 1 ? 'it' : 'them';
         const msg = overdueFines > 0
@@ -66,7 +107,54 @@ const BorrowRecords = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fineFeatureEnabled, showToast, user?.id]);
+
+  // 加载借阅记录
+  useEffect(() => {
+    fetchBorrowRecords();
+  }, [fetchBorrowRecords]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setFineFeatureEnabled(flags.fine_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch fine feature flag:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (recordPage > 1) nextParams.set('page', String(recordPage));
+    if (recordSortOrder !== 'desc') nextParams.set('sort', recordSortOrder);
+    if (appliedRecordFilters.keyword) nextParams.set('keyword', appliedRecordFilters.keyword);
+    if (appliedRecordFilters.status) nextParams.set('status', appliedRecordFilters.status);
+    if (appliedRecordFilters.date_from) nextParams.set('date_from', appliedRecordFilters.date_from);
+    if (appliedRecordFilters.date_to) nextParams.set('date_to', appliedRecordFilters.date_to);
+
+    setSearchParams(nextParams, { replace: true });
+  }, [appliedRecordFilters, recordPage, recordSortOrder, setSearchParams]);
+
+  useEffect(() => {
+    if (!confirmRecord?.confirm_deadline) {
+      setConfirmCountdown(0);
+      return undefined;
+    }
+
+    const updateCountdown = () => {
+      setConfirmCountdown(getCountdownSeconds(confirmRecord.confirm_deadline));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [confirmRecord?.confirm_deadline]);
 
   // 处理归还书籍
   const handleReturnBook = async (record) => {
@@ -127,6 +215,18 @@ const BorrowRecords = () => {
     }
   };
 
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  const resetConfirmModal = () => {
+    setShowConfirmModal(false);
+    setConfirmRecord(null);
+    setConfirmCopies([]);
+    setSelectedCopyId('');
+    setConfirmCountdown(0);
+  };
+
   // 处理确认借阅
   const handleConfirmBorrow = async () => {
     try {
@@ -141,10 +241,26 @@ const BorrowRecords = () => {
         r.id === confirmRecord.id ? { ...r, status: 'borrowed' } : r
       ));
       
-      setShowConfirmModal(false);
-      setConfirmRecord(null);
-      setConfirmCopies([]);
-      setSelectedCopyId('');
+      resetConfirmModal();
+      fetchBorrowRecords();
+      showToast(result.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+      console.error(err);
+    }
+  };
+
+  const handleCancelBorrowLock = async () => {
+    try {
+      if (!confirmRecord?.id) {
+        throw new Error('No borrow record found');
+      }
+
+      const result = await borrowAPI.cancelBorrowLock(confirmRecord.id);
+      setRecords(prevRecords => prevRecords.map(r =>
+        r.id === confirmRecord.id ? { ...r, status: 'timeout' } : r
+      ));
+      resetConfirmModal();
       fetchBorrowRecords();
       showToast(result.message, 'success');
     } catch (err) {
@@ -178,11 +294,68 @@ const BorrowRecords = () => {
     navigate(`/fines/${user.id}`);
   };
 
+  const handleRecordFilterChange = (event) => {
+    const { name, value } = event.target;
+    setRecordFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRecordFilterSubmit = (event) => {
+    event.preventDefault();
+    if (recordFilters.date_from && recordFilters.date_to && recordFilters.date_from > recordFilters.date_to) {
+      showToast('Borrow start date cannot be after end date', 'error');
+      return;
+    }
+    setRecordPage(1);
+    setAppliedRecordFilters(recordFilters);
+  };
+
+  const handleRecordFilterReset = () => {
+    const emptyFilters = { keyword: '', status: '', date_from: '', date_to: '' };
+    setRecordFilters(emptyFilters);
+    setAppliedRecordFilters(emptyFilters);
+    setRecordPage(1);
+  };
+
+  const handleOpenBookDetail = async (record) => {
+    try {
+      if (!record.book_id) {
+        throw new Error('Book ID not found in record');
+      }
+
+      await booksAPI.getById(record.book_id);
+      const fromParams = new URLSearchParams();
+      if (recordPage > 1) fromParams.set('page', String(recordPage));
+      if (recordSortOrder !== 'desc') fromParams.set('sort', recordSortOrder);
+      if (appliedRecordFilters.keyword) fromParams.set('keyword', appliedRecordFilters.keyword);
+      if (appliedRecordFilters.status) fromParams.set('status', appliedRecordFilters.status);
+      if (appliedRecordFilters.date_from) fromParams.set('date_from', appliedRecordFilters.date_from);
+      if (appliedRecordFilters.date_to) fromParams.set('date_to', appliedRecordFilters.date_to);
+      const from = `${location.pathname}${fromParams.toString() ? `?${fromParams.toString()}` : ''}`;
+      navigate(`/books/${record.book_id}?returnTo=${encodeURIComponent(from)}`, {
+        state: { from }
+      });
+    } catch (err) {
+      showToast(err.message || 'Book not found or has been removed', 'error');
+      console.error(err);
+    }
+  };
+
+  const handleRecordPageChange = (nextPage) => {
+    setRecordPage(nextPage);
+    scrollToListTop('#borrow-records-list-top');
+  };
+
+  const handleFinePageChange = (nextPage) => {
+    setFinePage(nextPage);
+    scrollToListTop('#borrow-fines-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading borrow records...</div>;
   }
 
-  const sortedRecords = sortBorrowRecords(records, recordSortOrder);
+  const filteredRecords = records.filter(record => recordMatchesFilters(record, appliedRecordFilters));
+  const sortedRecords = sortBorrowRecords(filteredRecords, recordSortOrder);
   const {
     pageItems: visibleRecords,
     totalPages: recordTotalPages,
@@ -190,7 +363,7 @@ const BorrowRecords = () => {
   } = paginateRecords(sortedRecords, recordPage, DEFAULT_HISTORY_PAGE_SIZE);
   const sortedFines = sortFineRecords(fines, fineSortOrder);
   const estimatedFine = fines
-    .filter(isEstimatedFine)
+    .filter(fine => isEstimatedFine(fine, fineFeatureEnabled))
     .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const {
     pageItems: visibleFines,
@@ -203,6 +376,10 @@ const BorrowRecords = () => {
       <div className="borrow-records-header">
         <h3>My Borrow Records</h3>
         <div className="borrow-records-header-actions">
+          <div className={`fine-feature-status ${fineFeatureEnabled ? 'enabled' : 'disabled'}`}>
+            <span className="fine-feature-dot" />
+            <span>{fineFeatureEnabled ? 'Fines On' : 'Fines Off'}</span>
+          </div>
           {overdueCount > 0 && (
             <div className="overdue-count">
               <span className="overdue-badge">{overdueCount}</span>
@@ -226,7 +403,7 @@ const BorrowRecords = () => {
       ) : (
         <>
           <div className="history-toolbar">
-            <span>{records.length} records</span>
+            <span>{filteredRecords.length} of {records.length} records</span>
             <button
               type="button"
               className="btn-secondary history-sort-button"
@@ -238,6 +415,47 @@ const BorrowRecords = () => {
               {recordSortOrder === 'desc' ? 'Ascending' : 'Descending'}
             </button>
           </div>
+          <form className="history-filters" onSubmit={handleRecordFilterSubmit}>
+            <label>
+              Keyword
+              <input
+                type="search"
+                name="keyword"
+                value={recordFilters.keyword}
+                onChange={handleRecordFilterChange}
+                placeholder="Title, barcode, status"
+              />
+            </label>
+            <label>
+              Status
+              <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
+                <option value="">All statuses</option>
+                <option value="borrowing">Borrowing</option>
+                <option value="borrowed">Borrowed</option>
+                <option value="overdue">Overdue</option>
+                <option value="returning">Returning</option>
+                <option value="returned">Returned</option>
+                <option value="timeout">Timeout</option>
+              </select>
+            </label>
+            <label>
+              Borrow From
+              <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
+            </label>
+            <label>
+              Borrow To
+              <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
+            </label>
+            <button type="submit" className="btn-secondary">Filter</button>
+            <button type="button" className="btn-secondary" onClick={handleRecordFilterReset}>Reset</button>
+          </form>
+          {filteredRecords.length === 0 ? (
+            <div className="empty-state">
+              <p>No borrow records match the current filters.</p>
+            </div>
+          ) : (
+          <>
+          <div id="borrow-records-list-top" />
           <div className="borrow-records-table-wrap">
             <table className="borrow-records-table">
             <colgroup>
@@ -266,7 +484,19 @@ const BorrowRecords = () => {
             </thead>
             <tbody>
               {visibleRecords.map(record => (
-                <tr key={record.id} className="fade-in">
+                <tr
+                  key={record.id}
+                  className="fade-in borrow-record-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenBookDetail(record)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenBookDetail(record);
+                    }
+                  }}
+                >
                   <td>{record.id}</td>
                   <td className="title-cell">{record.title}</td>
                   <td className="barcode-cell">
@@ -292,22 +522,28 @@ const BorrowRecords = () => {
                        record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                     </span>
                   </td>
-                  <td className={getFineAmount(record.fine) > 0 ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
-                    {getFineAmount(record.fine) > 0 ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
+                  <td className={shouldShowRecordFine(record, fineFeatureEnabled) ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
+                    {shouldShowRecordFine(record, fineFeatureEnabled) ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
                   </td>
                   <td className="borrow-action-cell">
                     {(record.status === 'borrowed' || record.status === 'overdue') && (
                       <div className="action-buttons">
                         <button
                           className="btn-info"
-                          onClick={() => handleReturnBook(record)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReturnBook(record);
+                          }}
                         >
                           Return
                         </button>
                         {record.status === 'borrowed' && (
                           <button
                             className="btn-secondary"
-                            onClick={() => handleRenewBook(record)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRenewBook(record);
+                            }}
                           >
                             Renew
                           </button>
@@ -318,7 +554,10 @@ const BorrowRecords = () => {
                       <div className="action-buttons">
                         <button
                           className="btn-info"
-                          onClick={() => openConfirmModal(record)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openConfirmModal(record);
+                          }}
                         >
                           Confirm
                         </button>
@@ -333,11 +572,13 @@ const BorrowRecords = () => {
             </tbody>
             </table>
           </div>
-          {records.length > DEFAULT_HISTORY_PAGE_SIZE && (
+          </>
+          )}
+          {filteredRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
             <div className="history-pagination">
               <button
                 type="button"
-                onClick={() => setRecordPage(Math.max(1, currentRecordPage - 1))}
+                onClick={() => handleRecordPageChange(Math.max(1, currentRecordPage - 1))}
                 disabled={currentRecordPage === 1}
               >
                 Previous
@@ -345,7 +586,7 @@ const BorrowRecords = () => {
               <span>Page {currentRecordPage} of {recordTotalPages}</span>
               <button
                 type="button"
-                onClick={() => setRecordPage(Math.min(recordTotalPages, currentRecordPage + 1))}
+                onClick={() => handleRecordPageChange(Math.min(recordTotalPages, currentRecordPage + 1))}
                 disabled={currentRecordPage === recordTotalPages}
               >
                 Next
@@ -363,14 +604,19 @@ const BorrowRecords = () => {
               <h3>Confirm Borrowing</h3>
               <button
                 className="modal-close"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
+                aria-label="Close confirm modal"
               >
-                ×
+                <img src="/打叉.svg" alt="" />
               </button>
             </div>
             <div className="modal-body">
               <p><strong>User:</strong> {user?.name}</p>
               <p><strong>Book:</strong> {confirmRecord.title}</p>
+              <div className="confirm-countdown">
+                <span>Time left to confirm:</span>
+                <strong>{formatCountdown(confirmCountdown)}</strong>
+              </div>
               <div className="copy-selection">
                 <label>Select Copy:</label>
                 <select
@@ -400,9 +646,15 @@ const BorrowRecords = () => {
             <div className="modal-actions">
               <button
                 className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={closeConfirmModal}
               >
-                Cancel
+                Not Now
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelBorrowLock}
+              >
+                Cancel Lock
               </button>
               <button
                 className="btn-primary"
@@ -448,6 +700,7 @@ const BorrowRecords = () => {
                     </button>
                   </div>
                   <div className="fines-table-wrap">
+                    <div id="borrow-fines-list-top" />
                     <table className="fines-table">
                       <colgroup>
                         <col className="fine-col-id" />
@@ -469,6 +722,7 @@ const BorrowRecords = () => {
                         {visibleFines.map(fine => {
                           const dueDate = new Date(fine.due_date);
                           const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
+                          const isEstimated = isEstimatedFine(fine, fineFeatureEnabled);
                           const overdueDays = Math.max(
                             0,
                             Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
@@ -480,10 +734,10 @@ const BorrowRecords = () => {
                             <td className="fine-title-cell">{fine.title}</td>
                             <td>{overdueDays}</td>
                             <td className="fine-amount-cell">
-                              {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
+                              {isEstimated ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
                             </td>
-                            <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
-                              {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                            <td className={isEstimated ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                              {isEstimated ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
                             </td>
                           </tr>
                           );
@@ -493,13 +747,13 @@ const BorrowRecords = () => {
                   </div>
                   <div className="total-fine">
                     <strong>Payable Fine: ¥{totalFine.toFixed(2)}</strong>
-                    <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
+                    {fineFeatureEnabled && <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>}
                   </div>
                   {fines.length > DEFAULT_HISTORY_PAGE_SIZE && (
                     <div className="history-pagination">
                       <button
                         type="button"
-                        onClick={() => setFinePage(Math.max(1, currentFinePage - 1))}
+                        onClick={() => handleFinePageChange(Math.max(1, currentFinePage - 1))}
                         disabled={currentFinePage === 1}
                       >
                         Previous
@@ -507,7 +761,7 @@ const BorrowRecords = () => {
                       <span>Page {currentFinePage} of {fineTotalPages}</span>
                       <button
                         type="button"
-                        onClick={() => setFinePage(Math.min(fineTotalPages, currentFinePage + 1))}
+                        onClick={() => handleFinePageChange(Math.min(fineTotalPages, currentFinePage + 1))}
                         disabled={currentFinePage === fineTotalPages}
                       >
                         Next

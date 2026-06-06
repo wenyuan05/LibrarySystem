@@ -11,8 +11,13 @@ const {
 } = require('../utils/statusConstants');
 
 const JWT_EXPIRES_IN = '7d';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const applyMaxFine = (fine, maxFine) => {
+  const amount = Number(fine) || 0;
+  return maxFine > 0 ? Math.min(amount, maxFine) : amount;
+};
 const buildResetPasswordUrl = (token) => {
   const config = getEmailConfig();
   return `${config.appPublicUrl.replace(/\/$/, '')}/login?token=${encodeURIComponent(token)}`;
@@ -29,13 +34,23 @@ const findUserByUsernameOrEmail = (username, email, callback) => {
 // 用户登录
 exports.login = (req, res) => {
   const { username, password } = req.body;
-  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+  db.get(
+    `SELECT u.*, COALESCE(us.status, 'active') as account_status
+     FROM users u
+     LEFT JOIN user_status us ON u.id = us.user_id
+     WHERE u.username = ?`,
+    [username],
+    async (err, user) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (!user) {
       res.status(401).json({ error: 'Invalid username or password' });
+      return;
+    }
+    if (user.account_status === 'deleted') {
+      res.status(403).json({ error: 'This account has been deleted' });
       return;
     }
 
@@ -233,7 +248,8 @@ exports.getAllUsers = (req, res) => {
     `SELECT u.id, u.username, u.role, u.name, u.email, u.phone, u.address, 
             COALESCE(us.status, 'active') as status 
      FROM users u 
-     LEFT JOIN user_status us ON u.id = us.user_id`,
+     LEFT JOIN user_status us ON u.id = us.user_id
+     WHERE COALESCE(us.status, 'active') != 'deleted'`,
     (err, users) => {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -298,46 +314,31 @@ exports.updateUser = (req, res) => {
   let updateFields = [];
   let params = [];
   let normalizedEmail = null;
+  const hasBodyField = (field) => Object.prototype.hasOwnProperty.call(body, field);
+  const requestedRole = hasBodyField('role') && body.role ? body.role : null;
   
-  if (body.hasOwnProperty('name') && body.name) {
+  if (hasBodyField('name') && body.name) {
     updateFields.push('name = ?');
     params.push(body.name);
   }
-  if (body.hasOwnProperty('email') && body.email) {
+  if (hasBodyField('email')) {
     normalizedEmail = normalizeEmail(body.email);
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      res.status(400).json({ error: 'Invalid email format' });
+      return;
+    }
+
     updateFields.push('email = ?');
     params.push(normalizedEmail);
   }
-  if (body.hasOwnProperty('phone')) {
+  if (hasBodyField('phone')) {
     updateFields.push('phone = ?');
     params.push(body.phone);
   }
-  if (body.hasOwnProperty('address')) {
+  if (hasBodyField('address')) {
     updateFields.push('address = ?');
     params.push(body.address);
   }
-  if (body.hasOwnProperty('role') && body.role) {
-    // 只有admin可以修改角色，且不能将其他用户修改为admin
-    if (req.user.role !== 'admin') {
-      res.status(403).json({ error: 'Forbidden: only admin can modify user role' });
-      return;
-    }
-    if (body.role === 'admin') {
-      res.status(403).json({ error: 'Cannot set user role to admin' });
-      return;
-    }
-    updateFields.push('role = ?');
-    params.push(body.role);
-  }
-
-  if (updateFields.length === 0) {
-    res.status(400).json({ error: 'No fields to update' });
-    return;
-  }
-
-  params.push(id);
-  const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
-
   const runUpdate = () => db.run(sql, params, function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -376,7 +377,20 @@ exports.updateUser = (req, res) => {
     );
   });
 
-  if (normalizedEmail) {
+  const validateEmailAndRun = () => {
+    if (updateFields.length === 0) {
+      res.status(400).json({ error: 'No fields to update' });
+      return;
+    }
+
+    params.push(id);
+    sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+    if (!normalizedEmail) {
+      runUpdate();
+      return;
+    }
+
     db.get(
       'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?',
       [normalizedEmail, id],
@@ -393,10 +407,41 @@ exports.updateUser = (req, res) => {
         runUpdate();
       }
     );
+  };
+
+  let sql;
+
+  if (!requestedRole) {
+    validateEmailAndRun();
     return;
   }
 
-  runUpdate();
+  db.get('SELECT role FROM users WHERE id = ?', [id], (err, targetUser) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!targetUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (requestedRole !== targetUser.role) {
+      // 只有admin可以修改角色，且不能将其他用户修改为admin
+      if (req.user.role !== 'admin') {
+        res.status(403).json({ error: 'Forbidden: only admin can modify user role' });
+        return;
+      }
+      if (requestedRole === 'admin') {
+        res.status(403).json({ error: 'Cannot set user role to admin' });
+        return;
+      }
+      updateFields.push('role = ?');
+      params.push(requestedRole);
+    }
+
+    validateEmailAndRun();
+  });
 };
 
 // 删除用户（管理员）
@@ -470,26 +515,65 @@ exports.deleteUser = (req, res) => {
                   return;
                 }
 
-                db.run('DELETE FROM user_status WHERE user_id = ?', [userId], (err) => {
+                db.get(
+                  `SELECT COALESCE(SUM(fine), 0) as unpaid_fine
+                   FROM borrow_records
+                   WHERE user_id = ?
+                     AND status IN ('returning', 'returned')
+                     AND fine > 0
+                     AND fine_status = 'unpaid'`,
+                  [userId],
+                  (err, fineResult) => {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
                   }
 
-                  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+                  if ((fineResult.unpaid_fine || 0) > 0) {
+                    db.run('ROLLBACK');
+                    res.status(400).json({ error: 'Cannot delete user: they have unpaid fines' });
+                    return;
+                  }
+
+                  db.get(
+                    'SELECT COUNT(*) as count FROM payments WHERE user_id = ? AND status = ?',
+                    [userId, 'pending'],
+                    (err, paymentResult) => {
                     if (err) {
                       db.run('ROLLBACK');
                       res.status(500).json({ error: err.message });
                       return;
                     }
 
-                    db.run('COMMIT', (err) => {
+                    if (paymentResult.count > 0) {
+                      db.run('ROLLBACK');
+                      res.status(400).json({ error: 'Cannot delete user: they have pending payment orders' });
+                      return;
+                    }
+
+                    db.run(
+                      `INSERT INTO user_status (user_id, status, blacklisted_until)
+                       VALUES (?, 'deleted', NULL)
+                       ON CONFLICT(user_id) DO UPDATE SET
+                         status = 'deleted',
+                         blacklisted_until = NULL,
+                         updated_at = CURRENT_TIMESTAMP`,
+                      [userId],
+                      (err) => {
                       if (err) {
+                        db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
                       }
-                      res.json({ message: 'User deleted' });
+
+                      db.run('COMMIT', (err) => {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.json({ message: 'User deleted' });
+                      });
                     });
                   });
                 });
@@ -535,15 +619,25 @@ exports.getUserBorrowRecords = (req, res) => {
           
           const overdueCount = overdueResult.overdue_count || 0;
           
-          // 获取每日罚款金额
-          db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], (err, settingRow) => {
-            const parsedFinePerDay = (!err && settingRow) ? parseFloat(settingRow.value) : NaN;
-            const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
+          // 获取罚款开关、每日罚款金额和单条罚款上限
+          db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], (err, settings) => {
+            const settingsMap = {};
+            if (!err && Array.isArray(settings)) {
+              settings.forEach(setting => {
+                settingsMap[setting.key] = setting.value;
+              });
+            }
+            const fineEnabled = settingsMap.fine_enabled !== '0';
+            const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
+            const parsedMaxFine = settingsMap.max_fine !== undefined ? parseFloat(settingsMap.max_fine) : NaN;
+            const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+            const maxFine = !Number.isNaN(parsedMaxFine) && parsedMaxFine > 0 ? parsedMaxFine : 0;
             const today = new Date().toISOString().split('T')[0];
 
             // 获取用户借阅记录
             db.all(
               `SELECT br.id, br.book_id, b.title, b.author, br.borrow_date, br.due_date, br.return_date, br.status, br.fine,
+                      br.confirm_deadline,
                       br.copy_id, bc.copy_code
                FROM borrow_records br
                JOIN books b ON br.book_id = b.id
@@ -557,14 +651,18 @@ exports.getUserBorrowRecords = (req, res) => {
                   return;
                 }
 
-                // 对 overdue 状态的记录实时计算预估罚款
+                // 对 overdue 状态的记录实时计算预估罚款；罚款关闭时不展示未归还记录的预计罚款
                 const enrichedRecords = records.map(record => {
                   if (record.status === 'overdue' && record.due_date) {
+                    if (!fineEnabled) {
+                      record.fine = 0;
+                      return record;
+                    }
                     const dueDate = new Date(record.due_date);
                     const todayDate = new Date(today);
                     const daysOverdue = Math.ceil((todayDate - dueDate) / (1000 * 60 * 60 * 24));
                     if (daysOverdue > 0) {
-                      record.fine = parseFloat((daysOverdue * finePerDay).toFixed(2));
+                      record.fine = applyMaxFine(parseFloat((daysOverdue * finePerDay).toFixed(2)), maxFine);
                     }
                   }
                   return record;

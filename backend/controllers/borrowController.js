@@ -2,6 +2,35 @@ const db = require('../db');
 const { notifyReservationsForAvailableBook } = require('../utils/notificationUtils');
 const { ACTIVE_BORROW_STATUSES, placeholders } = require('../utils/statusConstants');
 
+const STAFF_ROLES = ['admin', 'librarian'];
+const canManageBorrowRecords = (user) => user && STAFF_ROLES.includes(user.role);
+const canAccessBorrowUser = (req, userId) => Number(userId) === req.user.id || canManageBorrowRecords(req.user);
+const mapSettings = (settings) => {
+  const settingsMap = {};
+  if (Array.isArray(settings)) {
+    settings.forEach(setting => {
+      settingsMap[setting.key] = setting.value;
+    });
+  }
+  return settingsMap;
+};
+const getFineSettings = (settings) => {
+  const settingsMap = mapSettings(settings);
+  const fineEnabled = settingsMap.fine_enabled !== '0';
+  const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
+  const parsedMaxFine = settingsMap.max_fine !== undefined ? parseFloat(settingsMap.max_fine) : NaN;
+
+  return {
+    fineEnabled,
+    finePerDay: fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0,
+    maxFine: !Number.isNaN(parsedMaxFine) && parsedMaxFine > 0 ? parsedMaxFine : 0
+  };
+};
+const applyMaxFine = (fine, maxFine) => {
+  const amount = Number(fine) || 0;
+  return maxFine > 0 ? Math.min(amount, maxFine) : amount;
+};
+
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
   const { user_id, book_id } = req.body;
@@ -42,9 +71,9 @@ exports.borrowBook = function(req, res) {
       confirm_deadline.setMinutes(confirm_deadline.getMinutes() + confirmMinutes);
       const confirm_deadline_str = confirm_deadline.toISOString();
     
-    // 开始事务
+    // 开始事务。使用 IMMEDIATE 避免并发借阅申请同时抢占同一个可确认名额。
     db.serialize(function() {
-      db.run('BEGIN TRANSACTION', function(err) {
+      db.run('BEGIN IMMEDIATE', function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
@@ -62,6 +91,42 @@ exports.borrowBook = function(req, res) {
             res.status(403).json({ error: 'User is blocked and cannot borrow books' });
             return;
           }
+
+          const now = new Date().toISOString();
+          const expireStaleBorrowLocks = (next) => {
+            db.run(
+              `UPDATE book_copies
+               SET status = 'available'
+               WHERE id IN (
+                 SELECT copy_id
+                 FROM borrow_records
+                 WHERE status = 'borrowing'
+                   AND confirm_deadline < ?
+                   AND copy_id IS NOT NULL
+               )
+                 AND status = 'borrowing'`,
+              [now],
+              function(err) {
+                if (err) {
+                  next(err);
+                  return;
+                }
+
+                db.run(
+                  'UPDATE borrow_records SET status = ? WHERE status = ? AND confirm_deadline < ?',
+                  ['timeout', 'borrowing', now],
+                  next
+                );
+              }
+            );
+          };
+
+          expireStaleBorrowLocks((err) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
 
           // 检查用户是否有未结清的罚款
           db.get(
@@ -112,16 +177,21 @@ exports.borrowBook = function(req, res) {
                 return;
               }
 
-              // 检查是否有可用副本。借阅申请阶段不绑定具体副本，确认时再选择。
-              db.get('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT 1', [book_id, 'available'], function(err, copy) {
+              // 借阅申请阶段不绑定具体副本，但必须预留一个未来可确认的可用名额。
+              db.get(
+                `SELECT
+                   (SELECT COUNT(*) FROM book_copies WHERE book_id = ? AND status = 'available') as available_count,
+                   (SELECT COUNT(*) FROM borrow_records WHERE book_id = ? AND status = 'borrowing') as pending_count`,
+                [book_id, book_id],
+                function(err, availability) {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                if (!copy) {
+                if (!availability || availability.available_count <= availability.pending_count) {
                   db.run('ROLLBACK');
-                  res.status(400).json({ error: 'No available copies' });
+                  res.status(400).json({ error: 'No available copies. All available copies are already awaiting confirmation.' });
                   return;
                 }
 
@@ -161,11 +231,11 @@ exports.borrowBook = function(req, res) {
           });
         });
       });
+      });
     });
   });
 });
 };
-
 // 归还书籍（需要登录）
 exports.returnBook = function(req, res) {
   const { user_id, book_id } = req.body;
@@ -175,10 +245,9 @@ exports.returnBook = function(req, res) {
   }
   const return_date = new Date().toISOString().split('T')[0];
 
-  // 从系统设置获取每日罚款金额
-  db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], function(err, row) {
-    const parsedFinePerDay = (!err && row) ? parseFloat(row.value) : NaN;
-    const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
+  // 从系统设置获取罚款开关、每日罚款金额和单条罚款上限
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, settings) {
+    const { fineEnabled, finePerDay, maxFine } = getFineSettings(settings);
 
     // 开始事务
     db.serialize(function() {
@@ -190,7 +259,7 @@ exports.returnBook = function(req, res) {
 
         // 查找未归还的借阅记录
         db.get(
-          'SELECT id, due_date FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
+          'SELECT id, due_date, fine FROM borrow_records WHERE user_id = ? AND book_id = ? AND status IN (?, ?)',
           [user_id, book_id, 'borrowed', 'overdue'],
           function(err, record) {
             if (err) {
@@ -208,9 +277,11 @@ exports.returnBook = function(req, res) {
             let fine = 0;
             const due_date = new Date(record.due_date);
             const return_date_obj = new Date(return_date);
-            if (return_date_obj > due_date) {
+            if (!fineEnabled) {
+              fine = Number(record.fine) || 0;
+            } else if (return_date_obj > due_date) {
               const days_overdue = Math.ceil((return_date_obj - due_date) / (1000 * 60 * 60 * 24));
-              fine = days_overdue * finePerDay;
+              fine = applyMaxFine(Math.round(days_overdue * finePerDay * 100) / 100, maxFine);
             }
 
             // 更新借阅记录为 returning 状态，等待管理员审批
@@ -291,58 +362,80 @@ exports.getBorrowingList = function(req, res) {
         return;
       }
       
-      // 然后检查和更新逾期记录
-      const today = new Date().toISOString().split('T')[0];
-      let overdueSql = 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ?';
-      const overdueParams = ['overdue', 'borrowed', today];
-      
-      // 如果指定了用户ID，只更新该用户的记录
-      if (user_id) {
-        overdueSql += ' AND user_id = ?';
-        overdueParams.push(user_id);
-      } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
-        // 非管理员和非图书管理员默认只更新自己的记录
-        overdueSql += ' AND user_id = ?';
-        overdueParams.push(req.user.id);
-      }
-      
-      db.run(overdueSql, overdueParams, function(err) {
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, fineSettings) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        
-        // 构建查询语句
-        let sql = `
-          SELECT br.id, br.user_id, u.username, u.name as user_name,
-                 br.book_id, b.title, b.author,
-                 br.borrow_date, br.due_date, br.status, br.fine,
-                 br.copy_id, bc.copy_code
-          FROM borrow_records br
-          JOIN users u ON br.user_id = u.id
-          JOIN books b ON br.book_id = b.id
-          LEFT JOIN book_copies bc ON br.copy_id = bc.id
-          WHERE br.status = 'borrowed'
-        `;
-        const params = [];
 
-        // 如果指定了用户ID，只查询该用户的记录
+        const { fineEnabled, finePerDay, maxFine } = getFineSettings(fineSettings);
+
+        // 然后检查和更新逾期记录
+        const today = new Date().toISOString().split('T')[0];
+        const fineExpression = maxFine > 0
+          ? 'MIN(ROUND((julianday(?) - julianday(due_date)) * ?, 2), ?)'
+          : 'ROUND((julianday(?) - julianday(due_date)) * ?, 2)';
+        let overdueSql = fineEnabled
+          ? `UPDATE borrow_records
+             SET status = ?,
+                 fine = ${fineExpression},
+                 fine_status = CASE WHEN ${fineExpression} > 0 THEN 'unpaid' ELSE fine_status END
+             WHERE status IN (?, ?) AND due_date < ? AND return_date IS NULL`
+          : 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ? AND return_date IS NULL';
+        const overdueParams = fineEnabled
+          ? maxFine > 0
+            ? ['overdue', today, finePerDay, maxFine, today, finePerDay, maxFine, 'borrowed', 'overdue', today]
+            : ['overdue', today, finePerDay, today, finePerDay, 'borrowed', 'overdue', today]
+          : ['overdue', 'borrowed', today];
+
+        // 如果指定了用户ID，只更新该用户的记录
         if (user_id) {
-          sql += ' AND br.user_id = ?';
-          params.push(user_id);
+          overdueSql += ' AND user_id = ?';
+          overdueParams.push(user_id);
         } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
-          // 非管理员和非图书管理员默认只查询自己的记录
-          sql += ' AND br.user_id = ?';
-          params.push(req.user.id);
+          // 非管理员和非图书管理员默认只更新自己的记录
+          overdueSql += ' AND user_id = ?';
+          overdueParams.push(req.user.id);
         }
 
-        // 执行查询
-        db.all(sql, params, function(err, records) {
+        db.run(overdueSql, overdueParams, function(err) {
           if (err) {
             res.status(500).json({ error: err.message });
             return;
           }
-          res.json(records);
+
+          // 构建查询语句
+          let sql = `
+            SELECT br.id, br.user_id, u.username, u.name as user_name,
+                   br.book_id, b.title, b.author,
+                   br.borrow_date, br.due_date, br.status, br.fine,
+                   br.copy_id, bc.copy_code
+            FROM borrow_records br
+            JOIN users u ON br.user_id = u.id
+            JOIN books b ON br.book_id = b.id
+            LEFT JOIN book_copies bc ON br.copy_id = bc.id
+            WHERE br.status = 'borrowed'
+          `;
+          const params = [];
+
+          // 如果指定了用户ID，只查询该用户的记录
+          if (user_id) {
+            sql += ' AND br.user_id = ?';
+            params.push(user_id);
+          } else if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+            // 非管理员和非图书管理员默认只查询自己的记录
+            sql += ' AND br.user_id = ?';
+            params.push(req.user.id);
+          }
+
+          // 执行查询
+          db.all(sql, params, function(err, records) {
+            if (err) {
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            res.json(records);
+          });
         });
       });
     });
@@ -358,11 +451,21 @@ exports.reserveBook = function(req, res) {
     return;
   }
   const reservation_date = new Date().toISOString().split('T')[0];
-  
-  // 开始事务
-  db.serialize(function() {
-    console.log('Beginning transaction');
-    db.run('BEGIN TRANSACTION', function(err) {
+
+  db.get('SELECT value FROM system_settings WHERE key = ?', ['reservation_enabled'], function(err, setting) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (setting && setting.value === '0') {
+      res.status(403).json({ error: 'Reservations are currently disabled by the system administrator' });
+      return;
+    }
+    // 开始事务
+    db.serialize(function() {
+      console.log('Beginning transaction');
+      db.run('BEGIN TRANSACTION', function(err) {
       if (err) {
         console.error('Error beginning transaction:', err);
         res.status(500).json({ error: err.message });
@@ -465,6 +568,7 @@ exports.reserveBook = function(req, res) {
         });
       });
     });
+    });
   });
 };
 
@@ -536,8 +640,8 @@ exports.cancelReservation = function(req, res) {
 exports.getUserReservations = function(req, res) {
   const { user_id } = req.params;
   
-  // 非管理员只能查看自己的预约记录
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin') {
+  // 非管理员/馆员只能查看自己的预约记录
+  if (!canAccessBorrowUser(req, user_id)) {
     res.status(403).json({ error: 'Forbidden: cannot view other users\' reservations' });
     return;
   }
@@ -711,6 +815,11 @@ exports.confirmBorrow = function(req, res) {
             res.status(400).json({ error: 'No borrowing record found for confirmation' });
             return;
           }
+          if (!canAccessBorrowUser(req, record.user_id)) {
+            db.run('ROLLBACK');
+            res.status(403).json({ error: 'Forbidden: cannot confirm other users\' borrow requests' });
+            return;
+          }
           
           // 检查是否超时
           const now = new Date();
@@ -813,8 +922,128 @@ exports.confirmBorrow = function(req, res) {
   });
 };
 
+// 取消待确认的借阅锁定（需要登录）
+exports.cancelBorrowLock = function(req, res) {
+  const recordId = Number(req.body.record_id);
+
+  if (!Number.isInteger(recordId) || recordId <= 0) {
+    res.status(400).json({ error: 'Invalid borrow record id' });
+    return;
+  }
+
+  db.serialize(function() {
+    db.run('BEGIN TRANSACTION', function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      db.get(
+        'SELECT id, user_id, book_id, copy_id, status FROM borrow_records WHERE id = ?',
+        [recordId],
+        function(err, record) {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          if (!record) {
+            db.run('ROLLBACK');
+            res.status(404).json({ error: 'Borrow record not found' });
+            return;
+          }
+
+          if (!canAccessBorrowUser(req, record.user_id)) {
+            db.run('ROLLBACK');
+            res.status(403).json({ error: 'Forbidden: cannot cancel other users\' borrow locks' });
+            return;
+          }
+
+          if (record.status !== 'borrowing') {
+            db.run('ROLLBACK');
+            res.status(400).json({ error: 'Only pending borrow locks can be cancelled' });
+            return;
+          }
+
+          db.run(
+            'UPDATE borrow_records SET status = ? WHERE id = ? AND status = ?',
+            ['timeout', record.id, 'borrowing'],
+            function(err) {
+              if (err) {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              const releaseCopy = (next) => {
+                if (!record.copy_id) {
+                  next(null);
+                  return;
+                }
+
+                db.run(
+                  'UPDATE book_copies SET status = ? WHERE id = ? AND status = ?',
+                  ['available', record.copy_id, 'borrowing'],
+                  next
+                );
+              };
+
+              releaseCopy(function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+
+                db.get(
+                  'SELECT COUNT(*) as available_count FROM book_copies WHERE book_id = ? AND status = ?',
+                  [record.book_id, 'available'],
+                  function(err, result) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      res.status(500).json({ error: err.message });
+                      return;
+                    }
+
+                    db.run(
+                      'UPDATE books SET available_copies = ? WHERE id = ?',
+                      [result.available_count, record.book_id],
+                      function(err) {
+                        if (err) {
+                          db.run('ROLLBACK');
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+
+                        db.run('COMMIT', function(err) {
+                          if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                          }
+
+                          res.json({ message: 'Borrow lock cancelled successfully' });
+                        });
+                      }
+                    );
+                  }
+                );
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+};
+
 // 处理超时借阅
 exports.handleTimeoutBorrows = function(req, res) {
+  if (!canManageBorrowRecords(req.user)) {
+    res.status(403).json({ error: 'Forbidden: only admin or librarian can process timeout borrows' });
+    return;
+  }
+
   const now = new Date().toISOString();
   
   // 开始事务
@@ -1136,6 +1365,11 @@ exports.getReturningList = function(req, res) {
 
 // 检查和更新逾期记录
 exports.checkOverdueRecords = function(req, res) {
+  if (!canManageBorrowRecords(req.user)) {
+    res.status(403).json({ error: 'Forbidden: only admin or librarian can check overdue records' });
+    return;
+  }
+
   const today = new Date().toISOString().split('T')[0];
   
   // 开始事务
@@ -1146,9 +1380,18 @@ exports.checkOverdueRecords = function(req, res) {
         return;
       }
 
-      // 查找所有逾期的借阅记录
-      db.all(
-        'SELECT id FROM borrow_records WHERE status = ? AND due_date < ?',
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, fineSettings) {
+        if (err) {
+          db.run('ROLLBACK');
+          res.status(500).json({ error: err.message });
+          return;
+        }
+
+        const { fineEnabled, finePerDay, maxFine } = getFineSettings(fineSettings);
+
+        // 查找所有逾期的借阅记录
+        db.all(
+        'SELECT id, due_date FROM borrow_records WHERE status = ? AND due_date < ?',
         ['borrowed', today],
         function(err, records) {
           if (err) {
@@ -1173,7 +1416,17 @@ exports.checkOverdueRecords = function(req, res) {
           
           records.forEach(function(record) {
             // 更新借阅记录状态为overdue
-            db.run('UPDATE borrow_records SET status = ? WHERE id = ?', ['overdue', record.id], function(err) {
+            const computedFine = Math.round(Math.ceil((new Date(today) - new Date(record.due_date)) / (1000 * 60 * 60 * 24)) * finePerDay * 100) / 100;
+            const fine = fineEnabled
+              ? applyMaxFine(computedFine, maxFine)
+              : 0;
+            const sql = fineEnabled
+              ? 'UPDATE borrow_records SET status = ?, fine = ?, fine_status = ? WHERE id = ?'
+              : 'UPDATE borrow_records SET status = ? WHERE id = ?';
+            const params = fineEnabled
+              ? ['overdue', fine, fine > 0 ? 'unpaid' : 'paid', record.id]
+              : ['overdue', record.id];
+            db.run(sql, params, function(err) {
               if (err) {
                 console.error('更新逾期记录失败:', err.message);
               }
@@ -1192,6 +1445,7 @@ exports.checkOverdueRecords = function(req, res) {
           });
         }
       );
+      });
     });
   });
 };
@@ -1225,94 +1479,5 @@ exports.getUserFines = function(req, res) {
       return;
     }
     res.json(fines);
-  });
-};
-
-// 支付罚款
-exports.payFine = function(req, res) {
-  const { user_id } = req.body;
-  
-  // 普通用户只能支付自己的罚款；管理员和图书管理员可代用户处理罚款
-  if (Number(user_id) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'librarian') {
-    res.status(403).json({ error: 'Forbidden: cannot pay other users\' fines' });
-    return;
-  }
-
-  // 开始事务
-  db.serialize(function() {
-    db.run('BEGIN TRANSACTION', function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-
-      // 以已归还后产生的实际未支付罚款记录为准。
-      db.get(
-        `SELECT COALESCE(SUM(fine), 0) as total_fine
-         FROM borrow_records
-         WHERE user_id = ?
-           AND fine > 0
-           AND fine_status = ?
-           AND status IN ('returning', 'returned')`,
-        [user_id, 'unpaid'],
-        function(err, user) {
-        if (err) {
-          db.run('ROLLBACK');
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        if (user.total_fine <= 0) {
-          db.run('ROLLBACK');
-          res.status(400).json({ error: 'No fines to pay' });
-          return;
-        }
-
-        // 更新用户所有未支付的罚款记录为已支付
-        db.run(
-          `UPDATE borrow_records
-           SET fine_status = ?
-           WHERE user_id = ?
-             AND fine_status = ?
-             AND status IN ('returning', 'returned')`,
-          ['paid', user_id, 'unpaid'],
-          function(err) {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-            return;
-          }
-
-          // 重新同步缓存字段，兼容旧数据或部分付款状态。
-          db.run(
-            `UPDATE users
-             SET total_fine = (
-               SELECT COALESCE(SUM(fine), 0)
-               FROM borrow_records
-               WHERE user_id = ?
-                 AND fine > 0
-                 AND fine_status = 'unpaid'
-                 AND status IN ('returning', 'returned')
-             )
-             WHERE id = ?`,
-            [user_id, user_id],
-            function(err) {
-            if (err) {
-              db.run('ROLLBACK');
-              res.status(500).json({ error: err.message });
-              return;
-            }
-
-            db.run('COMMIT', function(err) {
-              if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-              }
-              res.json({ message: 'Fines paid successfully', amount: user.total_fine });
-            });
-          }
-          );
-        });
-      });
-    });
   });
 };

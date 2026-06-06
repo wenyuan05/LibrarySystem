@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { booksAPI, borrowAPI } from '../../utils/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import Barcode from '../Barcode';
 import './Books.css';
@@ -60,7 +60,7 @@ const BookDetail = () => {
       setCopies(copiesData);
     } catch (err) {
       console.error('Failed to borrow book:', err);
-      showToast('Failed to borrow book. Please try again.', 'error');
+      showToast(err.message || 'Failed to borrow book. Please try again.', 'error');
     }
   };
 

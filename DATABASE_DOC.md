@@ -42,6 +42,7 @@
 - borrow_enabled: 1 (是否启用借阅功能，1=启用，0=关闭)
 - borrow_period_days: 14 (借阅期限，天)
 - fine_per_day: 0.5 (每天罚款金额)
+- max_fine: 0 (单条借阅记录最高罚款金额，0=不封顶)
 - max_borrows: 5 (最大借阅数量)
 - max_reservations: 3 (最大预约数量)
 - blacklist_days: 30 (拉黑天数)
@@ -83,7 +84,7 @@
 |--------|----------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
 | user_id | INTEGER | NOT NULL UNIQUE | 用户ID，外键关联users表 |
-| status | TEXT | DEFAULT 'active' | 用户状态（active/blocked） |
+| status | TEXT | DEFAULT 'active' | 用户状态（active/blocked/deleted） |
 | blacklisted_until | TEXT | | 拉黑截止时间 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
@@ -375,6 +376,7 @@ system_settings
 - borrow_enabled: 1
 - borrow_period_days: 14
 - fine_per_day: 0.5
+- max_fine: 0
 - max_borrows: 5
 - max_reservations: 3
 - blacklist_days: 30
@@ -398,6 +400,19 @@ system_settings
 3. **权限控制**：基于角色的权限控制
 4. **事务处理**：在关键操作中使用事务确保数据一致性
 5. **数据去重**：使用唯一索引和唯一约束确保数据唯一性
+6. **活跃记录定义**：
+   - 借阅记录中 `borrowing`、`borrowed`、`overdue`、`returning` 都视为活跃状态，用于删除保护和重复借阅保护
+   - `borrowing` 待确认记录不绑定具体副本，但会占用一个可确认名额；新借阅申请按 `available` 副本数减去当前 `borrowing` 记录数判断是否还能发起
+   - 预约记录中 `active`、`pending` 视为活跃预约，用于删除保护
+   - 副本状态中 `borrowing`、`borrowed`、`reserved` 视为占用状态，用于书籍删除保护
+7. **删除与库存一致性**：
+   - 用户存在活跃借阅、活跃预约、实际未付罚款或 pending 支付订单时不能删除
+   - 删除用户为软删除：保留 `users`、`borrow_records`、`payments` 等历史关联，仅将 `user_status.status` 置为 `deleted`；登录和用户列表会排除 deleted 账号
+   - 图书存在活跃借阅、活跃预约或占用副本时不能删除
+   - `book_copies` 只能删除 `available` 状态副本，且每本书至少保留一个副本
+   - 删除副本后在同一事务中从 `book_copies` 重新计算 `books.total_copies` 和 `books.available_copies`
+   - 减少 `books.total_copies` 时只移除可用副本；如果可用副本不足，则拒绝减少数量
+   - `returning` 记录可能已有 `return_date` 但仍等待审批，因此删除保护以状态字段为准，不以 `return_date IS NULL` 为准
 
 ## 7. 性能优化
 
@@ -413,37 +428,3 @@ system_settings
 3. **索引维护**：定期检查和优化索引
 4. **数据清理**：定期清理过期的预约记录和借阅记录
 5. **性能监控**：监控数据库性能，及时调整优化策略
-## Data Integrity Update - 2026-05-13
-
-### Active-record definitions
-
-The application now treats these borrow statuses as active for deletion and duplicate-borrow safeguards:
-
-- `borrowing`
-- `borrowed`
-- `overdue`
-- `returning`
-
-The application treats these reservation statuses as active for delete safeguards:
-
-- `active`
-- `pending`
-
-The application treats these copy statuses as occupied for book deletion:
-
-- `borrowing`
-- `borrowed`
-- `reserved`
-
-### Delete and inventory consistency rules
-
-- A user row must not be deleted while related active borrow records or active reservations exist.
-- A book row must not be deleted while related active borrow records, active reservations, or occupied copies exist.
-- A `book_copies` row may be deleted only when its status is `available`.
-- A book must keep at least one row in `book_copies`.
-- After deleting a copy, `books.total_copies` and `books.available_copies` are recalculated from `book_copies` in the same transaction.
-- Reducing `books.total_copies` removes only available copies and fails if the requested reduction would require deleting unavailable, borrowed, reserved, or otherwise occupied copies.
-
-### Rationale
-
-`returning` records may already have `return_date` set while still waiting for librarian approval. Delete guards therefore use borrow status, not `return_date IS NULL`, as the source of truth for active lending state.

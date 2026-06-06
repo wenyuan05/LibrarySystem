@@ -1,24 +1,32 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import BookList from '../components/Books/BookList';
 import AddBookForm from '../components/Books/AddBookForm';
 import EditBookForm from '../components/Books/EditBookForm';
 import CopyManagementModal from '../components/Books/CopyManagementModal';
 import { booksAPI } from '../utils/api';
+import { scrollToListTop } from '../utils/scrollToListTop';
 
 const BookManagementPage = () => {
+  const BOOKS_PER_PAGE = 12;
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = Math.max(1, Number(searchParams.get('page')) || 1);
+  const initialSearch = searchParams.get('search') || '';
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [booksLoading, setBooksLoading] = useState(true);
   const [editingBook, setEditingBook] = useState(null);
   const [managingCopiesBook, setManagingCopiesBook] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { showToast } = useToast();
 
   // Load books data
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       setBooksLoading(true);
       const data = await booksAPI.getAll();
@@ -30,7 +38,7 @@ const BookManagementPage = () => {
     } finally {
       setBooksLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Handle book addition
   const handleBookAdded = (newBook) => {
@@ -56,7 +64,7 @@ const BookManagementPage = () => {
   // Load books on component mount
   useEffect(() => {
     fetchBooks();
-  }, []);
+  }, [fetchBooks]);
 
   // Handle book edit
   const handleBookEdit = (updatedBook) => {
@@ -73,24 +81,82 @@ const BookManagementPage = () => {
 
   // Handle search button click
   const handleSearchClick = () => {
+    setCurrentPage(1);
+  };
+
+  const filteredBooks = useMemo(() => {
     if (searchTerm.trim() === '') {
-      setFilteredBooks(books);
-    } else {
-      const filtered = books.filter(book => 
-        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.isbn.includes(searchTerm)
-      );
-      setFilteredBooks(filtered);
+      return books;
+    }
+
+    const normalizedSearch = searchTerm.toLowerCase();
+    return books.filter(book =>
+      book.title.toLowerCase().includes(normalizedSearch) ||
+      book.author.toLowerCase().includes(normalizedSearch) ||
+      book.isbn.includes(searchTerm)
+    );
+  }, [books, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
+  const pageStartIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+  const pagedBooks = filteredBooks.slice(pageStartIndex, pageStartIndex + BOOKS_PER_PAGE);
+  const pageStart = filteredBooks.length === 0 ? 0 : pageStartIndex + 1;
+  const pageEnd = Math.min(currentPage * BOOKS_PER_PAGE, filteredBooks.length);
+
+  useEffect(() => {
+    if (booksLoading) return;
+
+    setCurrentPage(prev => Math.min(Math.max(prev, 1), totalPages));
+  }, [booksLoading, totalPages]);
+
+  const handlePageChange = (nextPage) => {
+    setCurrentPage(nextPage);
+    scrollToListTop('#managed-books-list-top');
+  };
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (currentPage > 1) {
+      nextParams.set('page', String(currentPage));
+    }
+
+    if (searchTerm.trim()) {
+      nextParams.set('search', searchTerm);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, searchTerm, setSearchParams]);
+
+  const handleExportBooks = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await booksAPI.export();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `books_with_copies_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast('Book data exported successfully.', 'success');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast(error.message || 'Export failed. Please try again.', 'error');
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  // Update filtered books when books list changes
-  useEffect(() => {
-    setFilteredBooks(books);
-  }, [books]);
-
-
+  const detailFromParams = new URLSearchParams();
+  if (currentPage > 1) {
+    detailFromParams.set('page', String(currentPage));
+  }
+  if (searchTerm.trim()) {
+    detailFromParams.set('search', searchTerm);
+  }
+  const bookDetailFrom = `${location.pathname}${detailFromParams.toString() ? `?${detailFromParams.toString()}` : ''}`;
 
   return (
     <div className="book-management-section card fade-in">
@@ -105,45 +171,13 @@ const BookManagementPage = () => {
           >
             Add New Book
           </button>
-          {/* 暂时隐藏导出按钮，待权限问题解决后再恢复 */}
-          {/* <button 
+          <button
             className="btn-secondary"
-            onClick={async () => {
-              try {
-                // 使用booksAPI.export()方法来调用导出接口
-                const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-                const token = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).token : '';
-                
-                const response = await fetch(`${API_BASE_URL}/books/export`, {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'text/csv'
-                  }
-                });
-                
-                if (!response.ok) {
-                  const errorData = await response.json().catch(() => ({}));
-                  throw new Error(errorData.error || `Request failed with status ${response.status}`);
-                }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `books_${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-              } catch (error) {
-                console.error('Export failed:', error);
-                showToast('Export failed. Please try again.', 'error');
-              }
-            }}
+            onClick={handleExportBooks}
+            disabled={isExporting}
           >
-            Export Books
-          </button> */}
+            {isExporting ? 'Exporting...' : 'Export Books & Copies'}
+          </button>
         </div>
         <div className="management-search-bar">
           <div className="search-input-container">
@@ -178,7 +212,7 @@ const BookManagementPage = () => {
       )}
       
       {/* Edit Book Form */}
-      {editingBook && (
+      {editingBook && createPortal(
         <EditBookForm 
           book={editingBook}
           onEditComplete={(updatedBook) => {
@@ -186,10 +220,11 @@ const BookManagementPage = () => {
             setEditingBook(null);
           }}
           onCancel={() => setEditingBook(null)}
-        />
+        />,
+        document.body
       )}
 
-      {managingCopiesBook && (
+      {managingCopiesBook && createPortal(
         <CopyManagementModal
           book={managingCopiesBook}
           onClose={() => setManagingCopiesBook(null)}
@@ -197,19 +232,60 @@ const BookManagementPage = () => {
             handleBookUpdated(updatedBook);
             setManagingCopiesBook(updatedBook);
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Book List (with edit functionality) */}
+      <div id="managed-books-list-top" />
       <BookList 
-        books={filteredBooks}
+        books={pagedBooks}
         loading={booksLoading}
         onBookUpdated={handleBookUpdated}
         onBookDeleted={handleBookDeleted}
         showEditButton={true}
         onEditBook={setEditingBook}
         onManageCopies={setManagingCopiesBook}
+        detailFrom={bookDetailFrom}
       />
+      {!booksLoading && filteredBooks.length > 0 && (
+        <div className="books-pagination" aria-label="Managed books pagination">
+          <div className="books-pagination-summary">
+            Showing {pageStart}-{pageEnd} of {filteredBooks.length}
+          </div>
+          <div className="books-pagination-controls">
+            <button
+              type="button"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <span>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

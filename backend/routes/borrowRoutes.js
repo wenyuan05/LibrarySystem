@@ -42,6 +42,9 @@ router.get('/returning', authenticateToken, borrowController.getReturningList);
 // 确认借阅（需要登录）
 router.post('/confirm-borrow', authenticateToken, validateConfirmBorrowBody, borrowController.confirmBorrow);
 
+// 取消待确认的借阅锁定（需要登录）
+router.post('/cancel-borrow-lock', authenticateToken, borrowController.cancelBorrowLock);
+
 // 处理超时借阅（需要登录，且只有管理员或图书管理员可以操作）
 router.post('/handle-timeout', authenticateToken, borrowController.handleTimeoutBorrows);
 
@@ -50,8 +53,5 @@ router.post('/check-overdue', authenticateToken, borrowController.checkOverdueRe
 
 // 获取用户的罚款记录（需要登录）
 router.get('/fines/:user_id', authenticateToken, borrowController.getUserFines);
-
-// 支付罚款（需要登录）
-router.post('/pay-fine', authenticateToken, borrowController.payFine);
 
 module.exports = router;

@@ -5,6 +5,7 @@
 1.4	As a reader, I want to be able to lock a book by clicking a button and  can borrow this book within a certain time limit. 
 1.5	As a reader, I want to be able to have a button to send a request of returning books.
 1.6	As a reader, I want to see the history of my borrowing so that I can find out if there is any book remaining to be returned.
+	- Borrowing history must support pagination, keyword search, status filtering, and date range filtering when record volume grows.
 1.7	As a librarian, I want to be able to add new books with the information of book details and amounts.
 1.8	As a librarian, I want to handle all returning requests.
 1.9	As a librarian, I want to see all book information.
@@ -25,6 +26,7 @@
 3.4	As a librarian, I want to see statistics of borrowing transaction.
 3.5	As an admin, I want to be able to turn on/off some functions, like borrowing.
 3.6	As an admin, I want to be able to check the log of the system.
+	- System logs must support server-side pagination and filtering by keyword, action, user ID, and created date range.
 3.7	As a reader, I want to pay overdue fines through a real Alipay integration, so that I can complete fine payment using an Alipay QR code or payment link.
 	Acceptance criteria:
 	- The system must integrate with the real Alipay API instead of a simulated local payment action.
@@ -33,6 +35,7 @@
 	- The backend must verify Alipay asynchronous notifications and update fine records only after a trusted paid status is received.
 	- Librarians and admins must be able to view an income dashboard showing total fine revenue, daily/monthly revenue trends, successful/failed/pending payment counts, and recent payment records.
 	- The dashboard must support filtering by date range and payment status.
+	- Payment records must support pagination, keyword filtering, status filtering, and created date range filtering.
 
 3.8	As a system user, I want the system to send real emails for account and notification events, so that important actions can reach my registered email address.
 	Acceptance criteria:

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { Link } from 'react-router-dom';
 import { usersAPI, borrowAPI } from '../utils/api';
@@ -14,13 +15,8 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [totalFine, setTotalFine] = useState(0);
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const userData = await usersAPI.getById(user.id);
@@ -40,7 +36,11 @@ const ProfilePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, user?.id]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleProfileUpdated = (updatedProfile) => {
     setProfile(updatedProfile);
@@ -162,12 +162,13 @@ const ProfilePage = () => {
             </button>
           </div>
         </>
-      ) : (
+      ) : createPortal(
         <EditUserForm 
           user={profile}
           onUserUpdated={handleProfileUpdated}
           onCancel={() => setIsEditing(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );

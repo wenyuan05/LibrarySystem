@@ -48,6 +48,119 @@
   font-size: var(--font-size-xl);
 }
 
+.income-analytics-section {
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.income-analytics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.income-analytics-header h2 {
+  margin: 0 0 var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.income-analytics-header p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.income-range-form {
+  display: flex;
+  align-items: end;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.income-range-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.income-range-form input {
+  min-width: 150px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.income-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.income-line-chart {
+  width: 100%;
+  min-width: 680px;
+  display: block;
+}
+
+.chart-axis {
+  stroke: var(--border-color);
+  stroke-width: 2;
+}
+
+.chart-grid-line {
+  stroke: var(--border-color);
+  stroke-dasharray: 4 6;
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  fill: var(--primary-color);
+  stroke: var(--bg-secondary);
+  stroke-width: 2;
+}
+
+.chart-value-label,
+.chart-month-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+}
+
+.income-range-result {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.income-range-result strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+}
+
+.income-range-result em {
+  font-style: normal;
+  color: var(--text-light);
+}
+
 .payment-orders-section {
   padding: var(--spacing-lg);
   background: var(--bg-secondary);
@@ -55,7 +168,26 @@
   border-radius: var(--border-radius);
 }
 
-.payment-orders-header select {
+.payment-orders-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(140px, 1fr)) auto auto;
+  gap: var(--spacing-sm);
+  align-items: end;
+  margin-bottom: var(--spacing-lg);
+}
+
+.payment-orders-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.payment-orders-filters input,
+.payment-orders-filters select {
+  width: 100%;
   min-width: 160px;
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
@@ -133,6 +265,26 @@
   white-space: nowrap;
 }
 
+.payment-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.payment-pagination-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.payment-pagination-actions button {
+  min-width: 92px;
+}
+
 @media (max-width: 900px) {
   .income-dashboard-page {
     padding: var(--spacing-md);
@@ -141,13 +293,48 @@
   .income-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .payment-orders-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
   .income-dashboard-header,
-  .payment-orders-header {
+  .payment-orders-header,
+  .income-analytics-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .income-range-form {
+    align-items: stretch;
+  }
+
+  .income-range-form label,
+  .income-range-form input,
+  .income-range-form button {
+    width: 100%;
+  }
+
+  .payment-orders-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-orders-filters input,
+  .payment-orders-filters select,
+  .payment-orders-filters button {
+    width: 100%;
+  }
+
+  .payment-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .payment-pagination-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .income-summary-grid {

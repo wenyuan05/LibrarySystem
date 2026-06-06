@@ -2,6 +2,277 @@
 
 This file documents all bug fixes applied to the project.
 
+## 2026-06-04
+
+### Fix 10: Add announcement detail modal and record-to-book navigation
+- **Files modified**:
+  - `src/pages/AnnouncementsPage.jsx`
+  - `src/pages/AnnouncementsPage.css`
+  - `src/pages/ReservationsPage.jsx`
+  - `src/pages/ReservationsPage.css`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Borrow/Borrow.css`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Made announcement cards open a full announcement detail modal rendered through a portal.
+  - Let the announcement modal grow with content and wrap long continuous text without inner horizontal scrolling.
+  - Made reservation rows and borrow-record rows keyboard/mouse clickable to navigate to the related book detail page.
+  - Preserved the source page when navigating to book details so the Back button returns to the originating record page.
+  - Checked book existence before navigating and showed an error when the related book no longer exists.
+  - Stopped row navigation from firing when users click row action buttons such as Cancel, Return, Renew, or Confirm.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `git diff --check`
+- **Reason**: Users need complete announcement details and quick navigation from history records back to the related book, while missing book references should fail visibly.
+
+### Fix 9: Correct reader borrow confirmation cancel behavior
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `backend/routes/borrowRoutes.js`
+  - `src/utils/api.js`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Books/Books.css`
+  - `src/components/Borrow/Borrow.css`
+  - `src/pages/BookDetailsPage.css`
+  - `public/打叉.svg`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `POST /api/borrow/cancel-borrow-lock` so readers can explicitly cancel their own pending borrow lock.
+  - Changed Confirm Borrowing dialogs so `Cancel Lock` cancels the pending lock, while `Not Now` and the close icon only hide the dialog.
+  - Restored confirmation countdown display and kept it tied to `confirm_deadline` after the dialog is hidden and reopened.
+  - Returned `confirm_deadline` from user borrow records so My Borrow Records can restore the countdown correctly.
+  - Synchronized Books page pending-borrow state from active `borrowing` records only.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `git diff --check`
+  - `node -e "require('./backend/routes/userRoutes'); require('./backend/controllers/userController'); console.log('user modules ok')"`
+- **Reason**: The old Cancel button only closed the dialog, and some record views lost the confirmation countdown because `confirm_deadline` was not returned by the borrow-record API.
+
+### Fix 8: Add fine accrual feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `fine_enabled` as an enabled-by-default system setting.
+  - Added a Fines Enabled toggle to the admin System Settings page.
+  - Stopped new overdue records from accruing fines when disabled.
+  - Froze estimated fines for already-overdue unreturned records while disabled.
+  - Kept existing actual unpaid fine payment flows unchanged.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/borrowRoutes'); require('./controllers/borrowController'); console.log('fine toggle modules ok')"`
+- **Reason**: Admins need to pause fine accrual without blocking normal returns or payment of already-created fines.
+
+### Fix 7: Add reservation feature toggle
+- **Files modified**:
+  - `backend/db.js`
+  - `backend/controllers/systemController.js`
+  - `backend/controllers/borrowController.js`
+  - `src/pages/SystemSettingsPage.jsx`
+  - `src/components/Books/BookList.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `reservation_enabled` as an enabled-by-default system setting.
+  - Exposed `reservation_enabled` through `GET /api/system/feature-flags`.
+  - Added a Reservations Enabled toggle to the admin System Settings page.
+  - Blocked new reservation requests in `POST /api/borrow/reserve` when disabled.
+  - Disabled reader-facing reserve controls on the Books page and Book Details page when disabled.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/systemRoutes'); require('./routes/borrowRoutes'); console.log('reservation toggle modules ok')"`
+- **Reason**: Admins need a global switch to pause new reservations without affecting existing cancellation flows.
+
+### Fix 6: Export book inventory with copy details
+- **Files modified**:
+  - `backend/controllers/bookController.js`
+  - `src/utils/api.js`
+  - `src/pages/BookManagementPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed `GET /api/books/export` to export joined book and copy inventory data.
+  - Added one CSV row per book copy, including book metadata, categories, copy code, copy status, and copy location.
+  - Added robust CSV escaping and UTF-8 BOM output for spreadsheet compatibility.
+  - Restored the Book Management export button for admin/librarian users.
+  - Added blob response handling to the shared frontend request helper.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/bookRoutes'); require('./controllers/bookController'); console.log('book modules ok')"`
+- **Reason**: Librarians need an inventory export that combines the book table and copy table for operational review.
+
+### Fix 5: Validate email format when editing users
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `src/components/Users/EditUserForm.jsx`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added backend email format validation for `PUT /api/users/:id` whenever the request includes `email`.
+  - Added frontend validation before submitting the edit user form.
+  - Returned backend validation errors through the edit user toast.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `node -e "require('./routes/userRoutes'); require('./controllers/userController'); console.log('user modules ok')"`
+- **Reason**: Admin user editing previously relied on browser `type="email"` validation and backend uniqueness checks, so direct API requests could save invalid email values.
+
+### Fix 4: Add payment list filters and pagination to Income Dashboard
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added paginated `GET /api/payments` responses with `items` and `pagination`.
+  - Added keyword filtering by order number, username, display name, status, and user ID.
+  - Added created-date range filtering with date validation.
+  - Added Dashboard controls for keyword, status, created date filters, reset, and previous/next page navigation.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `npm.cmd audit --omit=dev`
+  - `node -e "require('./routes/paymentRoutes'); require('./controllers/paymentController'); console.log('payment modules ok')"`
+- **Reason**: Income Dashboard payment records can grow beyond a single table view, so librarians need searchable, time-filtered, paginated order review.
+
+### Fix 3: Add income trend and date-range analytics
+- **Files modified**:
+  - `backend/controllers/paymentController.js`
+  - `backend/routes/paymentRoutes.js`
+  - `src/utils/api.js`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/IncomeDashboardPage.css`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Added `GET /api/payments/income/analytics` for admin/librarian users.
+  - Returned default monthly buckets for the past year when no date range is specified.
+  - Added inclusive same-day and date-range income totals.
+  - Switched the chart series to the selected range when dates are provided.
+  - Added automatic chart granularity: daily for up to 31 days, 7-day buckets for up to 180 days, and monthly buckets for longer ranges.
+  - Added an Income Dashboard line chart, date range query form, and default past-year reset.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+  - `npm.cmd audit --omit=dev`
+  - `node -e "require('./routes/paymentRoutes'); require('./controllers/paymentController'); console.log('payment analytics modules ok')"`
+- **Reason**: Librarians need to review yearly income trends and query exact income for arbitrary dates or time ranges from the Income Dashboard.
+
+### Fix 2: Remove legacy direct fine settlement endpoint
+- **Files modified**:
+  - `backend/routes/borrowRoutes.js`
+  - `backend/controllers/borrowController.js`
+  - `package.json`
+  - `package-lock.json`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Removed `POST /api/borrow/pay-fine` so fines can no longer be marked paid without a payment order.
+  - Updated documentation and regression notes to point fine settlement through `POST /api/payments/fines/alipay`.
+  - Upgraded `react-router-dom` to `7.16.0`, clearing the root frontend npm audit findings.
+- **Verification**:
+  - `npm.cmd audit --omit=dev`
+- **Reason**: Release 3 fine payments must flow through Alipay-shaped payment orders and income records. The legacy direct settlement endpoint could bypass that business flow.
+
+### Fix 1: Isolate authentication per browser tab
+- **Files modified**:
+  - `src/context/AuthContext.jsx`
+  - `src/utils/api.js`
+  - `src/pages/BookManagementPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed frontend auth storage from shared `localStorage` to per-tab `sessionStorage`.
+  - Updated API token reads to use the current tab's session user.
+  - Added a one-time migration from legacy `localStorage.user` to the current tab's `sessionStorage.user`.
+  - Documented that different tabs can now log in as different users without overwriting each other.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: Multiple browser tabs shared the same `localStorage.user`, so logging in or out in one tab changed the token used by other tabs while their UI could still show the previous account.
+
+## 2026-05-31
+
+### Fix 2: Pin sqlite3 to 5.1.7 for older Linux deployment
+- **Files modified**:
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `README.md`
+  - `DESIGN_DOC.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Pinned backend `sqlite3` to `5.1.7` for compatibility with Baota/older Linux deployments that do not provide glibc 2.38.
+  - Removed the deployment requirement to rebuild SQLite from source, reducing the need for root access and server compiler tooling.
+  - Documented the server-side recovery steps for `GLIBC_2.38 not found` errors caused by incompatible `sqlite3@6.x` prebuilt binaries.
+  - Updated the design dependency table to match the current backend SQLite3 version.
+- **Verification**:
+  - `node -e "require('sqlite3'); console.log('sqlite3 ok')"`
+  - `npm.cmd audit --omit=dev` reports known transitive vulnerabilities from the older SQLite native build toolchain.
+- **Reason**: Deployments on older Linux distributions can fail when npm installs a `sqlite3@6.x` prebuilt binding built against a newer glibc. Pinning `sqlite3@5.1.7` favors Baota deployment compatibility over a clean npm audit report.
+
+### Fix 1: Resolve React Hook dependency lint errors
+- **Files modified**:
+  - `src/components/Books/AddBookForm.jsx`
+  - `src/components/Books/EditBookForm.jsx`
+  - `src/components/Borrow/BorrowRecords.jsx`
+  - `src/components/Borrow/UserBorrowRecords.jsx`
+  - `src/components/Users/EditUserForm.jsx`
+  - `src/components/Users/UserList.jsx`
+  - `src/pages/AnnouncementsPage.jsx`
+  - `src/pages/BookDetailsPage.jsx`
+  - `src/pages/BookManagementPage.jsx`
+  - `src/pages/CategoryManagementPage.jsx`
+  - `src/pages/IncomeDashboardPage.jsx`
+  - `src/pages/LogsPage.jsx`
+  - `src/pages/ProfilePage.jsx`
+  - `src/pages/ReservationsPage.jsx`
+  - `src/pages/ReturnApprovalPage.jsx`
+  - `src/pages/StatsPage.jsx`
+- **Changes**:
+  - Wrapped shared async loader functions in `useCallback` and wired effects to depend on the stabilized callbacks.
+  - Stabilized modal close handlers used by keyboard and outside-click listeners.
+  - Memoized Add Book batch preview subsets so dependent effects do not rerun because of new array references on every render.
+  - Moved Book Details data loading ahead of effects so countdown refresh and initial loading use the same stable callback.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: React Hook dependency warnings made the lint output noisy and could hide real regressions. Stabilizing these callbacks keeps effects explicit and prevents accidental stale closures.
+
 ## 2026-05-13
 
 ### Fix 6: Allow fine payment before return approval
@@ -1931,4 +2202,61 @@ This file documents all bug fixes applied to the project.
 - **Changes**:
   - Updated the `deleteCopy` wrapper comment from updating copy status to deleting a single copy.
 - **Reason**: Keep API wrapper comments aligned with behavior for easier maintenance.
+
+### Fix 142: Allow profile updates without role-change false positives
+- **Files modified**:
+  - `backend/controllers/userController.js`
+  - `src/components/Users/EditUserForm.jsx`
+  - `API_DOC.md`
+  - `TEST_CASES.md`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Stopped the profile edit form from submitting `role` unless an admin is editing a non-admin user's role.
+  - Changed user update validation so an unchanged `role` value is ignored instead of treated as a role modification.
+  - Kept non-admin role changes forbidden and kept admin creation through the update endpoint blocked.
+  - Documented the user update role behavior and added a profile update regression test case.
+- **Reason**: Editing personal information could fail with `Forbidden: only admin can modify user role` when the request carried an unchanged role value.
+
+### Fix 143: Harden auth configuration, borrowing permissions, build cleanup, and dependency audit
+- **Files modified**:
+  - `backend/controllers/borrowController.js`
+  - `backend/controllers/userController.js`
+  - `backend/db.js`
+  - `backend/server.js`
+  - `backend/package.json`
+  - `backend/package-lock.json`
+  - `eslint.config.js`
+  - `package.json`
+  - `scripts/clean-dist.mjs`
+  - `src/context/AuthContext.jsx`
+  - `src/context/useAuth.js`
+  - `src/pages/StatsPage.jsx`
+  - `README.md`
+  - `API_DOC.md`
+  - `DESIGN_DOC.md`
+- **Changes**:
+  - Added ownership/staff checks for borrow confirmation and limited timeout/overdue maintenance endpoints to admin/librarian users.
+  - Required `JWT_SECRET` in production and replaced the fixed development fallback with a random temporary secret.
+  - Disabled default demo account seeding in production unless `SEED_DEFAULT_USERS=true` is explicitly set.
+  - Split ESLint browser/ESM and backend CommonJS/Node configuration, and moved `useAuth` out of `AuthContext.jsx`.
+  - Added a `prebuild` cleanup script for `dist` to avoid stale Windows build output blocking Vite.
+  - Upgraded backend `nodemailer` and `sqlite3` to clear npm audit vulnerabilities.
+- **Verification**:
+  - `npm.cmd run build`
+  - `npm.cmd run lint` (0 errors, existing React Hook dependency warnings remain)
+  - `npm.cmd audit --omit=dev` in root and backend
+  - Backend SQLite smoke test with `SELECT 1 AS ok`
+- **Reason**: Close security issues found during the project scan and make build/audit checks repeatable.
+
+### Fix 144: Keep returning borrow records active in book list state
+- **Files modified**:
+  - `src/components/Books/BookList.jsx`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the book list active borrow record helper to classify active records by status only.
+  - Kept `returning` records active even when they already have `return_date` set.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: Return requests set `status = "returning"` and `return_date`; filtering by missing `return_date` made the UI treat pending return approvals as inactive and could show incorrect availability or actions that the backend rejects.
 

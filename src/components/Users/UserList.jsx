@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI } from '../../utils/api';
+import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords } from '../../utils/historyList';
+import { scrollToListTop } from '../../utils/scrollToListTop';
 import AddUserForm from './AddUserForm';
 import EditUserForm from './EditUserForm';
 import './Users.css';
@@ -11,6 +14,7 @@ const UserList = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -29,12 +33,7 @@ const UserList = () => {
     navigate(`/user-borrow-records/${userId}`);
   };
 
-  // 加载用户数据
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await usersAPI.getAll();
@@ -45,7 +44,12 @@ const UserList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // 加载用户数据
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // 处理用户删除
   const handleDeleteUser = async (id) => {
@@ -141,16 +145,29 @@ const UserList = () => {
       );
       setFilteredUsers(filtered);
     }
+    setPage(1);
   };
 
   // 当用户列表变化时，更新过滤后的用户
   useEffect(() => {
     setFilteredUsers(users);
+    setPage(1);
   }, [users]);
 
   if (loading) {
     return <div className="loading">Loading users...</div>;
   }
+
+  const {
+    pageItems: visibleUsers,
+    totalPages,
+    safePage
+  } = paginateRecords(filteredUsers, page, DEFAULT_HISTORY_PAGE_SIZE);
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#user-list-table-top');
+  };
 
   return (
     <div className="user-list">
@@ -191,14 +208,16 @@ const UserList = () => {
       )}
 
       {/* 编辑用户表单 */}
-      {editingUser && (
+      {editingUser && createPortal(
         <EditUserForm 
           user={editingUser}
           onUserUpdated={handleUserUpdated}
           onCancel={handleCancelEdit}
-        />
+        />,
+        document.body
       )}
       
+      <div id="user-list-table-top" />
       <table>
         <thead>
           <tr>
@@ -212,7 +231,7 @@ const UserList = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredUsers.map(userItem => (
+          {visibleUsers.map(userItem => (
             <tr key={userItem.id} className="fade-in">
               <td>{userItem.id}</td>
               <td>{userItem.username}</td>
@@ -270,6 +289,27 @@ const UserList = () => {
           ))}
         </tbody>
       </table>
+      {filteredUsers.length > DEFAULT_HISTORY_PAGE_SIZE && (
+        <div className="pagination-controls">
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={safePage <= 1}
+            onClick={() => handlePageChange(safePage - 1)}
+          >
+            Previous
+          </button>
+          <span>Page {safePage} of {totalPages}</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={safePage >= totalPages}
+            onClick={() => handlePageChange(safePage + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

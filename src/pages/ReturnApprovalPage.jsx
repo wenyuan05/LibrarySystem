@@ -1,17 +1,55 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { borrowAPI } from '../utils/api';
+import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortHistoryRecords } from '../utils/historyList';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './ReturnApprovalPage.css';
+
+const initialFilters = {
+  keyword: '',
+  date_from: '',
+  date_to: ''
+};
+
+const returningRecordMatchesFilters = (record, filters) => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  if (keyword) {
+    const searchable = [
+      record.id,
+      record.user_name,
+      record.username,
+      record.title,
+      record.author
+    ].map(value => String(value || '').toLowerCase());
+
+    if (!searchable.some(value => value.includes(keyword))) {
+      return false;
+    }
+  }
+
+  const returnDate = record.return_date || '';
+  if (filters.date_from && returnDate < filters.date_from) {
+    return false;
+  }
+  if (filters.date_to && returnDate > filters.date_to) {
+    return false;
+  }
+
+  return true;
+};
 
 const ReturnApprovalPage = () => {
   const [returningRecords, setReturningRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [page, setPage] = useState(1);
   const { showToast } = useToast();
 
   // Load returning requests to be approved
-  const fetchReturningRecords = async () => {
+  const fetchReturningRecords = useCallback(async () => {
     try {
       setLoading(true);
       const data = await borrowAPI.getReturningList();
@@ -22,12 +60,12 @@ const ReturnApprovalPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Load data on component mount
   useEffect(() => {
     fetchReturningRecords();
-  }, []);
+  }, [fetchReturningRecords]);
 
   // Handle return approval
   const handleApproveReturn = async (record) => {
@@ -35,7 +73,7 @@ const ReturnApprovalPage = () => {
       await borrowAPI.approveReturn(record.id);
       
       // Update records list, remove approved record
-      setReturningRecords(returningRecords.filter(r => r.id !== record.id));
+      setReturningRecords(prevRecords => prevRecords.filter(r => r.id !== record.id));
       
       showToast('Return approved successfully', 'success');
     } catch (err) {
@@ -136,9 +174,48 @@ const ReturnApprovalPage = () => {
     }
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
+
+  const handleFilterSubmit = (e) => {
+    e.preventDefault();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      showToast('Start date cannot be later than end date', 'error');
+      return;
+    }
+    setAppliedFilters(filters);
+    setPage(1);
+  };
+
+  const handleFilterReset = () => {
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+    setPage(1);
+  };
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    scrollToListTop('#return-approval-list-top');
+  };
+
   if (loading) {
     return <div className="loading">Loading returning records...</div>;
   }
+
+  const filteredReturningRecords = returningRecords.filter(record =>
+    returningRecordMatchesFilters(record, appliedFilters)
+  );
+  const sortedReturningRecords = sortHistoryRecords(filteredReturningRecords, ['return_date', 'borrow_date'], 'desc');
+  const {
+    pageItems: visibleReturningRecords,
+    totalPages,
+    safePage
+  } = paginateRecords(sortedReturningRecords, page, DEFAULT_HISTORY_PAGE_SIZE);
 
   return (
     <div className="return-approval-section card fade-in">
@@ -173,12 +250,53 @@ const ReturnApprovalPage = () => {
           </button>
         </div>
       )}
+
+      {returningRecords.length > 0 && (
+        <form className="return-approval-filters" onSubmit={handleFilterSubmit}>
+          <label>
+            <span>Keyword</span>
+            <input
+              type="search"
+              name="keyword"
+              value={filters.keyword}
+              onChange={handleFilterChange}
+              placeholder="ID, user, title, author"
+            />
+          </label>
+          <label>
+            <span>Return from</span>
+            <input
+              type="date"
+              name="date_from"
+              value={filters.date_from}
+              onChange={handleFilterChange}
+            />
+          </label>
+          <label>
+            <span>Return to</span>
+            <input
+              type="date"
+              name="date_to"
+              value={filters.date_to}
+              onChange={handleFilterChange}
+            />
+          </label>
+          <button type="submit" className="btn-primary">Filter</button>
+          <button type="button" className="btn-secondary" onClick={handleFilterReset}>Reset</button>
+        </form>
+      )}
       
       {returningRecords.length === 0 ? (
         <div className="empty-state">
           <p>No returning requests to approve.</p>
         </div>
+      ) : filteredReturningRecords.length === 0 ? (
+        <div className="empty-state">
+          <p>No returning requests match the current filters.</p>
+        </div>
       ) : (
+        <>
+        <div id="return-approval-list-top" />
         <table>
           <thead>
             <tr>
@@ -194,7 +312,7 @@ const ReturnApprovalPage = () => {
             </tr>
           </thead>
           <tbody>
-            {returningRecords.map(record => (
+            {visibleReturningRecords.map(record => (
               <tr key={record.id} className="fade-in">
                 <td>{record.id}</td>
                 <td>{record.user_name} ({record.username})</td>
@@ -217,6 +335,28 @@ const ReturnApprovalPage = () => {
             ))}
           </tbody>
         </table>
+        {filteredReturningRecords.length > DEFAULT_HISTORY_PAGE_SIZE && (
+          <div className="pagination-controls">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safePage <= 1}
+              onClick={() => handlePageChange(safePage - 1)}
+            >
+              Previous
+            </button>
+            <span>Page {safePage} of {totalPages}</span>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safePage >= totalPages}
+              onClick={() => handlePageChange(safePage + 1)}
+            >
+              Next
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

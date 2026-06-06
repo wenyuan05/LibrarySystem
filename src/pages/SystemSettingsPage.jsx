@@ -18,6 +18,13 @@ const settingSections = [
         helper: 'Turn reader borrowing requests on or off globally.'
       },
       {
+        key: 'reservation_enabled',
+        label: 'Reservations Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn reader reservation requests on or off globally without affecting existing cancellations.'
+      },
+      {
         key: 'borrow_period_days',
         label: 'Borrow Days',
         type: 'number',
@@ -72,6 +79,13 @@ const settingSections = [
     description: 'Define overdue charges and exception handling policies.',
     settings: [
       {
+        key: 'fine_enabled',
+        label: 'Fines Enabled',
+        type: 'checkbox',
+        default: '1',
+        helper: 'Turn new overdue fine accrual on or off without affecting existing fine payments.'
+      },
+      {
         key: 'fine_per_day',
         label: 'Fine Per Day',
         type: 'number',
@@ -80,6 +94,16 @@ const settingSections = [
         default: 0.5,
         prefix: '¥',
         helper: 'Daily overdue charge. Set to 0 to disable overdue fines.'
+      },
+      {
+        key: 'max_fine',
+        label: 'Maximum Fine',
+        type: 'number',
+        min: 0,
+        step: 0.1,
+        default: 0,
+        prefix: '¥',
+        helper: 'Maximum overdue fine per borrow record. Set to 0 for no cap.'
       }
     ]
   }

@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI } from '../../utils/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import './Users.css';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
   const { user: currentUser } = useAuth();
@@ -11,9 +13,9 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     name: user.name || '',
     email: user.email || '',
     phone: user.phone || '',
-    address: user.address || '',
-    role: user.role || ''
+    address: user.address || ''
   });
+  const [selectedRole, setSelectedRole] = useState(user.role || 'user');
   const [loading, setLoading] = useState(false);
   const modalRef = useRef(null);
 
@@ -27,26 +29,37 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const email = formData.email.trim();
+    if (!EMAIL_REGEX.test(email)) {
+      showToast('Invalid email format', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const updatedUser = await usersAPI.update(user.id, formData);
+      const payload = { ...formData, email };
+      if (currentUser?.role === 'admin' && user.role !== 'admin') {
+        payload.role = selectedRole;
+      }
+
+      const updatedUser = await usersAPI.update(user.id, payload);
       showToast('User updated successfully!', 'success');
       onUserUpdated(updatedUser);
     } catch (err) {
-      showToast('Failed to update user', 'error');
+      showToast(err.message || 'Failed to update user', 'error');
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleModalClose = (e) => {
+  const handleModalClose = useCallback((e) => {
     e.stopPropagation();
     if (onCancel) {
       onCancel();
     }
-  };
+  }, [onCancel]);
 
   // 键盘事件处理
   useEffect(() => {
@@ -60,7 +73,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleModalClose]);
 
   // 关闭弹窗当点击外部
   useEffect(() => {
@@ -74,7 +87,7 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [handleModalClose]);
 
   if (!user) {
     return null;
@@ -157,8 +170,8 @@ const EditUserForm = ({ user, onUserUpdated, onCancel }) => {
               <select
                 id="role"
                 name="role"
-                value={formData.role}
-                onChange={handleChange}
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
                 disabled={loading}
                 className="form-input"
               >

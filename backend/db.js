@@ -328,8 +328,11 @@ db.serialize(() => {
   insertSetting.run('system_name', 'Library Management System', '系统名称');
   insertSetting.run('system_version', '1.0.0', '系统版本');
   insertSetting.run('borrow_enabled', '1', '是否启用借阅功能');
+  insertSetting.run('reservation_enabled', '1', '是否启用预约功能');
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
+  insertSetting.run('fine_enabled', '1', '是否启用逾期罚款');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
+  insertSetting.run('max_fine', '0', '单条借阅记录最高罚款金额，0表示不封顶');
   insertSetting.run('max_borrows', '5', '最大借阅数量');
   insertSetting.run('max_reservations', '3', '最大预约数量');
   insertSetting.run('blacklist_days', '30', '拉黑天数');
@@ -382,20 +385,20 @@ db.serialize(() => {
     });
   }
 
-  // 插入示例用户数据（使用密码哈希）
-  const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
-  const adminPasswordHash = bcrypt.hashSync('admin123', 10);
-  const userPasswordHash = bcrypt.hashSync('user123', 10);
-  insertUser.run('admin', adminPasswordHash, 'admin', 'Admin User', 'admin@example.com');
-  insertUser.run('user1', userPasswordHash, 'user', 'Test User', 'user@example.com');
-  insertUser.finalize();
+  const shouldSeedDefaultUsers = process.env.SEED_DEFAULT_USERS === 'true' || process.env.NODE_ENV !== 'production';
+  if (shouldSeedDefaultUsers) {
+    // 插入开发/演示用户数据（使用密码哈希）。生产环境默认不插入这些账号。
+    const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
+    const adminPasswordHash = bcrypt.hashSync(process.env.DEFAULT_ADMIN_PASSWORD || 'admin123', 10);
+    const userPasswordHash = bcrypt.hashSync(process.env.DEFAULT_USER_PASSWORD || 'user123', 10);
+    insertUser.run('admin', adminPasswordHash, 'admin', 'Admin User', 'admin@example.com');
+    insertUser.run('user1', userPasswordHash, 'user', 'Test User', 'user@example.com');
+    insertUser.finalize();
 
-
-  
-  // 插入额外的用户
-  const insertAdditionalUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
-  insertAdditionalUser.run('librarian', adminPasswordHash, 'librarian', 'Librarian User', 'librarian@example.com');
-  insertAdditionalUser.finalize();
+    const insertAdditionalUser = db.prepare('INSERT OR IGNORE INTO users (username, password, role, name, email) VALUES (?, ?, ?, ?, ?)');
+    insertAdditionalUser.run('librarian', adminPasswordHash, 'librarian', 'Librarian User', 'librarian@example.com');
+    insertAdditionalUser.finalize();
+  }
 
   // 为用户创建状态记录
   db.run('INSERT OR IGNORE INTO user_status (user_id, status) SELECT id, "active" FROM users');

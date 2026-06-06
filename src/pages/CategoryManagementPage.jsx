@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { categoryAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { scrollToListTop } from '../utils/scrollToListTop';
 import './CategoryManagementPage.css';
 
 const CategoryManagementPage = () => {
@@ -16,7 +17,7 @@ const CategoryManagementPage = () => {
   const inputRef = useRef(null);
 
   // Get all categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await categoryAPI.getAll();
@@ -27,12 +28,12 @@ const CategoryManagementPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showToast]);
 
   // Fetch categories on initialization
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   // Create new category
   const handleCreateCategory = async (e) => {
@@ -116,6 +117,11 @@ const CategoryManagementPage = () => {
     setCurrentPage(1);
   };
 
+  const handlePageChange = (nextPage) => {
+    setCurrentPage(nextPage);
+    scrollToListTop('#category-list-top');
+  };
+
   if (isLoading) {
     return <div className="loading">Loading...</div>;
   }
@@ -170,6 +176,7 @@ const CategoryManagementPage = () => {
 
           {/* Category List */}
           <div className="category-list card">
+            <div id="category-list-top" />
             <h3>Category List</h3>
             {filteredCategories.length === 0 ? (
               <div className="empty-state">
@@ -216,14 +223,14 @@ const CategoryManagementPage = () => {
                 <div>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(1)}
+                    onClick={() => handlePageChange(1)}
                     disabled={currentPage === 1}
                   >
                     First
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                   >
                     Previous
@@ -231,14 +238,14 @@ const CategoryManagementPage = () => {
                   <strong>Page {currentPage} of {totalPages}</strong>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                   >
                     Next
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(totalPages)}
+                    onClick={() => handlePageChange(totalPages)}
                     disabled={currentPage === totalPages}
                   >
                     Last

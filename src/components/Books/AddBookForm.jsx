@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../../context/ToastContext';
 import { booksAPI, categoryAPI } from '../../utils/api';
 import './Books.css';
@@ -33,6 +34,8 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   const [selectedProvider, setSelectedProvider] = useState('openlibrary');
   const [providerStatuses, setProviderStatuses] = useState({});
   const [testingProvider, setTestingProvider] = useState(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categoryDropdownRect, setCategoryDropdownRect] = useState(null);
   const [batchSettings, setBatchSettings] = useState({
     defaultLocation: 'Main Shelf',
     copiesPerBook: 1,
@@ -41,9 +44,28 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   const [activeTab, setActiveTab] = useState('single'); // 'single' or 'batch'
   const { showToast } = useToast();
   const dropdownRef = useRef(null);
+  const dropdownMenuRef = useRef(null);
   const csvInputRef = useRef(null);
 
-  const getMetadataCacheKey = (isbn, provider = selectedProvider) => `${provider}:${isbn}`;
+  const updateCategoryDropdownPosition = useCallback(() => {
+    if (!dropdownRef.current) return;
+
+    const rect = dropdownRef.current.getBoundingClientRect();
+    const preferredHeight = 240;
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(preferredHeight, openUp ? spaceAbove : spaceBelow));
+
+    setCategoryDropdownRect({
+      top: openUp ? rect.top - maxHeight - 2 : rect.bottom + 2,
+      left: rect.left,
+      width: rect.width,
+      maxHeight
+    });
+  }, []);
+
+  const getMetadataCacheKey = useCallback((isbn, provider = selectedProvider) => `${provider}:${isbn}`, [selectedProvider]);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -108,11 +130,11 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
   // 关闭下拉菜单当点击外部
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        const dropdownMenu = document.querySelector('.category-dropdown-menu');
-        if (dropdownMenu) {
-          dropdownMenu.classList.remove('show');
-        }
+      const clickedToggle = dropdownRef.current?.contains(event.target);
+      const clickedMenu = dropdownMenuRef.current?.contains(event.target);
+
+      if (!clickedToggle && !clickedMenu) {
+        setIsCategoryDropdownOpen(false);
       }
     };
 
@@ -121,6 +143,21 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCategoryDropdownOpen) return undefined;
+
+    updateCategoryDropdownPosition();
+    const handleViewportChange = () => updateCategoryDropdownPosition();
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [isCategoryDropdownOpen, updateCategoryDropdownPosition]);
 
   // 处理分类选择
   const handleCategoryChange = (categoryId) => {
@@ -168,10 +205,10 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
         status
       };
     });
-  }, [existingIsbnSet, metadataCache, parsedIsbns, selectedProvider, isbnProviders]);
+  }, [existingIsbnSet, getMetadataCacheKey, metadataCache, parsedIsbns, selectedProvider, isbnProviders]);
 
-  const importablePreview = batchPreview.filter(item => item.status === 'success');
-  const blockedPreview = batchPreview.filter(item => item.status !== 'success');
+  const importablePreview = useMemo(() => batchPreview.filter(item => item.status === 'success'), [batchPreview]);
+  const blockedPreview = useMemo(() => batchPreview.filter(item => item.status !== 'success'), [batchPreview]);
 
   useEffect(() => {
     if (activeTab !== 'batch') return undefined;
@@ -207,7 +244,7 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [activeTab, importablePreview, metadataCache, selectedProvider]);
+  }, [activeTab, getMetadataCacheKey, importablePreview, metadataCache, selectedProvider]);
 
   const handleProviderChange = (event) => {
     setSelectedProvider(event.target.value);
@@ -666,34 +703,46 @@ const AddBookForm = ({ onBookAdded, onCancel }) => {
                 className="category-dropdown-toggle"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const dropdownMenu = document.querySelector('.category-dropdown-menu');
-                  if (dropdownMenu) {
-                    dropdownMenu.classList.toggle('show');
-                  }
+                  updateCategoryDropdownPosition();
+                  setIsCategoryDropdownOpen(prev => !prev);
                 }}
                 disabled={isSubmitting}
+                aria-expanded={isCategoryDropdownOpen}
               >
                 {selectedCategories.length > 0 ? 
                   `${selectedCategories.length} selected` : 
                   'Select categories'}
                 <span className="dropdown-arrow">▼</span>
               </button>
-              <div className="category-dropdown-menu">
-                {categories.map(category => (
-                  <button
-                    type="button"
-                    key={category.id}
-                    className={`dropdown-item ${selectedCategories.includes(category.id) ? 'active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCategoryChange(category.id);
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
+              {isCategoryDropdownOpen && categoryDropdownRect && createPortal(
+                <div
+                  ref={dropdownMenuRef}
+                  className="category-dropdown-menu category-dropdown-menu-portal show"
+                  style={{
+                    top: `${categoryDropdownRect.top}px`,
+                    left: `${categoryDropdownRect.left}px`,
+                    width: `${categoryDropdownRect.width}px`,
+                    maxHeight: `${categoryDropdownRect.maxHeight}px`
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {categories.map(category => (
+                    <button
+                      type="button"
+                      key={category.id}
+                      className={`dropdown-item ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCategoryChange(category.id);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )}
             </div>
           )}
         </div>

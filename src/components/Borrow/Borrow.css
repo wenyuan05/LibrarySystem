@@ -48,6 +48,35 @@
   margin-left: auto;
 }
 
+.fine-feature-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 36px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fine-feature-status.enabled {
+  color: #047857;
+  background: #ECFDF5;
+}
+
+.fine-feature-status.disabled {
+  color: var(--text-secondary);
+  background: #F1F5F9;
+}
+
+.fine-feature-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 /* 用户信息头部 */
 .user-info-header {
   display: flex;
@@ -112,6 +141,46 @@
 .borrow-user-summary span {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(140px, 1fr)) auto auto;
+  gap: var(--spacing-sm);
+  align-items: end;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: #F8FAFC;
+}
+
+.history-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.history-filters input,
+.history-filters select {
+  height: 36px;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  text-transform: none;
+}
+
+.history-filters button {
+  height: 36px;
+  margin: 0;
+  white-space: nowrap;
 }
 
 /* 空状态 */
@@ -197,6 +266,16 @@
 
 .borrow-records-table tbody tr:hover {
   background: #F9FAFB;
+}
+
+.borrow-records-table tbody tr.borrow-record-clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.borrow-records-table tbody tr.borrow-record-clickable:focus-visible {
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 2px var(--primary-color);
 }
 
 .borrow-records-table .title-cell {
@@ -285,6 +364,10 @@
 @media (max-width: 768px) {
   .empty-state {
     padding: var(--spacing-lg);
+  }
+
+  .history-filters {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -437,8 +520,32 @@
   background-color: var(--bg-tertiary);
 }
 
+.modal-close img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .modal-body {
   margin-bottom: var(--spacing-md);
+}
+
+.confirm-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.confirm-countdown strong {
+  color: var(--primary-color);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 罚款表格样式 */
