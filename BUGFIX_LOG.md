@@ -2248,3 +2248,15 @@ This file documents all bug fixes applied to the project.
   - Backend SQLite smoke test with `SELECT 1 AS ok`
 - **Reason**: Close security issues found during the project scan and make build/audit checks repeatable.
 
+### Fix 144: Keep returning borrow records active in book list state
+- **Files modified**:
+  - `src/components/Books/BookList.jsx`
+  - `BUGFIX_LOG.md`
+- **Changes**:
+  - Changed the book list active borrow record helper to classify active records by status only.
+  - Kept `returning` records active even when they already have `return_date` set.
+- **Verification**:
+  - `npm.cmd run lint`
+  - `npm.cmd run build`
+- **Reason**: Return requests set `status = "returning"` and `return_date`; filtering by missing `return_date` made the UI treat pending return approvals as inactive and could show incorrect availability or actions that the backend rejects.
+

@@ -19,7 +19,7 @@ import './Books.css';
 const ACTIVE_BORROW_STATUSES = new Set(['borrowing', 'borrowed', 'overdue', 'returning']);
 
 const isActiveBorrowRecord = (record) => (
-  !record.return_date && ACTIVE_BORROW_STATUSES.has(record.status)
+  ACTIVE_BORROW_STATUSES.has(record.status)
 );
 
 const toBorrowingRecordsMap = (records) => (
