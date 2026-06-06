@@ -172,6 +172,12 @@
 **功能**：删除用户
 **权限**：admin/librarian
 
+**安全规则**：
+- 不能删除当前登录账号
+- 不能删除管理员账号
+- 存在 `borrowing`、`borrowed`、`overdue`、`returning` 借阅记录时禁止删除
+- 存在 `active` 或 `pending` 预约记录时禁止删除
+
 **响应**：
 ```json
 {
@@ -419,6 +425,12 @@
 #### 3.2.5 DELETE /api/books/:id
 **功能**：删除书籍
 **权限**：admin/librarian
+
+**安全规则**：
+- 存在 `borrowing`、`borrowed`、`overdue`、`returning` 借阅记录时禁止删除
+- 存在 `active` 或 `pending` 预约记录时禁止删除
+- 存在 `borrowing`、`borrowed` 或 `reserved` 状态副本时禁止删除
+- 删除检查以借阅状态为准，不依赖 `return_date IS NULL`；`returning` 记录可能已有归还日期但仍未审批完成
 
 **响应**：
 ```json
@@ -694,6 +706,38 @@
 {
   "message": "Location updated successfully"
 }
+```
+
+#### 3.2.18 DELETE /api/books/copies/:id
+**功能**：删除单个实体副本
+**权限**：admin/librarian
+
+**安全规则**：
+- 副本 id 必须为正整数
+- 副本必须存在
+- 只能删除 `available` 状态的副本
+- 所属图书至少保留一个副本
+- 副本不能存在活跃借阅记录
+- 删除成功后会在同一事务中重新计算 `books.total_copies` 和 `books.available_copies`
+
+**响应**：
+```json
+{
+  "message": "Copy deleted successfully"
+}
+```
+
+**可能错误**：
+```json
+{ "error": "Cannot delete copy: only available copies can be deleted" }
+```
+
+```json
+{ "error": "Cannot delete copy: a book must keep at least one copy" }
+```
+
+```json
+{ "error": "Cannot delete copy: it has active borrowing records" }
 ```
 
 ### 3.3 借阅管理接口
@@ -1560,10 +1604,26 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
 **功能**：清除系统日志
 **权限**：admin
 
+**请求体**：
+```json
+{
+  "days": 30
+}
+```
+
+**说明**：`days` 必须是 `1` 到 `3650` 的整数，或 `0` 表示清除全部日志。非法值返回 HTTP 400，且不会删除日志。
+
 **响应**：
 ```json
 {
   "message": "Logs cleared successfully"
+}
+```
+
+**可能错误**：
+```json
+{
+  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
 }
 ```
 
@@ -1789,81 +1849,6 @@ api.get('/books').then(response => {
 ## 7.1 运行与审计说明
 
 - 前端 `npm run build` 会先执行 `prebuild` 清理旧 `dist`，再运行 Vite 构建。
-- 后端依赖已升级到 `nodemailer@8` 与 `sqlite3@6`，`npm audit --omit=dev` 应保持 0 vulnerabilities。
+- 后端依赖使用 `nodemailer@8` 与 `sqlite3@5.1.7`；`sqlite3` 固定在 5.1.7 是为了兼容宝塔面板中较旧 Linux/glibc 环境。
 - `/api/borrow/confirm-borrow` 只允许借阅记录本人、管理员或图书管理员确认。
 - `/api/borrow/handle-timeout` 与 `/api/borrow/check-overdue` 只允许管理员或图书管理员触发。
-
-## 8. API Update - 2026-05-13
-
-### 8.1 Book-management endpoint count
-
-The book-management module now includes 20 endpoints after adding single-copy deletion.
-
-### 8.2 DELETE /api/books/copies/:id
-
-**Purpose**: Delete one physical copy of a book.
-
-**Permission**: `admin` or `librarian`
-
-**Response**:
-
-```json
-{
-  "message": "Copy deleted successfully"
-}
-```
-
-**Safety rules**:
-
-- The copy id must be a positive integer.
-- The copy must exist.
-- The copy status must be `available`.
-- The parent book must keep at least one remaining copy.
-- The copy must not have an active borrow record.
-- After deletion, `books.total_copies` and `books.available_copies` are recalculated in the same transaction.
-
-**Possible errors**:
-
-```json
-{ "error": "Cannot delete copy: only available copies can be deleted" }
-```
-
-```json
-{ "error": "Cannot delete copy: a book must keep at least one copy" }
-```
-
-```json
-{ "error": "Cannot delete copy: it has active borrowing records" }
-```
-
-### 8.3 Delete-safety rules
-
-The following active borrow statuses block user deletion, book deletion, and duplicate borrow creation:
-
-- `borrowing`
-- `borrowed`
-- `overdue`
-- `returning`
-
-User deletion now also blocks:
-
-- deleting the current account
-- deleting an admin account
-- active reservations with status `active` or `pending`
-
-Book deletion now also blocks:
-
-- occupied copies with status `borrowing`, `borrowed`, or `reserved`
-- active reservations with status `active` or `pending`
-
-The delete checks no longer rely on `return_date IS NULL`, because `returning` records already have a return date while still waiting for librarian approval.
-
-### 8.4 DELETE /api/logs/clear validation
-
-`days` must be an integer from `1` to `3650`, or `0` to clear all logs. Invalid values return:
-
-```json
-{
-  "error": "Days must be an integer between 1 and 3650, or 0 to clear all logs"
-}
-```
