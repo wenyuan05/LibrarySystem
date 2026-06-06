@@ -260,6 +260,18 @@
   - `Cancel Lock` 后待确认记录状态变为 `timeout`
   - 取消锁定后该书不再显示 Confirm Borrow 入口，兼容旧数据中已锁定的副本会恢复可用
 
+### 测试用例 5.1.2：待确认借阅名额防超发
+- **测试场景**：多个用户同时对可用副本数量有限的同一本书发起借阅
+- **操作步骤**：
+  1. 准备一本只有 1 个 `available` 副本的图书
+  2. Reader A 点击 Borrow，生成 `borrowing` 待确认记录但暂不确认
+  3. Reader B 对同一本书点击 Borrow
+  4. Reader A 点击 Confirm 并选择可用副本
+- **预期结果**：
+  - Reader A 的借阅申请创建成功，并可正常确认
+  - Reader B 的借阅申请被拒绝，提示 `No available copies. All available copies are already awaiting confirmation.`
+  - 不会出现创建成功但确认时没有可用副本的借阅记录
+
 ### 测试用例 5.2：归还书籍
 - **测试场景**：用户归还一本已借阅的书籍
 - **操作步骤**：

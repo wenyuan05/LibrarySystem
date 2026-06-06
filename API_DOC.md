@@ -772,7 +772,8 @@
 ```
 
 **说明**：
-- 发起借阅时只创建待确认记录，不预先占用副本。具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
+- 发起借阅时只创建待确认记录，不预先绑定具体副本。后端会先清理过期待确认记录，再用 `available` 副本数减去当前 `borrowing` 待确认记录数计算可确认名额；没有剩余名额时返回 HTTP 400：`{"error":"No available copies. All available copies are already awaiting confirmation."}`。
+- 具体 `copy_id` 和 `copy_code` 在确认借阅时由前端弹窗选择可用副本后写入。
 - 当系统设置 `borrow_enabled = "0"` 时，接口返回 HTTP 403：`{"error":"Borrowing is currently disabled by the system administrator"}`。
 
 #### 3.3.2 POST /api/borrow/return

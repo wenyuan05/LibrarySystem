@@ -71,9 +71,9 @@ exports.borrowBook = function(req, res) {
       confirm_deadline.setMinutes(confirm_deadline.getMinutes() + confirmMinutes);
       const confirm_deadline_str = confirm_deadline.toISOString();
     
-    // 开始事务
+    // 开始事务。使用 IMMEDIATE 避免并发借阅申请同时抢占同一个可确认名额。
     db.serialize(function() {
-      db.run('BEGIN TRANSACTION', function(err) {
+      db.run('BEGIN IMMEDIATE', function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
@@ -91,6 +91,42 @@ exports.borrowBook = function(req, res) {
             res.status(403).json({ error: 'User is blocked and cannot borrow books' });
             return;
           }
+
+          const now = new Date().toISOString();
+          const expireStaleBorrowLocks = (next) => {
+            db.run(
+              `UPDATE book_copies
+               SET status = 'available'
+               WHERE id IN (
+                 SELECT copy_id
+                 FROM borrow_records
+                 WHERE status = 'borrowing'
+                   AND confirm_deadline < ?
+                   AND copy_id IS NOT NULL
+               )
+                 AND status = 'borrowing'`,
+              [now],
+              function(err) {
+                if (err) {
+                  next(err);
+                  return;
+                }
+
+                db.run(
+                  'UPDATE borrow_records SET status = ? WHERE status = ? AND confirm_deadline < ?',
+                  ['timeout', 'borrowing', now],
+                  next
+                );
+              }
+            );
+          };
+
+          expireStaleBorrowLocks((err) => {
+            if (err) {
+              db.run('ROLLBACK');
+              res.status(500).json({ error: err.message });
+              return;
+            }
 
           // 检查用户是否有未结清的罚款
           db.get(
@@ -141,16 +177,21 @@ exports.borrowBook = function(req, res) {
                 return;
               }
 
-              // 检查是否有可用副本。借阅申请阶段不绑定具体副本，确认时再选择。
-              db.get('SELECT id FROM book_copies WHERE book_id = ? AND status = ? LIMIT 1', [book_id, 'available'], function(err, copy) {
+              // 借阅申请阶段不绑定具体副本，但必须预留一个未来可确认的可用名额。
+              db.get(
+                `SELECT
+                   (SELECT COUNT(*) FROM book_copies WHERE book_id = ? AND status = 'available') as available_count,
+                   (SELECT COUNT(*) FROM borrow_records WHERE book_id = ? AND status = 'borrowing') as pending_count`,
+                [book_id, book_id],
+                function(err, availability) {
                 if (err) {
                   db.run('ROLLBACK');
                   res.status(500).json({ error: err.message });
                   return;
                 }
-                if (!copy) {
+                if (!availability || availability.available_count <= availability.pending_count) {
                   db.run('ROLLBACK');
-                  res.status(400).json({ error: 'No available copies' });
+                  res.status(400).json({ error: 'No available copies. All available copies are already awaiting confirmation.' });
                   return;
                 }
 
@@ -189,6 +230,7 @@ exports.borrowBook = function(req, res) {
             });
           });
         });
+      });
       });
     });
   });

@@ -402,6 +402,7 @@ system_settings
 5. **数据去重**：使用唯一索引和唯一约束确保数据唯一性
 6. **活跃记录定义**：
    - 借阅记录中 `borrowing`、`borrowed`、`overdue`、`returning` 都视为活跃状态，用于删除保护和重复借阅保护
+   - `borrowing` 待确认记录不绑定具体副本，但会占用一个可确认名额；新借阅申请按 `available` 副本数减去当前 `borrowing` 记录数判断是否还能发起
    - 预约记录中 `active`、`pending` 视为活跃预约，用于删除保护
    - 副本状态中 `borrowing`、`borrowed`、`reserved` 视为占用状态，用于书籍删除保护
 7. **删除与库存一致性**：

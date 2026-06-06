@@ -60,7 +60,7 @@ const BookDetail = () => {
       setCopies(copiesData);
     } catch (err) {
       console.error('Failed to borrow book:', err);
-      showToast('Failed to borrow book. Please try again.', 'error');
+      showToast(err.message || 'Failed to borrow book. Please try again.', 'error');
     }
   };
 
