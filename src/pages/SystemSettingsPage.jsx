@@ -94,6 +94,16 @@ const settingSections = [
         default: 0.5,
         prefix: '¥',
         helper: 'Daily overdue charge. Set to 0 to disable overdue fines.'
+      },
+      {
+        key: 'max_fine',
+        label: 'Maximum Fine',
+        type: 'number',
+        min: 0,
+        step: 0.1,
+        default: 0,
+        prefix: '¥',
+        helper: 'Maximum overdue fine per borrow record. Set to 0 for no cap.'
       }
     ]
   }

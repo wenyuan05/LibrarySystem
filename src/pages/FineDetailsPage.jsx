@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
-import { borrowAPI, paymentAPI } from '../utils/api';
+import { borrowAPI, paymentAPI, systemAPI } from '../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortFineRecords } from '../utils/historyList';
 import { scrollToListTop } from '../utils/scrollToListTop';
 import './FineDetailsPage.css';
@@ -11,8 +11,8 @@ import './FineDetailsPage.css';
 const isActualPayableFine = (fine) => (
   fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
 );
-const isEstimatedFine = (fine) => (
-  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+const isEstimatedFine = (fine, fineFeatureEnabled = true) => (
+  fineFeatureEnabled && fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
 );
 
 const initialFineFilters = {
@@ -22,12 +22,12 @@ const initialFineFilters = {
   date_to: ''
 };
 
-const getFineDisplayStatus = (fine) => {
-  if (isEstimatedFine(fine)) return 'estimated';
+const getFineDisplayStatus = (fine, fineFeatureEnabled = true) => {
+  if (isEstimatedFine(fine, fineFeatureEnabled)) return 'estimated';
   return fine.fine_status === 'paid' ? 'paid' : 'unpaid';
 };
 
-const fineMatchesFilters = (fine, filters) => {
+const fineMatchesFilters = (fine, filters, fineFeatureEnabled = true) => {
   const keyword = filters.keyword.trim().toLowerCase();
   if (keyword) {
     const searchable = [
@@ -44,7 +44,7 @@ const fineMatchesFilters = (fine, filters) => {
     }
   }
 
-  if (filters.status && getFineDisplayStatus(fine) !== filters.status) {
+  if (filters.status && getFineDisplayStatus(fine, fineFeatureEnabled) !== filters.status) {
     return false;
   }
 
@@ -77,6 +77,7 @@ const FineDetailsPage = () => {
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [paymentConfig, setPaymentConfig] = useState(null);
+  const [fineFeatureEnabled, setFineFeatureEnabled] = useState(true);
 
   const loadFines = useCallback(async () => {
     if (!targetUserId) return [];
@@ -118,6 +119,19 @@ const FineDetailsPage = () => {
       isMounted = false;
     };
   }, [paymentOrder?.qr_code]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setFineFeatureEnabled(flags.fine_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch fine feature flag:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -264,13 +278,13 @@ const FineDetailsPage = () => {
     return <div className="loading">Loading fine records...</div>;
   }
 
-  const filteredFines = fines.filter(fine => fineMatchesFilters(fine, appliedFilters));
+  const filteredFines = fines.filter(fine => fineMatchesFilters(fine, appliedFilters, fineFeatureEnabled));
   const sortedFines = sortFineRecords(filteredFines, sortOrder);
   const actualUnpaidFine = fines
     .filter(isActualPayableFine)
     .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const estimatedFine = fines
-    .filter(isEstimatedFine)
+    .filter(fine => isEstimatedFine(fine, fineFeatureEnabled))
     .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const {
     pageItems: visibleFines,
@@ -289,7 +303,7 @@ const FineDetailsPage = () => {
       <div className="fine-summary">
         <div className="fine-summary-amounts">
           <h2>Payable Fine: ¥{totalFine.toFixed(2)}</h2>
-          <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
+          {fineFeatureEnabled && <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>}
         </div>
         {actualUnpaidFine > 0 && (
           <button 
@@ -417,7 +431,10 @@ const FineDetailsPage = () => {
             ) : (
               <>
               <div id="fine-records-list-top" />
-              {visibleFines.map(fine => (
+              {visibleFines.map(fine => {
+                const isEstimated = isEstimatedFine(fine, fineFeatureEnabled);
+
+                return (
               <div key={fine.id} className="fine-item">
                 <div className="fine-book-info">
                   <h3>{fine.title}</h3>
@@ -437,17 +454,18 @@ const FineDetailsPage = () => {
                     <span className="meta-value">{fine.return_date}</span>
                   </div>
                   <div className="fine-amount">
-                    <span className="amount-label">{isEstimatedFine(fine) ? 'Estimated Fine:' : 'Fine:'}</span>
+                    <span className="amount-label">{isEstimated ? 'Estimated Fine:' : 'Fine:'}</span>
                     <span className="amount-value">¥{(Number(fine.fine) || 0).toFixed(2)}</span>
                   </div>
                   <div className="fine-status">
-                    <span className={`status-badge ${isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}`}>
-                      {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                    <span className={`status-badge ${isEstimated ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}`}>
+                      {isEstimated ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
                     </span>
                   </div>
                 </div>
               </div>
-              ))}
+                );
+              })}
               </>
             )}
             {filteredFines.length > DEFAULT_HISTORY_PAGE_SIZE && (

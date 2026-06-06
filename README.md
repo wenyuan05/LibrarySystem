@@ -452,8 +452,8 @@ npm run dev
 
 ### 罚款、支付与收入
 
-- 逾期罚款基于 `fine_per_day` 自动计算；提交归还申请时将实际罚款累计到用户账户。
-- `fine_enabled` 可全局暂停新罚款产生和未归还逾期记录的预计罚款增长；`fine_per_day = 0` 表示仍保留罚款流程但费率为零。
+- 逾期罚款基于 `fine_per_day` 自动计算，并受单条借阅记录 `max_fine` 上限控制；提交归还申请时将实际罚款累计到用户账户。
+- `fine_enabled` 可全局暂停新罚款产生和未归还逾期记录的预计罚款增长；`fine_per_day = 0` 表示仍保留罚款流程但费率为零；`max_fine = 0` 表示不封顶。
 - 罚款支付通过支付宝订单完成，支付成功后同步罚款记录、用户未付罚款总额和收入流水。
 - 本地开发可使用模拟支付，沙箱配置完整时可生成支付宝沙箱 page pay 链接和 precreate 二维码内容。
 - 支付订单列表支持分页、关键词过滤、状态过滤、创建时间过滤和手动过期 pending 订单。
@@ -467,10 +467,10 @@ npm run dev
 - 管理员不能删除自己；删除用户会受到活跃借阅、预约和角色规则保护。
 - 公告管理支持创建、编辑、发布开关和列表管理；公告弹窗脱离页面容器限制，完整展示文本。
 - 系统日志支持分页、升序/降序、关键词、操作类型、用户 ID 和创建日期范围过滤。
-- System Settings 只展示已接入业务逻辑的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`。
+- System Settings 只展示已接入业务逻辑的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`、`max_fine`。
 - `borrow_enabled` 关闭后读者无法发起或确认借阅，但不影响归还、预约取消、罚款支付等流程。
 - `reservation_enabled` 关闭后读者无法发起新预约，但不影响取消已有预约。
-- `fine_enabled` 关闭后不再产生新的逾期罚款，未归还逾期记录的预计罚款不再增长，不影响已有未支付罚款的正常支付。
+- `fine_enabled` 关闭后不再产生新的逾期罚款，未归还逾期记录的预计罚款不再增长，不影响已有未支付罚款的正常支付；`max_fine` 只限制单条记录的逾期罚款金额。
 
 ### 认证、通知与安全
 

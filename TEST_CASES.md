@@ -523,7 +523,7 @@
   4. 开启 Editable mode，修改一个已实现设置并保存
 - **预期结果**：
   - 页面以 Borrow Rules 和 Fine Rules 分组卡片展示
-  - 仅显示 `borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day` 对应设置
+  - 仅显示 `borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`、`max_fine` 对应设置
   - 不显示未接入业务逻辑的 System Name、System Version、Max Reservations、Blacklist Days、Late Return Policy、Lost Book Compensation
   - 修改后出现 pending save bar，点击 Save Changes 后保存成功并显示成功提示
 
@@ -796,7 +796,7 @@
   - 已逾期未归还记录保留当前预计罚款，但关闭期间不继续增长
   - 关闭期间归还图书不会在冻结金额之外新增罚款
   - 已有实际未付罚款仍可正常支付
-  - 重新开启后按 `fine_per_day` 恢复正常累计
+  - 重新开启后按 `fine_per_day` 恢复正常累计，并受 `max_fine` 单条上限限制
 
 ### 测试用例 8.29：支付宝后端配置安全摘要
 - **测试场景**：后端加载支付宝沙箱配置且不泄露密钥

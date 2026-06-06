@@ -496,7 +496,7 @@ backend/
 3. 点击归还按钮
 4. 前端发送归还请求到 `/api/borrow/return`
 5. 后端检查借阅记录（支持 borrowed 和 overdue 状态）
-6. 从系统设置读取 fine_per_day 计算逾期罚款
+6. 从系统设置读取 fine_per_day 计算逾期罚款，并按 max_fine 限制单条记录最高金额（0 表示不封顶）
 7. 更新借阅记录状态为 "returning"，设置罚款金额和 fine_status='unpaid'
 8. 如果产生罚款，立即累计到用户 total_fine，用户可马上支付
 9. 返回归还成功响应，包含罚款信息

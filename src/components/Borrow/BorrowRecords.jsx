@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
-import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
+import { usersAPI, borrowAPI, booksAPI, systemAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords, sortFineRecords } from '../../utils/historyList';
 import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
@@ -25,8 +25,11 @@ const formatCountdown = (secondsLeft) => {
 const isActualPayableFine = (fine) => (
   fine.fine_status === 'unpaid' && ['returning', 'returned'].includes(fine.status)
 );
-const isEstimatedFine = (fine) => (
-  fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+const isEstimatedFine = (fine, fineFeatureEnabled = true) => (
+  fineFeatureEnabled && fine.fine_status === 'unpaid' && !['returning', 'returned'].includes(fine.status)
+);
+const shouldShowRecordFine = (record, fineFeatureEnabled = true) => (
+  getFineAmount(record.fine) > 0 && (fineFeatureEnabled || ['returning', 'returned'].includes(record.status))
 );
 const recordMatchesFilters = (record, filters) => {
   const keyword = filters.keyword.trim().toLowerCase();
@@ -64,6 +67,7 @@ const BorrowRecords = () => {
   const [confirmCountdown, setConfirmCountdown] = useState(0);
   const [fines, setFines] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
+  const [fineFeatureEnabled, setFineFeatureEnabled] = useState(true);
   const [recordSortOrder, setRecordSortOrder] = useState(searchParams.get('sort') || 'desc');
   const [recordPage, setRecordPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
   const [recordFilters, setRecordFilters] = useState(initialRecordFilters);
@@ -85,9 +89,11 @@ const BorrowRecords = () => {
       
       // 如果有逾期记录，计算预估罚款并显示提醒
       if (data.overdue_count > 0) {
-        const overdueFines = data.records
-          .filter(r => r.status === 'overdue' && r.fine > 0)
-          .reduce((sum, r) => sum + r.fine, 0);
+        const overdueFines = fineFeatureEnabled
+          ? data.records
+            .filter(r => r.status === 'overdue' && r.fine > 0)
+            .reduce((sum, r) => sum + r.fine, 0)
+          : 0;
         const overdueLabel = data.overdue_count === 1 ? 'book' : 'books';
         const returnTarget = data.overdue_count === 1 ? 'it' : 'them';
         const msg = overdueFines > 0
@@ -101,12 +107,25 @@ const BorrowRecords = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast, user?.id]);
+  }, [fineFeatureEnabled, showToast, user?.id]);
 
   // 加载借阅记录
   useEffect(() => {
     fetchBorrowRecords();
   }, [fetchBorrowRecords]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setFineFeatureEnabled(flags.fine_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch fine feature flag:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -344,7 +363,7 @@ const BorrowRecords = () => {
   } = paginateRecords(sortedRecords, recordPage, DEFAULT_HISTORY_PAGE_SIZE);
   const sortedFines = sortFineRecords(fines, fineSortOrder);
   const estimatedFine = fines
-    .filter(isEstimatedFine)
+    .filter(fine => isEstimatedFine(fine, fineFeatureEnabled))
     .reduce((sum, fine) => sum + (Number(fine.fine) || 0), 0);
   const {
     pageItems: visibleFines,
@@ -357,6 +376,10 @@ const BorrowRecords = () => {
       <div className="borrow-records-header">
         <h3>My Borrow Records</h3>
         <div className="borrow-records-header-actions">
+          <div className={`fine-feature-status ${fineFeatureEnabled ? 'enabled' : 'disabled'}`}>
+            <span className="fine-feature-dot" />
+            <span>{fineFeatureEnabled ? 'Fines On' : 'Fines Off'}</span>
+          </div>
           {overdueCount > 0 && (
             <div className="overdue-count">
               <span className="overdue-badge">{overdueCount}</span>
@@ -499,8 +522,8 @@ const BorrowRecords = () => {
                        record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                     </span>
                   </td>
-                  <td className={getFineAmount(record.fine) > 0 ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
-                    {getFineAmount(record.fine) > 0 ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
+                  <td className={shouldShowRecordFine(record, fineFeatureEnabled) ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
+                    {shouldShowRecordFine(record, fineFeatureEnabled) ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
                   </td>
                   <td className="borrow-action-cell">
                     {(record.status === 'borrowed' || record.status === 'overdue') && (
@@ -699,6 +722,7 @@ const BorrowRecords = () => {
                         {visibleFines.map(fine => {
                           const dueDate = new Date(fine.due_date);
                           const returnDate = fine.return_date ? new Date(fine.return_date) : new Date();
+                          const isEstimated = isEstimatedFine(fine, fineFeatureEnabled);
                           const overdueDays = Math.max(
                             0,
                             Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24))
@@ -710,10 +734,10 @@ const BorrowRecords = () => {
                             <td className="fine-title-cell">{fine.title}</td>
                             <td>{overdueDays}</td>
                             <td className="fine-amount-cell">
-                              {isEstimatedFine(fine) ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
+                              {isEstimated ? 'Estimated ' : ''}¥{(Number(fine.fine) || 0).toFixed(2)}
                             </td>
-                            <td className={isEstimatedFine(fine) ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
-                              {isEstimatedFine(fine) ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
+                            <td className={isEstimated ? 'status-estimated' : fine.fine_status === 'paid' ? 'status-paid' : 'status-unpaid'}>
+                              {isEstimated ? 'Estimated' : fine.fine_status === 'paid' ? 'Paid' : 'Unpaid'}
                             </td>
                           </tr>
                           );
@@ -723,7 +747,7 @@ const BorrowRecords = () => {
                   </div>
                   <div className="total-fine">
                     <strong>Payable Fine: ¥{totalFine.toFixed(2)}</strong>
-                    <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>
+                    {fineFeatureEnabled && <span>Estimated Fine: ¥{estimatedFine.toFixed(2)}</span>}
                   </div>
                   {fines.length > DEFAULT_HISTORY_PAGE_SIZE && (
                     <div className="history-pagination">

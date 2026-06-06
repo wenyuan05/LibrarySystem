@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
-import { usersAPI, borrowAPI, booksAPI } from '../../utils/api';
+import { usersAPI, borrowAPI, booksAPI, systemAPI } from '../../utils/api';
 import { DEFAULT_HISTORY_PAGE_SIZE, paginateRecords, sortBorrowRecords } from '../../utils/historyList';
 import { scrollToListTop } from '../../utils/scrollToListTop';
 import Barcode from '../Barcode';
@@ -35,6 +35,9 @@ const recordMatchesFilters = (record, filters) => {
 
   return matchesKeyword && matchesStatus && matchesStart && matchesEnd;
 };
+const shouldShowRecordFine = (record, fineFeatureEnabled = true) => (
+  getFineAmount(record.fine) > 0 && (fineFeatureEnabled || ['returning', 'returned'].includes(record.status))
+);
 
 const UserBorrowRecords = () => {
   const { userId } = useParams();
@@ -53,6 +56,7 @@ const UserBorrowRecords = () => {
   const [page, setPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1));
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [fineFeatureEnabled, setFineFeatureEnabled] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmRecord, setConfirmRecord] = useState(null);
   const [confirmCopies, setConfirmCopies] = useState([]);
@@ -91,6 +95,19 @@ const UserBorrowRecords = () => {
   useEffect(() => {
     fetchUserAndRecords();
   }, [fetchUserAndRecords]);
+
+  useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const flags = await systemAPI.getFeatureFlags();
+        setFineFeatureEnabled(flags.fine_enabled !== false);
+      } catch (err) {
+        console.error('Failed to fetch fine feature flag:', err);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -430,8 +447,8 @@ const UserBorrowRecords = () => {
                            record.status === 'overdue' ? 'Overdue' : 'Borrowed'}
                         </span>
                       </td>
-                      <td className={getFineAmount(record.fine) > 0 ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
-                        {getFineAmount(record.fine) > 0 ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
+                      <td className={shouldShowRecordFine(record, fineFeatureEnabled) ? 'borrow-fine-amount' : 'borrow-fine-empty'}>
+                        {shouldShowRecordFine(record, fineFeatureEnabled) ? `¥${getFineAmount(record.fine).toFixed(2)}` : '-'}
                       </td>
                       <td className="borrow-action-cell">
                         {(record.status === 'borrowed' || record.status === 'overdue') && (

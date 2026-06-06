@@ -48,6 +48,35 @@
   margin-left: auto;
 }
 
+.fine-feature-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 36px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fine-feature-status.enabled {
+  color: #047857;
+  background: #ECFDF5;
+}
+
+.fine-feature-status.disabled {
+  color: var(--text-secondary);
+  background: #F1F5F9;
+}
+
+.fine-feature-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 /* 用户信息头部 */
 .user-info-header {
   display: flex;

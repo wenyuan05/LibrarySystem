@@ -5,6 +5,31 @@ const { ACTIVE_BORROW_STATUSES, placeholders } = require('../utils/statusConstan
 const STAFF_ROLES = ['admin', 'librarian'];
 const canManageBorrowRecords = (user) => user && STAFF_ROLES.includes(user.role);
 const canAccessBorrowUser = (req, userId) => Number(userId) === req.user.id || canManageBorrowRecords(req.user);
+const mapSettings = (settings) => {
+  const settingsMap = {};
+  if (Array.isArray(settings)) {
+    settings.forEach(setting => {
+      settingsMap[setting.key] = setting.value;
+    });
+  }
+  return settingsMap;
+};
+const getFineSettings = (settings) => {
+  const settingsMap = mapSettings(settings);
+  const fineEnabled = settingsMap.fine_enabled !== '0';
+  const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
+  const parsedMaxFine = settingsMap.max_fine !== undefined ? parseFloat(settingsMap.max_fine) : NaN;
+
+  return {
+    fineEnabled,
+    finePerDay: fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0,
+    maxFine: !Number.isNaN(parsedMaxFine) && parsedMaxFine > 0 ? parsedMaxFine : 0
+  };
+};
+const applyMaxFine = (fine, maxFine) => {
+  const amount = Number(fine) || 0;
+  return maxFine > 0 ? Math.min(amount, maxFine) : amount;
+};
 
 // 借阅书籍（需要登录）
 exports.borrowBook = function(req, res) {
@@ -178,17 +203,9 @@ exports.returnBook = function(req, res) {
   }
   const return_date = new Date().toISOString().split('T')[0];
 
-  // 从系统设置获取罚款开关和每日罚款金额
-  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, settings) {
-    const settingsMap = {};
-    if (!err && Array.isArray(settings)) {
-      settings.forEach(setting => {
-        settingsMap[setting.key] = setting.value;
-      });
-    }
-    const fineEnabled = settingsMap.fine_enabled !== '0';
-    const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
-    const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+  // 从系统设置获取罚款开关、每日罚款金额和单条罚款上限
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, settings) {
+    const { fineEnabled, finePerDay, maxFine } = getFineSettings(settings);
 
     // 开始事务
     db.serialize(function() {
@@ -222,7 +239,7 @@ exports.returnBook = function(req, res) {
               fine = Number(record.fine) || 0;
             } else if (return_date_obj > due_date) {
               const days_overdue = Math.ceil((return_date_obj - due_date) / (1000 * 60 * 60 * 24));
-              fine = days_overdue * finePerDay;
+              fine = applyMaxFine(Math.round(days_overdue * finePerDay * 100) / 100, maxFine);
             }
 
             // 更新借阅记录为 returning 状态，等待管理员审批
@@ -303,31 +320,30 @@ exports.getBorrowingList = function(req, res) {
         return;
       }
       
-      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, fineSettings) {
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, fineSettings) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
 
-        const fineSettingsMap = {};
-        fineSettings.forEach(setting => {
-          fineSettingsMap[setting.key] = setting.value;
-        });
-        const fineEnabled = fineSettingsMap.fine_enabled !== '0';
-        const parsedFinePerDay = fineSettingsMap.fine_per_day !== undefined ? parseFloat(fineSettingsMap.fine_per_day) : NaN;
-        const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+        const { fineEnabled, finePerDay, maxFine } = getFineSettings(fineSettings);
 
         // 然后检查和更新逾期记录
         const today = new Date().toISOString().split('T')[0];
+        const fineExpression = maxFine > 0
+          ? 'MIN(ROUND((julianday(?) - julianday(due_date)) * ?, 2), ?)'
+          : 'ROUND((julianday(?) - julianday(due_date)) * ?, 2)';
         let overdueSql = fineEnabled
           ? `UPDATE borrow_records
              SET status = ?,
-                 fine = ROUND((julianday(?) - julianday(due_date)) * ?, 2),
-                 fine_status = CASE WHEN ROUND((julianday(?) - julianday(due_date)) * ?, 2) > 0 THEN 'unpaid' ELSE fine_status END
+                 fine = ${fineExpression},
+                 fine_status = CASE WHEN ${fineExpression} > 0 THEN 'unpaid' ELSE fine_status END
              WHERE status IN (?, ?) AND due_date < ? AND return_date IS NULL`
           : 'UPDATE borrow_records SET status = ? WHERE status = ? AND due_date < ? AND return_date IS NULL';
         const overdueParams = fineEnabled
-          ? ['overdue', today, finePerDay, today, finePerDay, 'borrowed', 'overdue', today]
+          ? maxFine > 0
+            ? ['overdue', today, finePerDay, maxFine, today, finePerDay, maxFine, 'borrowed', 'overdue', today]
+            : ['overdue', today, finePerDay, today, finePerDay, 'borrowed', 'overdue', today]
           : ['overdue', 'borrowed', today];
 
         // 如果指定了用户ID，只更新该用户的记录
@@ -1322,20 +1338,14 @@ exports.checkOverdueRecords = function(req, res) {
         return;
       }
 
-      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['fine_enabled', 'fine_per_day'], function(err, fineSettings) {
+      db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], function(err, fineSettings) {
         if (err) {
           db.run('ROLLBACK');
           res.status(500).json({ error: err.message });
           return;
         }
 
-        const fineSettingsMap = {};
-        fineSettings.forEach(setting => {
-          fineSettingsMap[setting.key] = setting.value;
-        });
-        const fineEnabled = fineSettingsMap.fine_enabled !== '0';
-        const parsedFinePerDay = fineSettingsMap.fine_per_day !== undefined ? parseFloat(fineSettingsMap.fine_per_day) : NaN;
-        const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+        const { fineEnabled, finePerDay, maxFine } = getFineSettings(fineSettings);
 
         // 查找所有逾期的借阅记录
         db.all(
@@ -1364,8 +1374,9 @@ exports.checkOverdueRecords = function(req, res) {
           
           records.forEach(function(record) {
             // 更新借阅记录状态为overdue
+            const computedFine = Math.round(Math.ceil((new Date(today) - new Date(record.due_date)) / (1000 * 60 * 60 * 24)) * finePerDay * 100) / 100;
             const fine = fineEnabled
-              ? Math.round(Math.ceil((new Date(today) - new Date(record.due_date)) / (1000 * 60 * 60 * 24)) * finePerDay * 100) / 100
+              ? applyMaxFine(computedFine, maxFine)
               : 0;
             const sql = fineEnabled
               ? 'UPDATE borrow_records SET status = ?, fine = ?, fine_status = ? WHERE id = ?'

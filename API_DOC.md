@@ -793,7 +793,7 @@
 }
 ```
 
-**说明**：归还申请提交时会立即计算逾期罚款。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`。用户无需等待图书管理员审批即可通过支付宝支付订单支付实际罚款。当系统设置 `fine_enabled = "0"` 时，新逾期记录不再产生罚款，已逾期未归还记录的预计罚款不会继续增长；归还时使用当前冻结的罚款金额。
+**说明**：归还申请提交时会立即计算逾期罚款，并按 `max_fine` 限制单条借阅记录最高罚款金额（`max_fine = "0"` 表示不封顶）。如果 `fine > 0`，记录会进入 `returning` 状态并标记 `fine_status = "unpaid"`，同时将罚款计入用户 `total_fine`。用户无需等待图书管理员审批即可通过支付宝支付订单支付实际罚款。当系统设置 `fine_enabled = "0"` 时，新逾期记录不再产生罚款，已逾期未归还记录的预计罚款不会继续增长；归还时使用当前冻结的罚款金额。
 
 #### 3.3.3 POST /api/borrow/confirm-borrow
 **功能**：确认借阅
@@ -1329,6 +1329,7 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "borrow_period_days": "14",
   "fine_enabled": "1",
   "fine_per_day": "0.5",
+  "max_fine": "0",
   "max_borrows": "5",
   "borrow_confirm_minutes": "60",
   "max_renew_times": "3",
@@ -1353,11 +1354,12 @@ Fine Records 页面使用该接口替代旧的直接结清接口；用户需要�
   "reservation_enabled": "1",
   "borrow_period_days": "21",
   "fine_enabled": "1",
-  "fine_per_day": "1.0"
+  "fine_per_day": "1.0",
+  "max_fine": "50"
 }
 ```
 
-`fine_enabled` 设置为 `"0"` 时会暂停新罚款产生和未归还逾期记录的预计罚款增长，但不影响已生成实际罚款的支付。`fine_per_day` 可以设置为 `"0"`，表示启用罚款功能时费率为 0。
+`fine_enabled` 设置为 `"0"` 时会暂停新罚款产生和未归还逾期记录的预计罚款增长，但不影响已生成实际罚款的支付。`fine_per_day` 可以设置为 `"0"`，表示启用罚款功能时费率为 0。`max_fine` 限制单条借阅记录最高逾期罚款，设置为 `"0"` 表示不封顶。
 
 **响应**：
 ```json

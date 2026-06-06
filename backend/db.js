@@ -332,6 +332,7 @@ db.serialize(() => {
   insertSetting.run('borrow_period_days', '14', '借阅期限（天）');
   insertSetting.run('fine_enabled', '1', '是否启用逾期罚款');
   insertSetting.run('fine_per_day', '0.5', '每天罚款金额');
+  insertSetting.run('max_fine', '0', '单条借阅记录最高罚款金额，0表示不封顶');
   insertSetting.run('max_borrows', '5', '最大借阅数量');
   insertSetting.run('max_reservations', '3', '最大预约数量');
   insertSetting.run('blacklist_days', '30', '拉黑天数');

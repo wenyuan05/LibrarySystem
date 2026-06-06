@@ -22,7 +22,7 @@ exports.getSystemSettings = (req, res) => {
 
 // 获取普通登录用户可见的功能开关
 exports.getFeatureFlags = (req, res) => {
-  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?)', ['borrow_enabled', 'reservation_enabled'], (err, settings) => {
+  db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['borrow_enabled', 'reservation_enabled', 'fine_enabled'], (err, settings) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -35,7 +35,8 @@ exports.getFeatureFlags = (req, res) => {
 
     res.json({
       borrow_enabled: settingsMap.borrow_enabled !== '0',
-      reservation_enabled: settingsMap.reservation_enabled !== '0'
+      reservation_enabled: settingsMap.reservation_enabled !== '0',
+      fine_enabled: settingsMap.fine_enabled !== '0'
     });
   });
 };

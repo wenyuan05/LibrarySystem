@@ -14,6 +14,10 @@ const JWT_EXPIRES_IN = '7d';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const applyMaxFine = (fine, maxFine) => {
+  const amount = Number(fine) || 0;
+  return maxFine > 0 ? Math.min(amount, maxFine) : amount;
+};
 const buildResetPasswordUrl = (token) => {
   const config = getEmailConfig();
   return `${config.appPublicUrl.replace(/\/$/, '')}/login?token=${encodeURIComponent(token)}`;
@@ -565,10 +569,19 @@ exports.getUserBorrowRecords = (req, res) => {
           
           const overdueCount = overdueResult.overdue_count || 0;
           
-          // 获取每日罚款金额
-          db.get('SELECT value FROM system_settings WHERE key = ?', ['fine_per_day'], (err, settingRow) => {
-            const parsedFinePerDay = (!err && settingRow) ? parseFloat(settingRow.value) : NaN;
-            const finePerDay = Number.isNaN(parsedFinePerDay) ? 0.5 : parsedFinePerDay;
+          // 获取罚款开关、每日罚款金额和单条罚款上限
+          db.all('SELECT key, value FROM system_settings WHERE key IN (?, ?, ?)', ['fine_enabled', 'fine_per_day', 'max_fine'], (err, settings) => {
+            const settingsMap = {};
+            if (!err && Array.isArray(settings)) {
+              settings.forEach(setting => {
+                settingsMap[setting.key] = setting.value;
+              });
+            }
+            const fineEnabled = settingsMap.fine_enabled !== '0';
+            const parsedFinePerDay = settingsMap.fine_per_day !== undefined ? parseFloat(settingsMap.fine_per_day) : NaN;
+            const parsedMaxFine = settingsMap.max_fine !== undefined ? parseFloat(settingsMap.max_fine) : NaN;
+            const finePerDay = fineEnabled && !Number.isNaN(parsedFinePerDay) ? parsedFinePerDay : 0;
+            const maxFine = !Number.isNaN(parsedMaxFine) && parsedMaxFine > 0 ? parsedMaxFine : 0;
             const today = new Date().toISOString().split('T')[0];
 
             // 获取用户借阅记录
@@ -588,14 +601,18 @@ exports.getUserBorrowRecords = (req, res) => {
                   return;
                 }
 
-                // 对 overdue 状态的记录实时计算预估罚款
+                // 对 overdue 状态的记录实时计算预估罚款；罚款关闭时不展示未归还记录的预计罚款
                 const enrichedRecords = records.map(record => {
                   if (record.status === 'overdue' && record.due_date) {
+                    if (!fineEnabled) {
+                      record.fine = 0;
+                      return record;
+                    }
                     const dueDate = new Date(record.due_date);
                     const todayDate = new Date(today);
                     const daysOverdue = Math.ceil((todayDate - dueDate) / (1000 * 60 * 60 * 24));
                     if (daysOverdue > 0) {
-                      record.fine = parseFloat((daysOverdue * finePerDay).toFixed(2));
+                      record.fine = applyMaxFine(parseFloat((daysOverdue * finePerDay).toFixed(2)), maxFine);
                     }
                   }
                   return record;

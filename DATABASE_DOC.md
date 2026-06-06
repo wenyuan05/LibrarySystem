@@ -42,6 +42,7 @@
 - borrow_enabled: 1 (是否启用借阅功能，1=启用，0=关闭)
 - borrow_period_days: 14 (借阅期限，天)
 - fine_per_day: 0.5 (每天罚款金额)
+- max_fine: 0 (单条借阅记录最高罚款金额，0=不封顶)
 - max_borrows: 5 (最大借阅数量)
 - max_reservations: 3 (最大预约数量)
 - blacklist_days: 30 (拉黑天数)
@@ -375,6 +376,7 @@ system_settings
 - borrow_enabled: 1
 - borrow_period_days: 14
 - fine_per_day: 0.5
+- max_fine: 0
 - max_borrows: 5
 - max_reservations: 3
 - blacklist_days: 30
