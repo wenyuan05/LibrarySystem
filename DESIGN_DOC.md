@@ -294,7 +294,7 @@ backend/
   - getAllUsers：获取所有用户
   - addUser：添加用户
   - updateUser：更新用户信息
-  - deleteUser：删除用户
+  - deleteUser：软删除用户
   - getUserBorrowRecords：获取用户借阅记录
   - blockUser：拉黑用户
   - unblockUser：解除拉黑
@@ -431,7 +431,7 @@ backend/
 - **默认账号控制**：生产环境默认不插入示例账号，演示环境需显式启用 `SEED_DEFAULT_USERS`
 - **危险操作护栏**：删除用户、删除书籍、删除副本和减少副本数量都由后端做完整性校验，不只依赖前端确认
 - **活跃借阅状态**：`borrowing`、`borrowed`、`overdue`、`returning` 均视为活跃状态，用于阻止用户删除、书籍删除和重复借阅
-- **删除用户限制**：禁止删除当前账号、管理员账号、存在活跃借阅记录或存在 `active` / `pending` 预约记录的用户
+- **删除用户限制**：禁止删除当前账号、管理员账号、存在活跃借阅记录、`active` / `pending` 预约记录、实际未付罚款或 pending 支付订单的用户；通过 `user_status.status = deleted` 软删除保留借阅、罚款和支付审计历史
 - **删除书籍限制**：存在活跃借阅记录、活跃预约，或存在 `borrowing`、`borrowed`、`reserved` 状态副本时禁止删除
 - **副本库存一致性**：单副本删除只能删除 `available` 副本且必须保留至少一个副本；新增、删除或状态变化后会在事务中重新计算 `books.total_copies` 与 `books.available_copies`
 - **日志清理校验**：系统日志清理会校验 `days` 范围后再执行删除，避免非法参数触发非预期清理

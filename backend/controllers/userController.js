@@ -34,13 +34,23 @@ const findUserByUsernameOrEmail = (username, email, callback) => {
 // 用户登录
 exports.login = (req, res) => {
   const { username, password } = req.body;
-  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+  db.get(
+    `SELECT u.*, COALESCE(us.status, 'active') as account_status
+     FROM users u
+     LEFT JOIN user_status us ON u.id = us.user_id
+     WHERE u.username = ?`,
+    [username],
+    async (err, user) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     if (!user) {
       res.status(401).json({ error: 'Invalid username or password' });
+      return;
+    }
+    if (user.account_status === 'deleted') {
+      res.status(403).json({ error: 'This account has been deleted' });
       return;
     }
 
@@ -238,7 +248,8 @@ exports.getAllUsers = (req, res) => {
     `SELECT u.id, u.username, u.role, u.name, u.email, u.phone, u.address, 
             COALESCE(us.status, 'active') as status 
      FROM users u 
-     LEFT JOIN user_status us ON u.id = us.user_id`,
+     LEFT JOIN user_status us ON u.id = us.user_id
+     WHERE COALESCE(us.status, 'active') != 'deleted'`,
     (err, users) => {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -504,26 +515,65 @@ exports.deleteUser = (req, res) => {
                   return;
                 }
 
-                db.run('DELETE FROM user_status WHERE user_id = ?', [userId], (err) => {
+                db.get(
+                  `SELECT COALESCE(SUM(fine), 0) as unpaid_fine
+                   FROM borrow_records
+                   WHERE user_id = ?
+                     AND status IN ('returning', 'returned')
+                     AND fine > 0
+                     AND fine_status = 'unpaid'`,
+                  [userId],
+                  (err, fineResult) => {
                   if (err) {
                     db.run('ROLLBACK');
                     res.status(500).json({ error: err.message });
                     return;
                   }
 
-                  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+                  if ((fineResult.unpaid_fine || 0) > 0) {
+                    db.run('ROLLBACK');
+                    res.status(400).json({ error: 'Cannot delete user: they have unpaid fines' });
+                    return;
+                  }
+
+                  db.get(
+                    'SELECT COUNT(*) as count FROM payments WHERE user_id = ? AND status = ?',
+                    [userId, 'pending'],
+                    (err, paymentResult) => {
                     if (err) {
                       db.run('ROLLBACK');
                       res.status(500).json({ error: err.message });
                       return;
                     }
 
-                    db.run('COMMIT', (err) => {
+                    if (paymentResult.count > 0) {
+                      db.run('ROLLBACK');
+                      res.status(400).json({ error: 'Cannot delete user: they have pending payment orders' });
+                      return;
+                    }
+
+                    db.run(
+                      `INSERT INTO user_status (user_id, status, blacklisted_until)
+                       VALUES (?, 'deleted', NULL)
+                       ON CONFLICT(user_id) DO UPDATE SET
+                         status = 'deleted',
+                         blacklisted_until = NULL,
+                         updated_at = CURRENT_TIMESTAMP`,
+                      [userId],
+                      (err) => {
                       if (err) {
+                        db.run('ROLLBACK');
                         res.status(500).json({ error: err.message });
                         return;
                       }
-                      res.json({ message: 'User deleted' });
+
+                      db.run('COMMIT', (err) => {
+                        if (err) {
+                          res.status(500).json({ error: err.message });
+                          return;
+                        }
+                        res.json({ message: 'User deleted' });
+                      });
                     });
                   });
                 });

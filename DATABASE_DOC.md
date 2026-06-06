@@ -84,7 +84,7 @@
 |--------|----------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主键 |
 | user_id | INTEGER | NOT NULL UNIQUE | 用户ID，外键关联users表 |
-| status | TEXT | DEFAULT 'active' | 用户状态（active/blocked） |
+| status | TEXT | DEFAULT 'active' | 用户状态（active/blocked/deleted） |
 | blacklisted_until | TEXT | | 拉黑截止时间 |
 | created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
@@ -405,7 +405,8 @@ system_settings
    - 预约记录中 `active`、`pending` 视为活跃预约，用于删除保护
    - 副本状态中 `borrowing`、`borrowed`、`reserved` 视为占用状态，用于书籍删除保护
 7. **删除与库存一致性**：
-   - 用户存在活跃借阅或活跃预约时不能删除
+   - 用户存在活跃借阅、活跃预约、实际未付罚款或 pending 支付订单时不能删除
+   - 删除用户为软删除：保留 `users`、`borrow_records`、`payments` 等历史关联，仅将 `user_status.status` 置为 `deleted`；登录和用户列表会排除 deleted 账号
    - 图书存在活跃借阅、活跃预约或占用副本时不能删除
    - `book_copies` 只能删除 `available` 状态副本，且每本书至少保留一个副本
    - 删除副本后在同一事务中从 `book_copies` 重新计算 `books.total_copies` 和 `books.available_copies`

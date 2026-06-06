@@ -169,14 +169,17 @@
 ```
 
 #### 3.1.7 DELETE /api/users/:id
-**功能**：删除用户
-**权限**：admin/librarian
+**功能**：删除用户（软删除）
+**权限**：admin
 
 **安全规则**：
 - 不能删除当前登录账号
 - 不能删除管理员账号
 - 存在 `borrowing`、`borrowed`、`overdue`、`returning` 借阅记录时禁止删除
 - 存在 `active` 或 `pending` 预约记录时禁止删除
+- 存在 `returning` 或 `returned` 实际未支付罚款时禁止删除
+- 存在 `pending` 支付订单时禁止删除
+- 删除不会物理移除 `users` 记录，而是将 `user_status.status` 更新为 `deleted`；用户列表和登录会排除 deleted 账号，借阅、罚款和支付历史保留用于审计
 
 **响应**：
 ```json

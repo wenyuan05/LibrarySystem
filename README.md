@@ -464,7 +464,7 @@ npm run dev
 ### 用户、公告与系统管理
 
 - 用户管理支持新增、编辑、删除、搜索和分页；邮箱字段提供格式校验。
-- 管理员不能删除自己；删除用户会受到活跃借阅、预约和角色规则保护。
+- 管理员不能删除自己；删除用户会受到活跃借阅、预约、未付罚款、待支付订单和角色规则保护，删除通过 `user_status = deleted` 软删除保留历史记录。
 - 公告管理支持创建、编辑、发布开关和列表管理；公告弹窗脱离页面容器限制，完整展示文本。
 - 系统日志支持分页、升序/降序、关键词、操作类型、用户 ID 和创建日期范围过滤。
 - System Settings 只展示已接入业务逻辑的设置项：`borrow_enabled`、`reservation_enabled`、`borrow_period_days`、`max_borrows`、`borrow_confirm_minutes`、`max_renew_times`、`renew_days`、`fine_enabled`、`fine_per_day`、`max_fine`。
