@@ -213,6 +213,23 @@ BACKEND_PROXY_MODE=auto
 BACKEND_PROXY_HOST=127.0.0.1
 BACKEND_PROXY_PORT=7890
 
+# Alipay sandbox payment configuration
+ALIPAY_ENABLED=false
+ALIPAY_MODE=sandbox
+ALIPAY_APP_ID=your_sandbox_app_id
+# 支持完整 PEM，也支持直接粘贴支付宝沙箱里的一行 base64 key body
+ALIPAY_PRIVATE_KEY=your_app_private_key_body
+ALIPAY_PUBLIC_KEY=your_alipay_public_key_body
+ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+ALIPAY_NOTIFY_URL=http://localhost:3001/api/payments/alipay/notify
+ALIPAY_RETURN_URL=http://localhost:5173/payment-result
+ALIPAY_SIMULATION_ENABLED=true
+ALIPAY_SIGN_TYPE=RSA2
+ALIPAY_CHARSET=utf-8
+ALIPAY_FORMAT=json
+ALIPAY_TIMEOUT_MS=10000
+
+
 # Email delivery configuration
 # QQ Mail uses an SMTP authorization code instead of the mailbox login password.
 EMAIL_ENABLED=false
