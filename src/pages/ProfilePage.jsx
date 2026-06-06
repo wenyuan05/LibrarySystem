@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
 import { Link } from 'react-router-dom';
@@ -161,12 +162,13 @@ const ProfilePage = () => {
             </button>
           </div>
         </>
-      ) : (
+      ) : createPortal(
         <EditUserForm 
           user={profile}
           onUserUpdated={handleProfileUpdated}
           onCancel={() => setIsEditing(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );
