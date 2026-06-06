@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
@@ -207,12 +208,13 @@ const UserList = () => {
       )}
 
       {/* 编辑用户表单 */}
-      {editingUser && (
+      {editingUser && createPortal(
         <EditUserForm 
           user={editingUser}
           onUserUpdated={handleUserUpdated}
           onCancel={handleCancelEdit}
-        />
+        />,
+        document.body
       )}
       
       <div id="user-list-table-top" />

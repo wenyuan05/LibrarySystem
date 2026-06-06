@@ -224,7 +224,7 @@ const BookManagementPage = () => {
         document.body
       )}
 
-      {managingCopiesBook && (
+      {managingCopiesBook && createPortal(
         <CopyManagementModal
           book={managingCopiesBook}
           onClose={() => setManagingCopiesBook(null)}
@@ -232,7 +232,8 @@ const BookManagementPage = () => {
             handleBookUpdated(updatedBook);
             setManagingCopiesBook(updatedBook);
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Book List (with edit functionality) */}

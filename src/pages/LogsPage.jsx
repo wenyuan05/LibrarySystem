@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { logAPI } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { scrollToListTop } from '../utils/scrollToListTop';
@@ -324,7 +325,7 @@ const LogsPage = () => {
       )}
 
       {/* Clear logs modal */}
-      {showClearModal && (
+      {showClearModal && createPortal((
         <div className="modal-overlay">
           <div className="modal">
             <h3>Clear System Logs</h3>
@@ -377,7 +378,7 @@ const LogsPage = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

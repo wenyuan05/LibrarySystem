@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 
+import { createPortal } from 'react-dom';
 import { motion as Motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -843,7 +844,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
       {/* 确认借阅模态框 */}
 
-      {showConfirmModal && selectedBorrowRecord && (
+      {showConfirmModal && selectedBorrowRecord && createPortal((
 
         <div className="modal-overlay">
 
@@ -949,7 +950,7 @@ const BookList = ({ books = [], loading = false, onBookUpdated, onBookDeleted, o
 
         </div>
 
-      )}
+      ), document.body)}
 
     </div>
 

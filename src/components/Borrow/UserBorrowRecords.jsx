@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { usersAPI, borrowAPI, booksAPI, systemAPI } from '../../utils/api';
@@ -299,6 +300,10 @@ const UserBorrowRecords = () => {
         <div className="borrow-records-header">
           <h3>User Borrow Records</h3>
           <div className="borrow-records-header-actions">
+            <div className={`fine-feature-status ${fineFeatureEnabled ? 'enabled' : 'disabled'}`}>
+              <span className="fine-feature-dot" />
+              <span>{fineFeatureEnabled ? 'Fines On' : 'Fines Off'}</span>
+            </div>
             {overdueCount > 0 && (
               <div className="overdue-count">
                 <span className="overdue-badge">{overdueCount}</span>
@@ -511,7 +516,7 @@ const UserBorrowRecords = () => {
         )}
       </div>
 
-      {showConfirmModal && confirmRecord && (
+      {showConfirmModal && confirmRecord && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
@@ -580,7 +585,7 @@ const UserBorrowRecords = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/ToastContext';
@@ -376,7 +377,7 @@ const BookDetailsPage = () => {
       </div>
 
       {/* 确认借阅模态框 */}
-      {showConfirmModal && (
+      {showConfirmModal && createPortal((
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
@@ -434,7 +435,7 @@ const BookDetailsPage = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };
